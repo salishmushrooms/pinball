@@ -1,0 +1,41 @@
+{
+  "description": "Machine alias mapping for data cleaning - maps alternative machine names to canonical machine keys",
+  "aliases": {
+    "Dungeons and Dragons Stern": "SDND",
+    "Theatre of Magic": "TOM",
+    "Medieval Madness": "MM",
+    "Twilight Zone": "TZ",
+    "Tales of the Arabian Nights": "TOTAN",
+    "Pulp Fiction": "PULP",
+    "Stranger Things": "StrangerThings",
+    "Uncanny X-men": "UXMEN",
+    "Uncanny X-men ": "UXMEN",
+    "Indiana Jones Adventure (Williams)": "Indy",
+    "The Big Lewbowski": "TBL",
+    "Elton John": "EJ",
+    "John Wick": "JW",
+    "James Bond 007 (Thunderball/Dr No)": "007",
+    "Guardians of the Galaxy": "Guardians",
+    "Cactus Canyon": "CactusCanyon",
+    "Champion Pub": "ChampPub",
+    "South Park": "SouthPark",
+    "Godzilla": "Godzilla",
+    "Taxi": "Taxi",
+    "Jaws": "Jaws"
+  },
+  "normalization_rules": [
+    {
+      "description": "Remove trailing spaces from machine names",
+      "pattern": "\\s+$",
+      "replacement": ""
+    },
+    {
+      "description": "Standardize D&D machine names",
+      "exact_matches": {
+        "Dungeons and Dragons Stern": "SDND",
+        "Dungeons and Dragons (Stern)": "SDND",
+        "D&D Stern": "SDND"
+      }
+    }
+  ]
+}

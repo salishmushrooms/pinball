@@ -1,0 +1,42 @@
+{
+  "report_type": "venue_summary",
+  "target_venue": {
+    "code": "T4B",
+    "name": "4Bs Tavern"
+  },
+  "season": "21",
+  "data_filters": {
+    "include_incomplete_matches": false,
+    "exclude_unreliable_scores": true,
+    "min_players_per_game": 1
+  },
+  "score_reliability": {
+    "rounds_1_4": {
+      "reliable_positions": [1, 2, 3],
+      "unreliable_positions": [4]
+    },
+    "rounds_2_3": {
+      "reliable_positions": [1],
+      "less_reliable_positions": [2]
+    }
+  },
+  "statistics_to_calculate": {
+    "per_machine": [
+      "median_score",
+      "percentile_75",
+      "total_games"
+    ],
+    "venue_summary": [
+      "total_matches",
+      "total_games", 
+      "unique_machines_played"
+    ]
+  },
+  "output_format": {
+    "format": "markdown",
+    "style": "simplified",
+    "include_charts": false,
+    "group_by_machine": true,
+    "sort_machines_by": "alphabetical"
+  }
+}
