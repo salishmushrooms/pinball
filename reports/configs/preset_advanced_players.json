@@ -1,0 +1,21 @@
+{
+  "description": "Analyze advanced players only (IPR 5-6)",
+  "season": "21",
+  "target_machine": "AFM",
+  "target_venue": null,
+  "ipr_filter": {
+    "min_ipr": 5,
+    "max_ipr": 6
+  },
+  "data_filters": {
+    "include_incomplete_matches": false
+  },
+  "score_reliability": {
+    "rounds_1_4": {
+      "reliable_positions": [1, 2, 3, 4]
+    },
+    "rounds_2_3": {
+      "reliable_positions": [1, 2]
+    }
+  }
+}

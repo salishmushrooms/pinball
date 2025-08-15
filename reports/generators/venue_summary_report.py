@@ -54,17 +54,25 @@ class VenueSummaryReporter:
         except json.JSONDecodeError:
             print(f"Warning: Error reading {machines_file}. Using machine keys as names.")
         
-        # Load machine aliases for data cleaning
-        aliases_file = "reports/configs/machine_aliases.json"
+        # Load machine variations for data cleaning
+        variations_file = "machine_variations.json"
         try:
-            with open(aliases_file, 'r') as f:
-                aliases_data = json.load(f)
-                self.machine_aliases = aliases_data.get('aliases', {})
-            print(f"Loaded {len(self.machine_aliases)} machine aliases for data cleaning")
+            with open(variations_file, 'r') as f:
+                variations_data = json.load(f)
+                # Convert variations format to alias mapping for backwards compatibility
+                self.machine_aliases = {}
+                alias_count = 0
+                for canonical_key, machine_info in variations_data.items():
+                    if isinstance(machine_info, dict) and 'variations' in machine_info:
+                        for variation in machine_info['variations']:
+                            self.machine_aliases[variation.lower()] = canonical_key
+                            self.machine_aliases[variation] = canonical_key  # Keep case-sensitive mapping
+                            alias_count += 1
+            print(f"Loaded {alias_count} machine variations for data cleaning")
         except FileNotFoundError:
-            print(f"Warning: {aliases_file} not found. No alias mapping applied.")
+            print(f"Warning: {variations_file} not found. No alias mapping applied.")
         except json.JSONDecodeError:
-            print(f"Warning: Error reading {aliases_file}. No alias mapping applied.")
+            print(f"Warning: Error reading {variations_file}. No alias mapping applied.")
     
     def normalize_machine_key(self, machine_key: str) -> str:
         """Normalize machine key using alias mapping for data cleaning."""

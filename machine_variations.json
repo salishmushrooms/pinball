@@ -1,0 +1,1953 @@
+{
+  "Ali": {
+    "name": "Ali",
+    "variations": [
+      "ali"
+    ]
+  },
+  "EBD": {
+    "name": "Eight Ball Deluxe",
+    "variations": [
+      "ebd",
+      "eightballdeluxe",
+      "eight ball",
+      "8 ball"
+    ]
+  },
+  "8Ball": {
+    "name": "Eight Ball",
+    "variations": [
+      "8ball",
+      "eight ball",
+      "8 ball"
+    ]
+  },
+  "9Ball": {
+    "name": "Nine Ball",
+    "variations": [
+      "9ball",
+      "nine ball",
+      "9 ball"
+    ]
+  },
+  "ACDC": {
+    "name": "AC/DC",
+    "variations": [
+      "acdc",
+      "ac/dc"
+    ]
+  },
+  "TOTAN": {
+    "name": "Tales of the Arabian Nights",
+    "variations": [
+      "totan",
+      "Tales of the Arabian Nights"
+    ]
+  },
+  "TAF": {
+    "name": "The Addams Family",
+    "variations": [
+      "taf",
+      "addamsfamily",
+      "addams family"
+    ]
+  },
+  "AFM": {
+    "name": "Attack From Mars",
+    "variations": [
+      "afm",
+      "attackfrommars",
+      "attack from mars"
+    ]
+  },
+  "AlienPoker": {
+    "name": "Alien Poker",
+    "variations": [
+      "alienpoker"
+    ]
+  },
+  "AMH": {
+    "name": "America's Most Haunted",
+    "variations": [
+      "amh",
+      "americasmosthaunted",
+      "americas most haunted"
+    ]
+  },
+  "Atlantis": {
+    "name": "Atlantis",
+    "variations": [
+      "atlantis"
+    ]
+  },
+  "AustinPowers": {
+    "name": "Austin Powers",
+    "variations": [
+      "austinpowers"
+    ]
+  },
+  "Avatar": {
+    "name": "Avatar",
+    "variations": [
+      "avatar"
+    ]
+  },
+  "Avengers": {
+    "name": "Avengers",
+    "variations": [
+      "avengers",
+      "avengersinfinityquest",
+      "avengers infinity quest",
+      "Avengers: Infinity Quest"
+    ]
+  },
+  "BadCats": {
+    "name": "Bad Cats",
+    "variations": [
+      "badcats"
+    ]
+  },
+  "BanzaiRun": {
+    "name": "BanzaiRun",
+    "variations": [
+      "banzairun",
+      "Banzai Run"
+    ]
+  },
+  "BDK": {
+    "name": "Batman Dark Knight (Stern)",
+    "variations": [
+      "bdk",
+      "batmandarkknight",
+      "batman dark knight",
+      "dark knight"
+    ]
+  },
+  "BatmanDE": {
+    "name": "Batman Data East",
+    "variations": [
+      "batmande"
+    ]
+  },
+  "BatmanF": {
+    "name": "Batman Forever (SEGA)",
+    "variations": [
+      "batmanf",
+      "batman forever"
+    ]
+  },
+  "BM66": {
+    "name": "Batman 66",
+    "variations": [
+      "bm66"
+    ]
+  },
+  "BeatClock": {
+    "name": "Beat the Clock",
+    "variations": [
+      "beatclock"
+    ]
+  },
+  "BigGuns": {
+    "name": "Big Guns",
+    "variations": [
+      "bigguns"
+    ]
+  },
+  "BlackHole": {
+    "name": "Black Hole",
+    "variations": [
+      "blackhole"
+    ]
+  },
+  "BlackKnight": {
+    "name": "Black Knight",
+    "variations": [
+      "blackknight",
+      "black knight"
+    ]
+  },
+  "BK2K": {
+    "name": "Black Knight 2000",
+    "variations": [
+      "bk2k",
+      "blackknight2000",
+      "black knight 2000"
+    ]
+  },
+  "Blackout": {
+    "name": "Blackout",
+    "variations": [
+      "blackout"
+    ]
+  },
+  "BlackRose": {
+    "name": "Black Rose",
+    "variations": [
+      "blackrose"
+    ]
+  },
+  "BOP": {
+    "name": "Bride of Pinbot",
+    "variations": [
+      "bop"
+    ]
+  },
+  "BOP2": {
+    "name": "Bride of Pinbot 2.0",
+    "variations": [
+      "bop2"
+    ]
+  },
+  "Breakshot": {
+    "name": "Breakshot",
+    "variations": [
+      "breakshot"
+    ]
+  },
+  "BSD": {
+    "name": "Bram Stoker's Dracula",
+    "variations": [
+      "bsd",
+      "dracula"
+    ]
+  },
+  "Centaur": {
+    "name": "Centaur",
+    "variations": [
+      "centaur"
+    ]
+  },
+  "ChampPub": {
+    "name": "Champion Pub",
+    "variations": [
+      "champpub"
+    ]
+  },
+  "Checkpoint": {
+    "name": "Checkpoint",
+    "variations": [
+      "checkpoint"
+    ]
+  },
+  "Cheetah": {
+    "name": "Cheetah",
+    "variations": [
+      "cheetah"
+    ]
+  },
+  "CV": {
+    "name": "Circus Voltaire",
+    "variations": [
+      "cv"
+    ]
+  },
+  "CFTBL": {
+    "name": "Creature from the Black Lagoon",
+    "variations": [
+      "cftbl"
+    ]
+  },
+  "Congo": {
+    "name": "Congo",
+    "variations": [
+      "congo"
+    ]
+  },
+  "CSI": {
+    "name": "CSI",
+    "variations": [
+      "csi"
+    ]
+  },
+  "DH": {
+    "name": "Dirty Harry",
+    "variations": [
+      "dh"
+    ]
+  },
+  "Diner": {
+    "name": "Diner",
+    "variations": [
+      "diner"
+    ]
+  },
+  "DM": {
+    "name": "Demolition Man",
+    "variations": [
+      "dm"
+    ]
+  },
+  "Dragonfist": {
+    "name": "Dragonfist",
+    "variations": [
+      "dragonfist"
+    ]
+  },
+  "DrWho": {
+    "name": "Dr Who",
+    "variations": [
+      "drwho"
+    ]
+  },
+  "Earthshaker": {
+    "name": "Earthshaker",
+    "variations": [
+      "earthshaker"
+    ]
+  },
+  "Elvira": {
+    "name": "Elvira and the Party Monsters",
+    "variations": [
+      "elvira"
+    ]
+  },
+  "Elvis": {
+    "name": "Elvis",
+    "variations": [
+      "elvis"
+    ]
+  },
+  "Embryon": {
+    "name": "Embryon",
+    "variations": [
+      "embryon"
+    ]
+  },
+  "EK": {
+    "name": "Evel Knievel",
+    "variations": [
+      "ek"
+    ]
+  },
+  "F-14": {
+    "name": "F-14",
+    "variations": [
+      "f-14",
+      "F-14 Tomcat"
+    ]
+  },
+  "Fathom": {
+    "name": "Fathom",
+    "variations": [
+      "fathom"
+    ]
+  },
+  "FG": {
+    "name": "Family Guy",
+    "variations": [
+      "fg"
+    ]
+  },
+  "FT": {
+    "name": "Fish Tales",
+    "variations": [
+      "ft"
+    ]
+  },
+  "FH": {
+    "name": "Funhouse",
+    "variations": [
+      "fh"
+    ]
+  },
+  "Fire": {
+    "name": "Fire",
+    "variations": [
+      "fire"
+    ]
+  },
+  "Firepower": {
+    "name": "Firepower",
+    "variations": [
+      "firepower"
+    ]
+  },
+  "Flintstones": {
+    "name": "Flintstones",
+    "variations": [
+      "flintstones"
+    ]
+  },
+  "Flight2000": {
+    "name": "Flight 2000",
+    "variations": [
+      "flight2000"
+    ]
+  },
+  "Freddy": {
+    "name": "Freddy Nightmare on Elm Street",
+    "variations": [
+      "freddy"
+    ]
+  },
+  "FullT": {
+    "name": "Full Throttle",
+    "variations": [
+      "fullt"
+    ]
+  },
+  "TFTC": {
+    "name": "Tales from the Crypt",
+    "variations": [
+      "tftc"
+    ]
+  },
+  "Genie": {
+    "name": "Genie",
+    "variations": [
+      "genie"
+    ]
+  },
+  "Genesis": {
+    "name": "Genesis",
+    "variations": [
+      "genesis"
+    ]
+  },
+  "Getaway": {
+    "name": "HS2 The Getaway",
+    "variations": [
+      "getaway"
+    ]
+  },
+  "Ghost": {
+    "name": "Ghostbusters",
+    "variations": [
+      "ghost"
+    ]
+  },
+  "GLizard": {
+    "name": "Grand Lizard",
+    "variations": [
+      "glizard"
+    ]
+  },
+  "GNR": {
+    "name": "Guns and Roses",
+    "variations": [
+      "gnr"
+    ]
+  },
+  "Goldeneye": {
+    "name": "Goldeneye 007",
+    "variations": [
+      "goldeneye"
+    ]
+  },
+  "Gorgar": {
+    "name": "Gorgar",
+    "variations": [
+      "gorgar"
+    ]
+  },
+  "GOT": {
+    "name": "Game of Thrones",
+    "variations": [
+      "got",
+      "game of thrones"
+    ]
+  },
+  "HardBody": {
+    "name": "Hard Body",
+    "variations": [
+      "hardbody"
+    ]
+  },
+  "Harlem": {
+    "name": "Harlem Globetrotters",
+    "variations": [
+      "harlem"
+    ]
+  },
+  "HH": {
+    "name": "Haunted House",
+    "variations": [
+      "hh"
+    ]
+  },
+  "HighSpeed": {
+    "name": "High Speed",
+    "variations": [
+      "highspeed"
+    ]
+  },
+  "Hobbit": {
+    "name": "The Hobbit",
+    "variations": [
+      "hobbit"
+    ]
+  },
+  "Hook": {
+    "name": "Hook",
+    "variations": [
+      "hook"
+    ]
+  },
+  "Hurricane": {
+    "name": "Hurricane",
+    "variations": [
+      "hurricane"
+    ]
+  },
+  "Indy": {
+    "name": "Indiana Jones Adventure (Williams)",
+    "variations": [
+      "indy", "indiana jones", "indiana jones adventure"
+    ]
+  },
+  "Indy500": {
+    "name": "Indianapolis 500",
+    "variations": [
+      "indy500"
+    ]
+  },
+  "IronMan": {
+    "name": "Iron Man",
+    "variations": [
+      "ironman"
+    ]
+  },
+  "Skindy": {
+    "name": "Stern Indiana Jones",
+    "variations": [
+      "skindy"
+    ]
+  },
+  "Jackbot": {
+    "name": "Jackbot",
+    "variations": [
+      "jackbot"
+    ]
+  },
+  "Jackbox": {
+    "name": "Jack in the Box",
+    "variations": [
+      "jackbox"
+    ]
+  },
+  "JD": {
+    "name": "Judge Dredd",
+    "variations": [
+      "jd"
+    ]
+  },
+  "JM": {
+    "name": "Johnny Mnemonic",
+    "variations": [
+      "jm"
+    ]
+  },
+  "Junkyard": {
+    "name": "Junkyard",
+    "variations": [
+      "junkyard",
+      "Junk Yard"
+    ]
+  },
+  "Jurassic": {
+    "name": "Jurassic Park (deprecated)",
+    "variations": [
+    ]
+  },
+  "KISS": {
+    "name": "KISS (Stern)",
+    "variations": [
+      "kiss"
+    ]
+  },
+  "BKISS": {
+    "name": "KISS (Bally)",
+    "variations": [
+      "bkiss"
+    ]
+  },
+  "Lightning": {
+    "name": "Lightning",
+    "variations": [
+      "lightning"
+    ]
+  },
+  "LostWorld": {
+    "name": "Lost World Jurassic Park",
+    "variations": [
+      "lostworld"
+    ]
+  },
+  "LuckyAce": {
+    "name": "Lucky Ace",
+    "variations": [
+      "luckyace"
+    ]
+  },
+  "LOTR": {
+    "name": "Lord of the Rings",
+    "variations": [
+      "lotr",
+      "lordoftherings",
+      "lord of the rings",
+      "lord"
+    ]
+  },
+  "Mario": {
+    "name": "Mario Brothers",
+    "variations": [
+      "mario"
+    ]
+  },
+  "Maverick": {
+    "name": "Maverick",
+    "variations": [
+      "maverick"
+    ]
+  },
+  "Medusa": {
+    "name": "Medusa",
+    "variations": [
+      "medusa"
+    ]
+  },
+  "Metallica": {
+    "name": "Metallica",
+    "variations": [
+      "metallica"
+    ]
+  },
+  "MNF": {
+    "name": "Monday Night Football",
+    "variations": [
+      "mnf"
+    ]
+  },
+  "Monopoly": {
+    "name": "Monopoly",
+    "variations": [
+      "monopoly"
+    ]
+  },
+  "MM": {
+    "name": "Medieval Madness",
+    "variations": [
+      "mm",
+      "medievalmadness",
+      "medieval madness",
+      "medieval",
+      "Medieval Madness"
+    ]
+  },
+  "MB": {
+    "name": "Monster Bash",
+    "variations": [
+      "monster",
+      "monsterbash",
+      "monster bash",
+      "Monster Bash"
+    ]
+  },
+  "Mousin": {
+    "name": "Mousin Around",
+    "variations": [
+      "mousin"
+    ]
+  },
+  "Mustang": {
+    "name": "Mustang",
+    "variations": [
+      "mustang"
+    ]
+  },
+  "Mystic": {
+    "name": "Mystic",
+    "variations": [
+      "mystic"
+    ]
+  },
+  "Nascar": {
+    "name": "Nascar",
+    "variations": [
+      "nascar"
+    ]
+  },
+  "NBAFB": {
+    "name": "NBA Fastbreak",
+    "variations": [
+      "nbafb"
+    ]
+  },
+  "NGG": {
+    "name": "No Good Gofers",
+    "variations": [
+      "ngg"
+    ]
+  },
+  "Nitro": {
+    "name": "Nitro Groundshaker",
+    "variations": [
+      "nitro"
+    ]
+  },
+  "Party Animal" : {
+    "name": "Party Animal",
+    "variations": [
+      "partyanimal",
+      "Party Animals"
+    ]
+  },
+  "NoFear": {
+    "name": "No Fear",
+    "variations": [
+      "nofear"
+    ]
+  },
+  "Paragon": {
+    "name": "Paragon",
+    "variations": [
+      "paragon"
+    ]
+  },
+  "PartyZone": {
+    "name": "Party Zone",
+    "variations": [
+      "partyzone"
+    ]
+  },
+  "Pinbot": {
+    "name": "Pinbot",
+    "variations": [
+      "pinbot"
+    ]
+  },
+  "PBR": {
+    "name": "PBR Can Crusher",
+    "variations": [
+      "pbr"
+    ]
+  },
+  "PF": {
+    "name": "Police Force",
+    "variations": [
+      "pf"
+    ]
+  },
+  "Popeye": {
+    "name": "Popeye Saves the Earth",
+    "variations": [
+      "popeye"
+    ]
+  },
+  "POTC": {
+    "name": "Pirates of the Caribbean",
+    "variations": [
+      "potc"
+    ]
+  },
+  "POTO": {
+    "name": "Phantom Of The Opera",
+    "variations": [
+      "poto"
+    ]
+  },
+  "Radical": {
+    "name": "Radical",
+    "variations": [
+      "radical"
+    ]
+  },
+  "RBION": {
+    "name": "Ripley's Believe it or Not",
+    "variations": [
+      "rbion"
+    ]
+  },
+  "RFM": {
+    "name": "Revenge From Mars",
+    "variations": [
+      "rfm"
+    ]
+  },
+  "RS": {
+    "name": "Road Show",
+    "variations": [
+      "rs"
+    ]
+  },
+  "Robocop": {
+    "name": "Robocop",
+    "variations": [
+      "robocop"
+    ]
+  },
+  "RB": {
+    "name": "Rocky and Bullwinkle",
+    "variations": [
+      "rb"
+    ]
+  },
+  "RollerCoaster": {
+    "name": "Roller Coaster Tycoon",
+    "variations": [
+      "rollercoaster"
+    ]
+  },
+  "RollerGames": {
+    "name": "Roller Games",
+    "variations": [
+      "rollergames"
+    ]
+  },
+  "RZ": {
+    "name": "Rob Zombie's Spookshow",
+    "variations": [
+      "rz"
+    ]
+  },
+  "SC": {
+    "name": "Safe Cracker",
+    "variations": [
+      "sc"
+    ]
+  },
+  "Scorpion": {
+    "name": "Scorpion",
+    "variations": [
+      "scorpion"
+    ]
+  },
+  "Shadow": {
+    "name": "The Shadow",
+    "variations": [
+      "shadow"
+    ]
+  },
+  "SS": {
+    "name": "Scared Stiff",
+    "variations": [
+      "ss"
+    ]
+  },
+  "SF2": {
+    "name": "Street Fighter 2",
+    "variations": [
+      "sf2"
+    ]
+  },
+  "SoF": {
+    "name": "Swords Of Fury",
+    "variations": [
+      "sof"
+    ]
+  },
+  "SouthPark": {
+    "name": "South Park",
+    "variations": [
+      "southpark"
+    ]
+  },
+  "SpaceJam": {
+    "name": "Space Jam",
+    "variations": [
+      "spacejam"
+    ]
+  },
+  "SpaceShuttle": {
+    "name": "Space Shuttle",
+    "variations": [
+      "spaceshuttle"
+    ]
+  },
+  "SpaceStation": {
+    "name": "Space Station",
+    "variations": [
+      "spacestation"
+    ]
+  },
+  "SpeakEasy": {
+    "name": "Speak Easy",
+    "variations": [
+      "speakeasy"
+    ]
+  },
+  "SpecialForce": {
+    "name": "Special Force",
+    "variations": [
+      "specialforce"
+    ]
+  },
+  "Spiderman": {
+    "name": "Spider-man (Stern)",
+    "variations": [
+      "spiderman"
+    ]
+  },
+  "Stars": {
+    "name": "Stars",
+    "variations": [
+      "stars"
+    ]
+  },
+  "StellarWars": {
+    "name": "Stellar Wars",
+    "variations": [
+      "stellarwars"
+    ]
+  },
+  "SternTrek": {
+    "name": "Star Trek (Stern)",
+    "variations": [
+      "sterntrek"
+    ]
+  },
+  "StarTrek": {
+    "name": "Star Trek (Data East)",
+    "variations": [
+      "startrek"
+    ]
+  },
+  "SNS": {
+    "name": "Strikes and Spares",
+    "variations": [
+      "sns"
+    ]
+  },
+  "STTNG": {
+    "name": "Star Trek Next Generation (WMS)",
+    "variations": [
+      "sttng"
+    ]
+  },
+  "StarWars": {
+    "name": "Star Wars (Data East)",
+    "variations": [
+      "starwars"
+    ]
+  },
+  "StarWarsE1": {
+    "name": "Star Wars Episode 1 (Pinball 2000)",
+    "variations": [
+      "starwarse1"
+    ]
+  },
+  "Troopers": {
+    "name": "Starship Troopers",
+    "variations": [
+      "troopers"
+    ]
+  },
+  "Sopranos": {
+    "name": "The Sopranos",
+    "variations": [
+      "sopranos"
+    ]
+  },
+  "Superman": {
+    "name": "Superman",
+    "variations": [
+      "superman"
+    ]
+  },
+  "Supersonic": {
+    "name": "Supersonic",
+    "variations": [
+      "supersonic"
+    ]
+  },
+  "SurfChamp": {
+    "name": "Surf Champ",
+    "variations": [
+      "surfchamp"
+    ]
+  },
+  "T2": {
+    "name": "Terminator 2",
+    "variations": [
+      "t2",
+      "terminator2",
+      "terminator 2",
+      "terminator",
+      "T2"
+    ]
+  },
+  "T3": {
+    "name": "Terminator 3",
+    "variations": [
+      "t3"
+    ]
+  },
+  "Taxi": {
+    "name": "Taxi",
+    "variations": [
+      "taxi"
+    ]
+  },
+  "TF": {
+    "name": "Transformers",
+    "variations": [
+      "tf"
+    ]
+  },
+  "TMNT": {
+    "name": "Teenage Mutant Ninja Turtles",
+    "variations": [
+      "tmnt"
+    ]
+  },
+  "TOM": {
+    "name": "Theatre of Magic",
+    "variations": [
+      "tom",
+      "theatre of magic",
+      "theater of magic",
+      "theaterofmagic",
+      "Theater of Magic",
+      "Theatre of Magic"
+    ]
+  },
+  "Toledo": {
+    "name": "Toledo",
+    "variations": [
+      "toledo"
+    ]
+  },
+  "Tron": {
+    "name": "Tron",
+    "variations": [
+      "tron",
+      "tronlegacy",
+      "tron legacy",
+      "Tron Legacy",
+      "Tron: Legacy",
+      "TRON"
+    ]
+  },
+  "Scuba": {
+    "name": "Scuba",
+    "variations": [
+      "scuba"
+    ]
+  },
+  "Simpsons": {
+    "name": "Simpsons (Data East)",
+    "variations": [
+      "simpsons"
+    ]
+  },
+  "TSPP": {
+    "name": "The Simpsons Pinball Party",
+    "variations": [
+      "tspp"
+    ]
+  },
+  "TWD": {
+    "name": "The Walking Dead",
+    "variations": [
+      "twd"
+    ]
+  },
+  "TZ": {
+    "name": "Twilight Zone",
+    "variations": [
+      "tz",
+      "Twilight Zone"
+    ]
+  },
+  "TW": {
+    "name": "Time Warp",
+    "variations": [
+      "tw"
+    ]
+  },
+  "Whirlwind": {
+    "name": "Whirlwind",
+    "variations": [
+      "whirlwind"
+    ]
+  },
+  "Whitewater": {
+    "name": "White Water",
+    "variations": [
+      "whitewater"
+    ]
+  },
+  "Waterworld": {
+    "name": "Water World",
+    "variations": [
+      "waterworld"
+    ]
+  },
+  "WhoDunnit": {
+    "name": "Who Dunnit",
+    "variations": [
+      "whodunnit"
+    ]
+  },
+  "WhoaNellie": {
+    "name": "Whoa Nellie",
+    "variations": [
+      "whoanellie"
+    ]
+  },
+  "WCS": {
+    "name": "World Cup Soccer",
+    "variations": [
+      "wcs"
+    ]
+  },
+  "WOF": {
+    "name": "Wheel of Fortune",
+    "variations": [
+      "wof"
+    ]
+  },
+  "WOZ": {
+    "name": "Wizard of Oz",
+    "variations": [
+      "woz"
+    ]
+  },
+  "WPT": {
+    "name": "World Poker Tour",
+    "variations": [
+      "wpt"
+    ]
+  },
+  "WWE": {
+    "name": "WWE Wrestlemania",
+    "variations": [
+      "wwe"
+    ]
+  },
+  "Xenon": {
+    "name": "Xenon",
+    "variations": [
+      "xenon"
+    ]
+  },
+  "XFiles": {
+    "name": "X Files",
+    "variations": [
+      "xfiles"
+    ]
+  },
+  "XMen": {
+    "name": "X-Men",
+    "variations": [
+      "xmen"
+    ]
+  },
+  "CBW": {
+    "name": "Cue Ball Wizard",
+    "variations": [
+      "cbw"
+    ]
+  },
+  "StarWarsSega": {
+    "name": "Star Wars (Sega)",
+    "variations": [
+      "starwarssega"
+    ]
+  },
+  "Tommy": {
+    "name": "Tommy",
+    "variations": [
+      "tommy"
+    ]
+  },
+  "BigBrave": {
+    "name": "Big Brave",
+    "variations": [
+      "bigbrave"
+    ]
+  },
+  "CA": {
+    "name": "Charlie's Angels",
+    "variations": [
+      "ca"
+    ]
+  },
+  "Aerosmith": {
+    "name": "Aerosmith",
+    "variations": [
+      "aerosmith"
+    ]
+  },
+  "NBA": {
+    "name": "Stern NBA",
+    "variations": [
+      "nba"
+    ]
+  },
+  "Jokerz": {
+    "name": "Jokerz",
+    "variations": [
+      "jokerz"
+    ]
+  },
+  "Buckaneer": {
+    "name": "Buccaneer",
+    "variations": [
+      "buckaneer"
+    ]
+  },
+  "Catacomb": {
+    "name": "Catacomb",
+    "variations": [
+      "catacomb"
+    ]
+  },
+  "PistolPoker": {
+    "name": "Pistol Poker",
+    "variations": [
+      "pistolpoker"
+    ]
+  },
+  "GameShow": {
+    "name": "Game Show",
+    "variations": [
+      "gameshow"
+    ]
+  },
+  "Blackjack": {
+    "name": "Blackjack",
+    "variations": [
+      "blackjack"
+    ]
+  },
+  "Viper": {
+    "name": "Viper Night Driving",
+    "variations": [
+      "viper"
+    ]
+  },
+  "Stargate": {
+    "name": "Stargate",
+    "variations": [
+      "stargate"
+    ]
+  },
+  "SternWars": {
+    "name": "Star Wars (Stern)",
+    "variations": [
+      "sternwars"
+    ]
+  },
+  "DND": {
+    "name": "Dungeons and Dragons",
+    "variations": [
+      "dnd"
+    ]
+  },
+  "EBC": {
+    "name": "Eight Ball Champ",
+    "variations": [
+      "ebc"
+    ]
+  },
+  "Future Spa": {
+    "name": "FutureSpa",
+    "variations": [
+      "future spa"
+    ]
+  },
+  "Hotdoggin'": {
+    "name": "Hotdoggin",
+    "variations": [
+      "hotdoggin'"
+    ]
+  },
+  "DialedIn": {
+    "name": "Dialed In!",
+    "variations": [
+      "dialedin"
+    ]
+  },
+  "SM": {
+    "name": "Silverball Mania",
+    "variations": [
+      "sm"
+    ]
+  },
+  "TruckStop": {
+    "name": "Truck Stop",
+    "variations": [
+      "truckstop"
+    ]
+  },
+  "Playboy": {
+    "name": "Playboy (Bally)",
+    "variations": [
+      "playboy"
+    ]
+  },
+  "Shrek": {
+    "name": "Shrek",
+    "variations": [
+      "shrek"
+    ]
+  },
+  "Frankenstein": {
+    "name": "Frankenstein",
+    "variations": [
+      "frankenstein"
+    ]
+  },
+  "Jetsons": {
+    "name": "Jetsons",
+    "variations": [
+      "jetsons"
+    ]
+  },
+  "Torpedo": {
+    "name": "Torpedo Alley",
+    "variations": [
+      "torpedo"
+    ]
+  },
+  "NR": {
+    "name": "Night Rider",
+    "variations": [
+      "nr"
+    ]
+  },
+  "SixMil": {
+    "name": "Six Million Dollar Man",
+    "variations": [
+      "sixmil"
+    ]
+  },
+  "KoS": {
+    "name": "Kings Of Steel",
+    "variations": [
+      "kos"
+    ]
+  },
+  "Baywatch": {
+    "name": "Baywatch",
+    "variations": [
+      "baywatch"
+    ]
+  },
+  "Skateball": {
+    "name": "Skateball",
+    "variations": [
+      "skateball"
+    ]
+  },
+  "MarsTrek": {
+    "name": "Mars Trek",
+    "variations": [
+      "marstrek"
+    ]
+  },
+  "TNA": {
+    "name": "Total Nuclear Annihilation",
+    "variations": [
+      "tna"
+    ]
+  },
+  "PlayboyDE": {
+    "name": "Playboy (Data East)",
+    "variations": [
+      "playboyde"
+    ]
+  },
+  "PlayboyStern": {
+    "name": "Playboy (Stern)",
+    "variations": [
+      "playboystern"
+    ]
+  },
+  "Guardians": {
+    "name": "Guardians of the Galaxy",
+    "variations": [
+      "guardians"
+    ]
+  },
+  "StarRace": {
+    "name": "Star Race",
+    "variations": [
+      "starrace"
+    ]
+  },
+  "TagTeam": {
+    "name": "Tag Team",
+    "variations": [
+      "tagteam"
+    ]
+  },
+  "SpaceInvaders": {
+    "name": "Space Invaders",
+    "variations": [
+      "spaceinvaders"
+    ]
+  },
+  "BMX": {
+    "name": "BMX",
+    "variations": [
+      "bmx"
+    ]
+  },
+  "BeamOn": {
+    "name": "Beam On",
+    "variations": [
+      "beamon"
+    ]
+  },
+  "LW3": {
+    "name": "Lethal Weapon 3",
+    "variations": [
+      "lw3"
+    ]
+  },
+  "Houdini": {
+    "name": "Houdini",
+    "variations": [
+      "houdini"
+    ]
+  },
+  "TBL": {
+    "name": "The Big Lewbowski",
+    "variations": [
+      "tbl",
+      "The Big Lewbowski"
+    ]
+  },
+  "Arena": {
+    "name": "Arena",
+    "variations": [
+      "arena"
+    ]
+  },
+  "SpyHunter": {
+    "name": "Spy Hunter",
+    "variations": [
+      "spyhunter"
+    ]
+  },
+  "Apollo13": {
+    "name": "Apollo 13",
+    "variations": [
+      "apollo13"
+    ]
+  },
+  "DP": {
+    "name": "Dead Pool",
+    "variations": [
+      "dp",
+      "deadpool",
+      "dead pool"
+    ]
+  },
+  "IronMaiden": {
+    "name": "Iron Maiden",
+    "variations": [
+      "ironmaiden",
+      "iron maiden",
+      "Iron Maiden",
+      "maiden"
+    ]
+  },
+  "Sharpshooter": {
+    "name": "Sharpshooter",
+    "variations": [
+      "sharpshooter"
+    ]
+  },
+  "StrangeScience": {
+    "name": "Strange Science",
+    "variations": [
+      "strangescience"
+    ]
+  },
+  "Transporter": {
+    "name": "Transporter The Rescue",
+    "variations": [
+      "transporter"
+    ]
+  },
+  "MarioMushroom": {
+    "name": "Super Mario Mushroom World",
+    "variations": [
+      "mariomushroom"
+    ]
+  },
+  "Force2": {
+    "name": "Force II",
+    "variations": [
+      "force2"
+    ]
+  },
+  "LW": {
+    "name": "Lost World Bally",
+    "variations": [
+      "lw"
+    ]
+  },
+  "PinballMagic": {
+    "name": "Pinball Magic",
+    "variations": [
+      "pinballmagic"
+    ]
+  },
+  "WildFyre": {
+    "name": "Wild Fyre",
+    "variations": [
+      "wildfyre"
+    ]
+  },
+  "FlashGordon": {
+    "name": "Flash Gordon",
+    "variations": [
+      "flashgordon"
+    ]
+  },
+  "POTCJJ": {
+    "name": "Pirates of the Caribbean (Jersey Jack)",
+    "variations": [
+      "potcjj"
+    ]
+  },
+  "Seawitch": {
+    "name": "Seawitch",
+    "variations": [
+      "seawitch"
+    ]
+  },
+  "SurfNSafari": {
+    "name": "Surf 'n Safari",
+    "variations": [
+      "surfnsafari"
+    ]
+  },
+  "Beatles": {
+    "name": "Beatles",
+    "variations": [
+      "beatles"
+    ]
+  },
+  "Cyclone": {
+    "name": "Cyclone",
+    "variations": [
+      "cyclone"
+    ]
+  },
+  "Munsters": {
+    "name": "Munsters",
+    "variations": [
+      "munsters"
+    ]
+  },
+  "DollyParton": {
+    "name": "Dolly Parton",
+    "variations": [
+      "dollyparton"
+    ]
+  },
+  "HRC": {
+    "name": "High Roller Casino",
+    "variations": [
+      "hrc"
+    ]
+  },
+  "StarTrip": {
+    "name": "Star Trip",
+    "variations": [
+      "startrip"
+    ]
+  },
+  "BKSoR": {
+    "name": "Black Knight Sword of Rage",
+    "variations": [
+      "bksor"
+    ]
+  },
+  "ID": {
+    "name": "Independence Day",
+    "variations": [
+      "id"
+    ]
+  },
+  "SternPark": {
+    "name": "Stern Jurassic Park",
+    "variations": [
+      "sternpark",
+      "Jurassic Park (Stern)",
+      "Jurassic Park",
+      "jurassic park"
+    ]
+  },
+  "Wonka": {
+    "name": "Willy Wonka",
+    "variations": [
+      "wonka"
+    ]
+  },
+  "AliceCooper": {
+    "name": "Alice Cooper",
+    "variations": [
+      "alicecooper"
+    ]
+  },
+  "Fireball2": {
+    "name": "Fireball II",
+    "variations": [
+      "fireball2"
+    ]
+  },
+  "TargetAlpha": {
+    "name": "Target Alpha",
+    "variations": [
+      "targetalpha"
+    ]
+  },
+  "ElviraHouseOfHorrors": {
+    "name": "Elvira's House of Horrors",
+    "variations": [
+      "elvirahouseofhorrors"
+    ]
+  },
+  "RR": {
+    "name": "Royal Rumble",
+    "variations": [
+      "rr"
+    ]
+  },
+  "Godzilla": {
+    "name": "Godzilla",
+    "variations": [
+      "godzilla",
+      "godzilla (stern)",
+      "godzilla (Stern)",
+      "Godzilla"
+    ]
+  },
+  "Galaxy": {
+    "name": "Galaxy",
+    "variations": [
+      "galaxy",
+      "Galaxy"
+    ]
+  },
+  "StrangerThings": {
+    "name": "Stranger Things",
+    "variations": [
+      "strangerthings"
+    ]
+  },
+  "CactusCanyon": {
+    "name": "Cactus Canyon",
+    "variations": [
+      "cactuscanyon",
+      "cactus canyon",
+      "cactus",
+      "Cactus Canyon Remake"
+    ]
+  },
+  "Elektra": {
+    "name": "Elektra",
+    "variations": [
+      "elektra"
+    ]
+  },
+  "ElDorado": {
+    "name": "El Dorado",
+    "variations": [
+      "eldorado"
+    ]
+  },
+  "Hulk": {
+    "name": "Incredible Hulk",
+    "variations": [
+      "hulk"
+    ]
+  },
+  "Corvette": {
+    "name": "Corvette",
+    "variations": [
+      "corvette"
+    ]
+  },
+  "MotorDome": {
+    "name": "MotorDome",
+    "variations": [
+      "motordome"
+    ]
+  },
+  "RickAndMorty": {
+    "name": "Rick and Morty",
+    "variations": [
+      "rickandmorty"
+    ]
+  },
+  "Meteor": {
+    "name": "Meteor",
+    "variations": [
+      "meteor"
+    ]
+  },
+  "AIQ": {
+    "name": "Avengers Infinity Quest",
+    "variations": [
+      "aiq",
+      "avengersinfinityquest",
+      "avengers infinity quest",
+      "avengers"
+    ]
+  },
+  "HollywoodHeat": {
+    "name": "Hollywood Heat",
+    "variations": [
+      "hollywoodheat"
+    ]
+  },
+  "LZ": {
+    "name": "Led Zeppelin",
+    "variations": [
+      "lz"
+    ]
+  },
+  "STMNT": {
+    "name": "Teenage Mutant Ninja Turtles (Stern)",
+    "variations": [
+      "stmnt",
+      "tmnt",
+      "teenage mutant ninja turtles"
+    ]
+  },
+  "LAH": {
+    "name": "Last Action Hero",
+    "variations": [
+      "lah"
+    ]
+  },
+  "Mandalorian": {
+    "name": "Mandalorian",
+    "variations": [
+      "mandalorian"
+    ]
+  },
+  "MSF": {
+    "name": "Mary Shelley's Frankenstein",
+    "variations": [
+      "msf"
+    ]
+  },
+  "SEGAGOD": {
+    "name": "Godzilla (Sega)",
+    "variations": [
+      "segagod",
+      "Godzilla (Sega)",
+      "Sega Godzilla"
+    ]
+  },
+  "007": {
+    "name": "James Bond 007 (Thunderball/Dr No)",
+    "variations": [
+      "007",
+      "Bond",
+      "James Bond",
+      "Bond 007",
+      "Thunderball",
+      "Dr No"
+    ]
+  },
+  "Halloween": {
+    "name": "Halloween",
+    "variations": [
+      "halloween"
+    ]
+  },
+  "FOO": {
+    "name": "Foo Fighters",
+    "variations": [
+      "foo",
+      "foofighters",
+      "foo fighters",
+      "FOO",
+      "Foo"
+    ]
+  },
+  "Godzilla (Stern)": {
+    "name": "Godzilla (Stern)",
+    "variations": [
+      "godzilla (stern)",
+      "godzilla"
+    ]
+  },
+  "Hot Wheels": {
+    "name": "Hot Wheels",
+    "variations": [
+      "hot wheels"
+    ]
+  },
+  "Rush": {
+    "name": "Rush",
+    "variations": [
+      "rush"
+    ]
+  },
+  "Galactic Tank Force": {
+    "name": "Galactic Tank Force",
+    "variations": [
+      "galactic tank force"
+    ]
+  },
+  "Godfather": {
+    "name": "Godfather",
+    "variations": [
+      "godfather"
+    ]
+  },
+  "Legends of Valhalla": {
+    "name": "Legends of Valhalla",
+    "variations": [
+      "legends of valhalla"
+    ]
+  },
+  "24": {
+    "name": "24",
+    "variations": [
+      "24"
+    ]
+  },
+  "SDND": {
+    "name": "Dungeons and Dragons (Stern)",
+    "variations": [
+      "sdnd",
+      "Dungeons and Dragons Stern",
+      "Dungeons and Dragons (Stern)",
+      "D&D Stern"
+    ]
+  },
+  "UXMEN": {
+    "name": "Uncanny X-men",
+    "variations": [
+      "uxmen",
+      "Uncanny X-men",
+      "Uncanny X-men "
+    ]
+  },
+  "EJ": {
+    "name": "Elton John",
+    "variations": [
+      "ej",
+      "Elton John"
+    ]
+  },
+  "JW": {
+    "name": "John Wick",
+    "variations": [
+      "jw",
+      "John Wick"
+    ]
+},
+"Funhouse 2.0 Rudy's Nightmare": {
+  "name": "Funhouse 2.0 Rudy's Nightmare",
+  "variations": [
+    "funhouse 2.0 rudy's nightmare"
+  ]
+},
+"The Amazing Spider-Man": {
+  "name": "The Amazing Spider-Man",
+  "variations": [
+    "the amazing spider-man"
+  ]
+},
+"The Godfather": {
+  "name": "The Godfather",
+  "variations": [
+    "the godfather",
+    "the godfather (jjp)"
+  ]
+},
+"Venom": {
+  "name": "Venom",
+  "variations": [
+    "venom",
+    "venom right",
+    "venom left",
+    "venom (r)"
+  ]
+},
+"Alien Star": {
+  "name": "Alien Star",
+  "variations": [
+    "alien star"
+  ]
+},
+"Jaws": {
+  "name": "Jaws",
+  "variations": [
+    "jaws",
+    "jaws "
+  ]
+},
+"Toy Story": {
+  "name": "Toy Story",
+  "variations": [
+    "toy story",
+    "toy story"
+  ]
+},
+"Scooby-Doo": {
+  "name": "Scooby-Doo",
+  "variations": [
+    "scooby-doo",
+    "scooby-doo"
+  ]
+},
+"TX Sector": {
+  "name": "TX Sector",
+  "variations": [
+    "tx sector",
+    "tx sector"
+  ]
+},
+"Trident": {
+  "name": "Trident",
+  "variations": [
+    "trident",
+    "trident",
+    "Trident "
+  ]
+},
+"Viking": {
+  "name": "Viking",
+  "variations": [
+    "viking",
+    "viking",
+    "Viking "
+  ]
+},
+"Lights Camera Action": {
+  "name": "Lights Camera Action",
+  "variations": [
+    "lights camera action",
+    "lights camera action",
+    "Lights Camera Action!"
+  ]
+},
+"Frontier": {
+  "name": "Frontier",
+  "variations": [
+    "frontier",
+    "frontier",
+    "Frontier "
+  ]
+},
+"Sharkey's Shootout": {
+  "name": "Sharkey's Shootout",
+  "variations": [
+    "sharkey's shootout",
+    "sharkey's shootout",
+    "Sharkey's Shootout "
+  ]
+},
+"PULP": {
+  "name": "Pulp Fiction",
+  "variations": [
+    "pulp",
+    "pulp fiction",
+    "Pulp Fiction"
+  ]
+}
+}

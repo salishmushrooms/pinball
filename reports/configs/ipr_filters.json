@@ -1,0 +1,30 @@
+{
+  "ipr_filter": {
+    "min_ipr": 3,
+    "max_ipr": 6
+  },
+  "description": "IPR-based player filtering",
+  "preset_filters": {
+    "all_players": null,
+    "beginners": {
+      "min_ipr": 1,
+      "max_ipr": 2
+    },
+    "intermediate": {
+      "min_ipr": 3,
+      "max_ipr": 4
+    },
+    "advanced": {
+      "min_ipr": 5,
+      "max_ipr": 6
+    },
+    "intermediate_plus": {
+      "min_ipr": 3,
+      "max_ipr": 6
+    },
+    "high_skill": {
+      "min_ipr": 5
+    }
+  },
+  "notes": "Change 'ipr_filter' to one of the presets above, or create custom min_ipr/max_ipr values. IPR ranges from 1-6."
+}

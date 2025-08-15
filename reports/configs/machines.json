@@ -1,0 +1,17 @@
+{
+  "machine": "AFM",
+  "description": "Target machine to analyze",
+  "popular_machines": [
+    "AFM",
+    "MM", 
+    "MB",
+    "TZ",
+    "STTNG",
+    "T2",
+    "TOM",
+    "CFTBL",
+    "TAF",
+    "FH"
+  ],
+  "notes": "Change the 'machine' value to analyze different machines. Use machine codes from machine_variations.json"
+}

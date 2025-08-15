@@ -1,0 +1,23 @@
+{
+  "venue": null,
+  "description": "Target venue to filter by (null = all venues)",
+  "example_venues": [
+    {
+      "code": "8BT",
+      "name": "8-bit Arcade Bar"
+    },
+    {
+      "code": "AAB", 
+      "name": "Add-a-Ball"
+    },
+    {
+      "code": "ADM",
+      "name": "Admiral Pub"
+    },
+    {
+      "code": "ANC",
+      "name": "Another Castle"
+    }
+  ],
+  "notes": "Set 'venue' to {code: 'XXX', name: 'Venue Name'} or null for all venues. Check venues.csv for full list"
+}

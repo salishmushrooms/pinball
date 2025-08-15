@@ -1,0 +1,40 @@
+{
+  "description": "Comprehensive configuration - edit the values below directly",
+  
+  "season": ["20","21"],
+  "target_machine": null, 
+  "target_venue": {
+    "code": "T4B",
+    "name": "T4B Venue"
+  },
+  "ipr_filter": {
+    "min_ipr": 1,
+    "max_ipr": 6
+  },
+  
+  "outlier_filter": {
+    "method": "percentile",
+    "upper_percentile": 95
+  },
+  
+  "data_filters": {
+    "include_incomplete_matches": false
+  },
+  
+  "score_reliability": {
+    "rounds_1_4": {
+      "reliable_positions": [1, 2, 3, 4]
+    },
+    "rounds_2_3": {
+      "reliable_positions": [1, 2]
+    }
+  },
+  
+  "_usage_notes": {
+    "season": "Single season: '21' | Multiple seasons: ['20', '21'] | Comma-separated string: '20,21'",
+    "target_machine": "Single: 'AFM' | Multiple: ['AFM', 'MM'] | Auto-discover: null or 'auto' | Comma-separated: 'AFM,MM'",
+    "target_venue": "Set to null for all venues, or {code: 'XXX', name: 'Venue Name'}",
+    "ipr_filter": "Set to null for all players, or {min_ipr: X, max_ipr: Y} for skill range",
+    "outlier_filter": "Methods: 'percentile' (upper_percentile: 95), 'iqr' (iqr_multiplier: 1.5), 'absolute' (max_score: 1000000). Set to null to disable."
+  }
+}
