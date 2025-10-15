@@ -1,0 +1,29 @@
+{
+  "description": "Score percentile reports for 8-bit Arcade Bar - Season 20",
+  
+  "season": "20",
+  "target_machine": null,
+  "target_venue": {
+    "code": "8BT",
+    "name": "8-bit Arcade Bar"
+  },
+  "ipr_filter": null,
+  
+  "outlier_filter": {
+    "method": "percentile",
+    "upper_percentile": 95
+  },
+  
+  "data_filters": {
+    "include_incomplete_matches": false
+  },
+  
+  "score_reliability": {
+    "rounds_1_4": {
+      "reliable_positions": [1, 2, 3]
+    },
+    "rounds_2_3": {
+      "reliable_positions": [1]
+    }
+  }
+}

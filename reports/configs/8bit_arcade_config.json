@@ -1,14 +1,14 @@
 {
   "report_type": "venue_summary",
   "target_venue": {
-    "code": "T4B",
-    "name": "4Bs Tavern"
+    "code": "8BT",
+    "name": "8-bit Arcade Bar"
   },
-  "season": "21",
+  "season": "20",
   "data_filters": {
     "include_incomplete_matches": false,
-    "exclude_unreliable_scores": false,
-    "min_players_per_game": 2
+    "exclude_unreliable_scores": true,
+    "min_players_per_game": 1
   },
   "score_reliability": {
     "rounds_1_4": {
@@ -24,19 +24,27 @@
     "per_machine": [
       "median_score",
       "percentile_75",
-      "total_games"
+      "percentile_90", 
+      "total_games",
+      "games_by_round",
+      "high_score",
+      "high_score_player",
+      "home_team_high_score",
+      "home_team_high_score_player",
+      "home_team_high_score_team"
     ],
     "venue_summary": [
       "total_matches",
       "total_games", 
-      "unique_machines_played"
+      "unique_machines_played",
+      "home_team_advantage"
     ]
   },
   "output_format": {
     "format": "markdown",
-    "style": "simplified",
+    "style": "detailed",
     "include_charts": false,
     "group_by_machine": true,
-    "sort_machines_by": "alphabetical"
+    "sort_machines_by": "total_games"
   }
 }
