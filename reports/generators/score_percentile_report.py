@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from datetime import datetime
 from typing import Dict, Any
+from PIL import Image
 
 
 class ScorePercentileReporter:
@@ -601,6 +602,16 @@ class ScorePercentileReporter:
                 print(f"Error processing machine '{machine}': {e}")
                 continue
         
+        # Create aggregate image if multiple charts were generated
+        chart_files = [f for f in generated_files if f.endswith('.png')]
+        if len(chart_files) > 1:
+            try:
+                print(f"\n=== Creating Aggregate Image ===")
+                aggregate_path = self.create_vertical_aggregate_image(chart_files)
+                generated_files.append(aggregate_path)
+            except Exception as e:
+                print(f"Error creating aggregate image: {e}")
+        
         return generated_files
     
     def generate_report_file(self, target_machine: str, machine_scores: list, outlier_info: dict = {}) -> str:
@@ -630,6 +641,78 @@ class ScorePercentileReporter:
         
         return output_file
     
+    def create_vertical_aggregate_image(self, chart_paths: list, output_dir: str = "reports/charts") -> str:
+        """Create a single grid image combining all generated charts in 2 columns."""
+        if not chart_paths:
+            raise ValueError("No chart paths provided for aggregation")
+        
+        # Filter to only PNG files that exist
+        png_files = [path for path in chart_paths if path.endswith('.png') and os.path.exists(path)]
+        
+        if not png_files:
+            raise ValueError("No valid PNG files found for aggregation")
+        
+        print(f"Creating 2-column aggregate image from {len(png_files)} charts...")
+        
+        # Load all images and get dimensions
+        images = []
+        img_width = 0
+        img_height = 0
+        
+        for png_file in sorted(png_files):  # Sort for consistent ordering
+            img = Image.open(png_file)
+            images.append(img)
+            # Assume all charts have same dimensions (they should from matplotlib)
+            if img_width == 0:
+                img_width = img.width
+                img_height = img.height
+        
+        # Calculate grid layout (2 columns)
+        cols = 2
+        rows = (len(images) + cols - 1) // cols  # Ceiling division
+        
+        # Calculate final dimensions
+        total_width = img_width * cols
+        total_height = img_height * rows
+        
+        # Create new image with grid dimensions
+        aggregate_image = Image.new('RGB', (total_width, total_height), 'white')
+        
+        # Paste images in 2-column grid
+        for i, img in enumerate(images):
+            col = i % cols
+            row = i // cols
+            
+            x_position = col * img_width
+            y_position = row * img_height
+            
+            aggregate_image.paste(img, (x_position, y_position))
+        
+        # Generate output filename based on configuration
+        venue_code = self.target_venue['code'] if self.target_venue else 'all_venues'
+        seasons_code = "-".join(self.seasons) if len(self.seasons) > 1 else self.seasons[0]
+        
+        ipr_code = ""
+        if self.ipr_filter:
+            min_ipr = self.ipr_filter.get('min_ipr')
+            max_ipr = self.ipr_filter.get('max_ipr')
+            if min_ipr is not None and max_ipr is not None:
+                ipr_code = f"_ipr{min_ipr}-{max_ipr}"
+            elif min_ipr is not None:
+                ipr_code = f"_ipr{min_ipr}plus"
+            elif max_ipr is not None:
+                ipr_code = f"_ipr{max_ipr}minus"
+        
+        aggregate_filename = f"aggregate_grid_percentile_season_{seasons_code}_{venue_code}{ipr_code}.png"
+        aggregate_path = os.path.join(output_dir, aggregate_filename)
+        
+        # Save the aggregate image
+        aggregate_image.save(aggregate_path, 'PNG', dpi=(300, 300))
+        
+        print(f"2-column aggregate image saved to: {aggregate_path}")
+        print(f"Final dimensions: {total_width}x{total_height} pixels ({cols} cols × {rows} rows)")
+        
+        return aggregate_path
 
 
 def main():

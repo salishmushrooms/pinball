@@ -1,11 +1,11 @@
 {
   "description": "Comprehensive configuration - edit the values below directly",
   
-  "season": ["20","21"],
+  "season": ["22"],
   "target_machine": null, 
   "target_venue": {
-    "code": "T4B",
-    "name": "T4B Venue"
+    "code": "TWP",
+    "name": "The Time Warp"
   },
   "ipr_filter": {
     "min_ipr": 1,
