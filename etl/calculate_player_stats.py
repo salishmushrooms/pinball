@@ -192,26 +192,16 @@ def aggregate_player_stats(scores, percentile_map):
             'worst_score': int(np.min(scores_array))
         }
 
-        # Calculate percentiles if available
+        # Calculate percentile based on median score
         if machine_key in percentile_map:
             percentile_thresholds = percentile_map[machine_key]
+            median_score = stat_dict['median_score']
 
-            # Calculate percentile for each score
-            percentile_values = []
-            for score in score_list:
-                pct = calculate_percentile_for_score(score, percentile_thresholds)
-                if pct is not None:
-                    percentile_values.append(pct)
-
-            if percentile_values:
-                stat_dict['median_percentile'] = round(np.median(percentile_values), 2)
-                stat_dict['avg_percentile'] = round(np.mean(percentile_values), 2)
-            else:
-                stat_dict['median_percentile'] = None
-                stat_dict['avg_percentile'] = None
+            # Calculate percentile for the median score
+            percentile = calculate_percentile_for_score(median_score, percentile_thresholds)
+            stat_dict['percentile'] = round(percentile, 2) if percentile is not None else None
         else:
-            stat_dict['median_percentile'] = None
-            stat_dict['avg_percentile'] = None
+            stat_dict['percentile'] = None
 
         stats[(player_key, machine_key, venue_key)] = stat_dict
         players_processed += 1
@@ -254,12 +244,12 @@ def insert_player_stats(stats_dict, season: int):
         INSERT INTO player_machine_stats (
             player_key, machine_key, venue_key, season,
             games_played, total_score, median_score, avg_score,
-            best_score, worst_score, median_percentile, avg_percentile
+            best_score, worst_score, percentile
         )
         VALUES (
             :player_key, :machine_key, :venue_key, :season,
             :games_played, :total_score, :median_score, :avg_score,
-            :best_score, :worst_score, :median_percentile, :avg_percentile
+            :best_score, :worst_score, :percentile
         )
         ON CONFLICT (player_key, machine_key, venue_key, season)
         DO UPDATE SET
@@ -269,8 +259,7 @@ def insert_player_stats(stats_dict, season: int):
             avg_score = EXCLUDED.avg_score,
             best_score = EXCLUDED.best_score,
             worst_score = EXCLUDED.worst_score,
-            median_percentile = EXCLUDED.median_percentile,
-            avg_percentile = EXCLUDED.avg_percentile,
+            percentile = EXCLUDED.percentile,
             last_calculated = CURRENT_TIMESTAMP
     """
 

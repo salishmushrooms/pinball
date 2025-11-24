@@ -45,9 +45,10 @@ class MachineBase(BaseModel):
 
 class MachineDetail(MachineBase):
     """Detailed machine information"""
-    ipdb_id: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    total_scores: int = Field(0, description="Total number of scores recorded")
+    unique_players: int = Field(0, description="Number of unique players")
+    avg_score: int = Field(0, description="Average score")
+    max_score: int = Field(0, description="Maximum score recorded")
 
     class Config:
         from_attributes = True

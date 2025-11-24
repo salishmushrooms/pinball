@@ -111,10 +111,20 @@ def get_machine(machine_key: str):
     Example: `/machines/SternWars`
     """
     query = """
-        SELECT machine_key, machine_name, manufacturer, year, game_type, ipdb_id,
-               created_at, updated_at
-        FROM machines
-        WHERE machine_key = :machine_key
+        SELECT
+            m.machine_key,
+            m.machine_name,
+            m.manufacturer,
+            m.year,
+            m.game_type,
+            COALESCE(COUNT(s.score_id), 0) as total_scores,
+            COALESCE(COUNT(DISTINCT s.player_key), 0) as unique_players,
+            COALESCE(CAST(AVG(s.score) AS INTEGER), 0) as avg_score,
+            COALESCE(MAX(s.score), 0) as max_score
+        FROM machines m
+        LEFT JOIN scores s ON m.machine_key = s.machine_key
+        WHERE m.machine_key = :machine_key
+        GROUP BY m.machine_key, m.machine_name, m.manufacturer, m.year, m.game_type
     """
     machines = execute_query(query, {'machine_key': machine_key})
 
