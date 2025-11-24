@@ -14,7 +14,6 @@ export default function PlayerDetailPage() {
   const [machineStats, setMachineStats] = useState<PlayerMachineStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [venueFilter, setVenueFilter] = useState('_ALL_');
   const [minGames, setMinGames] = useState('1');
   const [sortBy, setSortBy] = useState<'avg_percentile' | 'games_played' | 'avg_score'>('avg_percentile');
 
@@ -22,7 +21,7 @@ export default function PlayerDetailPage() {
     if (playerKey) {
       fetchPlayerData();
     }
-  }, [playerKey, venueFilter, minGames, sortBy]);
+  }, [playerKey, minGames, sortBy]);
 
   async function fetchPlayerData() {
     setLoading(true);
@@ -31,7 +30,7 @@ export default function PlayerDetailPage() {
       const [playerData, statsData] = await Promise.all([
         api.getPlayer(playerKey),
         api.getPlayerMachineStats(playerKey, {
-          venue_key: venueFilter,
+          venue_key: '_ALL_',
           min_games: parseInt(minGames),
           sort_by: sortBy,
           sort_order: 'desc',
@@ -128,20 +127,7 @@ export default function PlayerDetailPage() {
           Machine Statistics
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Venue Filter
-            </label>
-            <select
-              value={venueFilter}
-              onChange={(e) => setVenueFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="_ALL_">All Venues</option>
-            </select>
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Min Games
@@ -190,10 +176,10 @@ export default function PlayerDetailPage() {
                     Avg Percentile
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Avg Score
+                    Median Score
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Max Score
+                    Best Score
                   </th>
                 </tr>
               </thead>
@@ -216,16 +202,16 @@ export default function PlayerDetailPage() {
                         {stat.avg_percentile.toFixed(1)}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {stat.min_percentile.toFixed(0)} - {stat.max_percentile.toFixed(0)}
+                        Median: {stat.median_percentile.toFixed(1)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {stat.avg_score.toLocaleString(undefined, {
+                      {stat.median_score.toLocaleString(undefined, {
                         maximumFractionDigits: 0,
                       })}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {stat.max_score.toLocaleString()}
+                      {stat.best_score.toLocaleString()}
                     </td>
                   </tr>
                 ))}

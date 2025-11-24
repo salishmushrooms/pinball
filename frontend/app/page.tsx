@@ -58,34 +58,44 @@ export default function Home() {
           <h2 className="text-2xl font-semibold text-gray-900 mb-4">
             Data Summary
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <p className="text-gray-600 mb-4">{apiInfo.data_summary.description}</p>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
             <div className="text-center">
               <div className="text-3xl font-bold text-blue-600">
-                {apiInfo.data_summary.total_players.toLocaleString()}
+                {apiInfo.data_summary.players.toLocaleString()}
               </div>
               <div className="text-sm text-gray-600 mt-1">Players</div>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-green-600">
-                {apiInfo.data_summary.total_machines.toLocaleString()}
+                {apiInfo.data_summary.machines.toLocaleString()}
               </div>
               <div className="text-sm text-gray-600 mt-1">Machines</div>
             </div>
             <div className="text-center">
+              <div className="text-3xl font-bold text-yellow-600">
+                {apiInfo.data_summary.venues.toLocaleString()}
+              </div>
+              <div className="text-sm text-gray-600 mt-1">Venues</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-red-600">
+                {apiInfo.data_summary.teams.toLocaleString()}
+              </div>
+              <div className="text-sm text-gray-600 mt-1">Teams</div>
+            </div>
+            <div className="text-center">
               <div className="text-3xl font-bold text-purple-600">
-                {apiInfo.data_summary.total_matches.toLocaleString()}
+                {apiInfo.data_summary.matches.toLocaleString()}
               </div>
               <div className="text-sm text-gray-600 mt-1">Matches</div>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-orange-600">
-                {apiInfo.data_summary.total_scores.toLocaleString()}
+                {apiInfo.data_summary.total_scores}
               </div>
               <div className="text-sm text-gray-600 mt-1">Scores</div>
             </div>
-          </div>
-          <div className="mt-4 text-center text-sm text-gray-600">
-            Seasons Available: {apiInfo.data_summary.seasons_available.join(', ')}
           </div>
         </div>
       )}
