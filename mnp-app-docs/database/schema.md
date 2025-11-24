@@ -287,7 +287,7 @@ CREATE INDEX idx_scores_machine_score ON scores(machine_key, score);  -- For per
 
 **Notes:**
 - Heavy denormalization for read performance (acceptable for write-rare data)
-- `player_position` indicates reliability (position 4 in 4-player games less reliable)
+- `player_position` indicates reliability (position 4 in 4-player games less reliable for player final score however whether a player won or lost against their opponents  would be reliable. A player might stop playing if their score was already above their opponents)
 - `player_ipr` is snapshot at time of match (players improve over time)
 - This table will be the largest (tens of thousands of rows)
 
@@ -319,7 +319,7 @@ CREATE INDEX idx_percentiles_machine ON score_percentiles(machine_key, season);
 ```
 
 **Notes:**
-- Pre-calculated for percentiles: 1, 5, 10, 25, 50, 75, 90, 95, 99
+- Pre-calculated for percentiles: 25, 50, 75, 90, 95
 - `venue_key = NULL` represents aggregate across all venues
 - Recalculated weekly or on-demand when new data loaded
 - Massive performance improvement vs. calculating on each request
@@ -418,7 +418,7 @@ CREATE INDEX idx_team_picks_team ON team_machine_picks(
 
 2. **Score Validity**
    - Scores must be >= 0
-   - Scores > 10 billion flagged for review (possible data entry error)
+   - most validation done already from MNP app that is used to input data
 
 3. **Season/Week Validation**
    - Season: 20-99 (representing 20xx)
