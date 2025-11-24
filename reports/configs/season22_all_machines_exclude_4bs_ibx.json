@@ -1,0 +1,19 @@
+{
+  "description": "Season 22 - All machines excluding home games at The 4 Bs and Ice Box - All players",
+  "season": "22",
+  "target_machine": null,
+  "target_venue": null,
+  "ipr_filter": null,
+  "outlier_filter": null,
+  "data_filters": {
+    "include_incomplete_matches": false
+  },
+  "score_reliability": {
+    "rounds_1_4": {
+      "reliable_positions": [1, 2, 3, 4]
+    },
+    "rounds_2_3": {
+      "reliable_positions": [1, 2]
+    }
+  }
+}

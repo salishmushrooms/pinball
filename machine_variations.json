@@ -1608,7 +1608,8 @@
   "RR": {
     "name": "Royal Rumble",
     "variations": [
-      "rr"
+      "rr",
+      "Woyal Wumble"
     ]
   },
   "Godzilla": {
@@ -1948,6 +1949,191 @@
     "pulp",
     "pulp fiction",
     "Pulp Fiction"
+  ]
+},
+"AS": {
+  "name": "Alien Star",
+  "variations": [
+    "as",
+    "Alien Star"
+  ]
+},
+"BOPP": {
+  "name": "Bobby Orr Power Player",
+  "variations": [
+    "bopp",
+    "Bobby Orr Power Player"
+  ]
+},
+"BallyTrek": {
+  "name": "Star Trek (Bally)",
+  "variations": [
+    "ballytrek",
+    "Star Trek (Bally)"
+  ]
+},
+"Cactus Canyon Remake": {
+  "name": "Cactus Canyon Remake",
+  "variations": [
+    "cactus canyon remake"
+  ]
+},
+"Captain fantastic": {
+  "name": "Captain Fantastic",
+  "variations": [
+    "captain fantastic"
+  ]
+},
+"DRAGON": {
+  "name": "Dragon",
+  "variations": [
+    "dragon"
+  ]
+},
+"DUNE": {
+  "name": "Dune",
+  "variations": [
+    "dune"
+  ]
+},
+"FHRN": {
+  "name": "Funhouse Rudy's Nightmare",
+  "variations": [
+    "fhrn",
+    "Funhouse Rudy's Nightmare"
+  ]
+},
+"GF": {
+  "name": "Godfather",
+  "variations": [
+    "gf",
+    "Godfather"
+  ]
+},
+"Gamatron": {
+  "name": "Gamatron",
+  "variations": [
+    "gamatron",
+    "GAMA"
+  ]
+},
+"HW": {
+  "name": "Hot Wheels",
+  "variations": [
+    "hw",
+    "Hot Wheels"
+  ]
+},
+"JB60": {
+  "name": "James Bond 007 (60th)",
+  "variations": [
+    "jb60",
+    "James Bond 007 (60th)"
+  ]
+},
+"KONG": {
+  "name": "King Kong",
+  "variations": [
+    "kong",
+    "King Kong"
+  ]
+},
+"LAB": {
+  "name": "Labyrinth",
+  "variations": [
+    "lab",
+    "Labyrinth"
+  ]
+},
+"METREM": {
+  "name": "Metallica Remastered",
+  "variations": [
+    "metrem",
+    "Metallica Remastered"
+  ]
+},
+"MH": {
+  "name": "Mata Hari",
+  "variations": [
+    "mh",
+    "Mata Hari"
+  ]
+},
+"Outer Space": {
+  "name": "Outer Space",
+  "variations": [
+    "outer space",
+    "OuterSpace"
+  ]
+},
+"PHAR": {
+  "name": "Pharaoh",
+  "variations": [
+    "phar",
+    "Pharaoh"
+  ]
+},
+"QS": {
+  "name": "Quicksilver",
+  "variations": [
+    "qs",
+    "Quicksilver"
+  ]
+},
+"RUSH": {
+  "name": "Rush",
+  "variations": [
+    "rush"
+  ]
+},
+"SB": {
+  "name": "Sinbad",
+  "variations": [
+    "sb",
+    "Sinbad"
+  ]
+},
+"SG": {
+  "name": "Star Gazer",
+  "variations": [
+    "sg",
+    "Star Gazer"
+  ]
+},
+"SWFOTE": {
+  "name": "Star Wars: Fall of the Empire",
+  "variations": [
+    "swfote",
+    "Star Wars: Fall of the Empire"
+  ]
+},
+"TS": {
+  "name": "Toy Story",
+  "variations": [
+    "ts",
+    "Toy Story"
+  ]
+},
+"ULTRA": {
+  "name": "Ultraman",
+  "variations": [
+    "ultra",
+    "Ultraman"
+  ]
+},
+"VEN": {
+  "name": "Venom",
+  "variations": [
+    "ven",
+    "Venom"
+  ]
+},
+"TBL": {
+  "name": "The Big Lebowski",
+  "variations": [
+    "tbl",
+    "The Big Lebowski",
+    "Big Lebowski"
   ]
 }
 }

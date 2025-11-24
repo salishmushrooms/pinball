@@ -473,25 +473,33 @@ class ScorePercentileReporter:
         """Generate a text summary report."""
         if not machine_scores:
             return "No scores found for the specified machine and filters."
-        
+
         scores = [s['score'] for s in machine_scores]
-        
+
         # Calculate statistics
         min_score = min(scores)
         max_score = max(scores)
         median_score = statistics.median(scores)
         mean_score = statistics.mean(scores)
-        
+
         # Find percentile thresholds
         percentiles_to_show = [10, 25, 50, 75, 90, 95]
         percentile_values = {}
-        
+
         for p in percentiles_to_show:
             if len(scores) > 1:
                 percentile_values[p] = np.percentile(scores, p)
             else:
                 percentile_values[p] = scores[0]
-        
+
+        # Get machine display name from variations
+        target_machine_normalized = self.normalize_machine_key(target_machine)
+        machine_display_name = target_machine
+        if self.machine_variations and target_machine_normalized in self.machine_variations:
+            info = self.machine_variations[target_machine_normalized]
+            if isinstance(info, dict):
+                machine_display_name = info.get('name', target_machine)
+
         # Build report
         venue_info = f" at {self.target_venue['name']} ({self.target_venue['code']})" if self.target_venue else ""
         ipr_info = ""
@@ -512,7 +520,7 @@ class ScorePercentileReporter:
             seasons_title = f"**Season {seasons_display}**"
         
         report_lines = []
-        report_lines.append(f"# Score Percentile Report: {target_machine}{venue_info}{ipr_info}")
+        report_lines.append(f"# Score Percentile Report: {machine_display_name}{venue_info}{ipr_info}")
         report_lines.append(seasons_title)
         report_lines.append("")
         report_lines.append(f"*Generated on {datetime.now().strftime('%Y-%m-%d %H:%M')}*")
