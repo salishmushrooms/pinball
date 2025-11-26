@@ -39,7 +39,7 @@ app = FastAPI(
     ## Data Source
 
     Data is sourced from the Monday Night Pinball (MNP) match archives.
-    Currently includes Season 22 data with 523 players, 341 machines, and 10,680+ scores.
+    Currently includes Seasons 18-22 with 936 players, 400+ machines, and 56,000+ scores across 943 matches.
 
     ## Tips
 
@@ -80,6 +80,53 @@ def read_root():
     """
     API root endpoint - provides basic information and available endpoints
     """
+    from etl.database import db
+    from sqlalchemy import text
+
+    # Query actual database statistics
+    data_summary = {
+        "description": "Monday Night Pinball Seasons 18-22 data",
+        "players": 0,
+        "machines": 0,
+        "venues": 0,
+        "teams": 0,
+        "matches": 0,
+        "total_scores": "0"
+    }
+
+    try:
+        if not db.engine:
+            db.connect()
+        with db.engine.connect() as conn:
+            # Get total unique players
+            result = conn.execute(text("SELECT COUNT(*) FROM players"))
+            data_summary["players"] = result.scalar()
+
+            # Get total machines
+            result = conn.execute(text("SELECT COUNT(*) FROM machines"))
+            data_summary["machines"] = result.scalar()
+
+            # Get total venues
+            result = conn.execute(text("SELECT COUNT(*) FROM venues"))
+            data_summary["venues"] = result.scalar()
+
+            # Get total teams (counting distinct team_key across all seasons)
+            result = conn.execute(text("SELECT COUNT(DISTINCT team_key) FROM teams"))
+            data_summary["teams"] = result.scalar()
+
+            # Get total matches
+            result = conn.execute(text("SELECT COUNT(*) FROM matches"))
+            data_summary["matches"] = result.scalar()
+
+            # Get total scores
+            result = conn.execute(text("SELECT COUNT(*) FROM scores"))
+            total_scores = result.scalar()
+            data_summary["total_scores"] = f"{total_scores:,}" if total_scores else "0"
+
+    except Exception as e:
+        logger.error(f"Failed to fetch data summary: {e}")
+        # Return default values if database query fails
+
     return {
         "message": "Welcome to MNP Analyzer API",
         "version": "1.0.0",
@@ -92,15 +139,7 @@ def read_root():
             "teams": "/teams",
             "matchups": "/matchups"
         },
-        "data_summary": {
-            "description": "Monday Night Pinball Season 22 data",
-            "players": 523,
-            "machines": 341,
-            "venues": 19,
-            "teams": 34,
-            "matches": 184,
-            "total_scores": "10,680+"
-        }
+        "data_summary": data_summary
     }
 
 

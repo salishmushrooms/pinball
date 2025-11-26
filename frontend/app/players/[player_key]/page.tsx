@@ -13,6 +13,7 @@ export default function PlayerDetailPage() {
   const [player, setPlayer] = useState<Player | null>(null);
   const [machineStats, setMachineStats] = useState<PlayerMachineStat[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
+  const [availableSeasons, setAvailableSeasons] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'avg_percentile' | 'games_played' | 'avg_score' | 'win_percentage'>('avg_percentile');
@@ -21,6 +22,7 @@ export default function PlayerDetailPage() {
 
   useEffect(() => {
     fetchVenues();
+    fetchAvailableSeasons();
   }, []);
 
   useEffect(() => {
@@ -35,6 +37,28 @@ export default function PlayerDetailPage() {
       setVenues(venuesData.venues);
     } catch (err) {
       console.error('Failed to fetch venues:', err);
+    }
+  }
+
+  async function fetchAvailableSeasons() {
+    try {
+      // Fetch all players to extract unique seasons from the database
+      const playersData = await api.getPlayers({ limit: 500 });
+      const seasons = new Set<number>();
+
+      // Extract seasons from first_seen_season and last_seen_season
+      playersData.players.forEach(p => {
+        if (p.first_seen_season) seasons.add(p.first_seen_season);
+        if (p.last_seen_season) seasons.add(p.last_seen_season);
+      });
+
+      // Sort in descending order (newest first)
+      const sortedSeasons = Array.from(seasons).sort((a, b) => b - a);
+      setAvailableSeasons(sortedSeasons);
+    } catch (err) {
+      console.error('Failed to fetch seasons:', err);
+      // Fallback to hardcoded seasons if fetch fails
+      setAvailableSeasons([22, 21, 20, 19, 18]);
     }
   }
 
@@ -142,8 +166,11 @@ export default function PlayerDetailPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Seasons</option>
-              <option value="22">Season 22</option>
-              <option value="21">Season 21</option>
+              {availableSeasons.map(season => (
+                <option key={season} value={season}>
+                  Season {season}
+                </option>
+              ))}
             </select>
           </div>
 

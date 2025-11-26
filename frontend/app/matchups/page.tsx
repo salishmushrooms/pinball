@@ -10,6 +10,14 @@ import {
   PlayerMachineConfidence,
   MachinePickFrequency,
 } from '@/lib/types';
+import {
+  Card,
+  PageHeader,
+  Select,
+  Button,
+  Alert,
+  Badge,
+} from '@/components/ui';
 
 export default function MatchupsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -82,173 +90,166 @@ export default function MatchupsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Matchup Analysis</h1>
-        <p className="mt-2 text-gray-600">
-          Analyze team vs team matchups at specific venues with score predictions and machine preferences
-        </p>
-      </div>
+      <PageHeader
+        title="Matchup Analysis"
+        description="Analyze team vs team matchups at specific venues with score predictions and machine preferences"
+      />
 
       {/* Selection Form */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Select Matchup</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Home Team
-            </label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+      <Card>
+        <Card.Header>
+          <Card.Title>Select Matchup</Card.Title>
+        </Card.Header>
+        <Card.Content>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Select
+              label="Home Team"
               value={homeTeam}
               onChange={(e) => setHomeTeam(e.target.value)}
-            >
-              <option value="">Select Home Team</option>
-              {teams.map((team) => (
-                <option key={team.team_key} value={team.team_key}>
-                  {team.team_name}
-                </option>
-              ))}
-            </select>
-          </div>
+              options={[
+                { value: '', label: 'Select Home Team' },
+                ...teams.map((team) => ({
+                  value: team.team_key,
+                  label: team.team_name,
+                })),
+              ]}
+            />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Away Team
-            </label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <Select
+              label="Away Team"
               value={awayTeam}
               onChange={(e) => setAwayTeam(e.target.value)}
-            >
-              <option value="">Select Away Team</option>
-              {teams.map((team) => (
-                <option key={team.team_key} value={team.team_key}>
-                  {team.team_name}
-                </option>
-              ))}
-            </select>
-          </div>
+              options={[
+                { value: '', label: 'Select Away Team' },
+                ...teams.map((team) => ({
+                  value: team.team_key,
+                  label: team.team_name,
+                })),
+              ]}
+            />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Venue
-            </label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <Select
+              label="Venue"
               value={venue}
               onChange={(e) => setVenue(e.target.value)}
-            >
-              <option value="">Select Venue</option>
-              {venues.map((v) => (
-                <option key={v.venue_key} value={v.venue_key}>
-                  {v.venue_name}
-                </option>
-              ))}
-            </select>
-          </div>
+              options={[
+                { value: '', label: 'Select Venue' },
+                ...venues.map((v) => ({
+                  value: v.venue_key,
+                  label: v.venue_name,
+                })),
+              ]}
+            />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Season
-            </label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <Select
+              label="Season"
               value={season}
               onChange={(e) => setSeason(Number(e.target.value))}
+              options={[
+                { value: 22, label: 'Season 22' },
+                { value: 21, label: 'Season 21' },
+              ]}
+            />
+          </div>
+
+          <div className="mt-4">
+            <Button
+              onClick={handleAnalyzeMatchup}
+              disabled={loading || !homeTeam || !awayTeam || !venue}
+              variant="primary"
             >
-              <option value={22}>Season 22</option>
-              <option value={21}>Season 21</option>
-            </select>
+              {loading ? 'Analyzing...' : 'Analyze Matchup'}
+            </Button>
           </div>
-        </div>
 
-        <button
-          onClick={handleAnalyzeMatchup}
-          disabled={loading || !homeTeam || !awayTeam || !venue}
-          className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-        >
-          {loading ? 'Analyzing...' : 'Analyze Matchup'}
-        </button>
-
-        {error && (
-          <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            <strong className="font-bold">Error: </strong>
-            <span>{error}</span>
-          </div>
-        )}
-      </div>
+          {error && (
+            <Alert variant="error" title="Error" className="mt-4">
+              {error}
+            </Alert>
+          )}
+        </Card.Content>
+      </Card>
 
       {/* Matchup Results */}
       {matchup && (
         <div className="space-y-6">
           {/* Matchup Header */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              {matchup.home_team_name} vs {matchup.away_team_name}
-            </h2>
-            <p className="text-gray-600">
-              Venue: {matchup.venue_name} | Season: {matchup.season}
-            </p>
-            <p className="text-sm text-gray-500 mt-2">
-              {matchup.available_machines.length} machines available
-            </p>
-          </div>
+          <Card>
+            <Card.Content>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                {matchup.home_team_name} vs {matchup.away_team_name}
+              </h2>
+              <p className="text-gray-600">
+                Venue: {matchup.venue_name} | Season: {matchup.season}
+              </p>
+              <p className="text-sm text-gray-500 mt-2">
+                {matchup.available_machines.length} machines available
+              </p>
+            </Card.Content>
+          </Card>
 
           {/* Available Machines */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">
-              Available Machines
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {matchup.available_machines.map((machine) => (
-                <span
-                  key={machine}
-                  className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
-                >
-                  {machine}
-                </span>
-              ))}
-            </div>
-          </div>
+          <Card>
+            <Card.Header>
+              <Card.Title>Available Machines</Card.Title>
+            </Card.Header>
+            <Card.Content>
+              <div className="flex flex-wrap gap-2">
+                {matchup.available_machines.map((machine) => (
+                  <Badge key={machine} variant="info">
+                    {machine}
+                  </Badge>
+                ))}
+              </div>
+            </Card.Content>
+          </Card>
 
           {/* Team Machine Pick Frequency */}
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                {matchup.home_team_name} - Most Picked Machines
-              </h3>
-              <MachinePickTable picks={matchup.home_team_pick_frequency} />
-            </div>
+            <Card>
+              <Card.Header>
+                <Card.Title>{matchup.home_team_name} - Most Picked Machines</Card.Title>
+              </Card.Header>
+              <Card.Content>
+                <MachinePickTable picks={matchup.home_team_pick_frequency} />
+              </Card.Content>
+            </Card>
 
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                {matchup.away_team_name} - Most Picked Machines
-              </h3>
-              <MachinePickTable picks={matchup.away_team_pick_frequency} />
-            </div>
+            <Card>
+              <Card.Header>
+                <Card.Title>{matchup.away_team_name} - Most Picked Machines</Card.Title>
+              </Card.Header>
+              <Card.Content>
+                <MachinePickTable picks={matchup.away_team_pick_frequency} />
+              </Card.Content>
+            </Card>
           </div>
 
           {/* Team Confidence Intervals */}
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                {matchup.home_team_name} - Expected Scores (Team)
-              </h3>
-              <TeamConfidenceTable
-                confidences={matchup.home_team_machine_confidence}
-                formatScore={formatScore}
-              />
-            </div>
+            <Card>
+              <Card.Header>
+                <Card.Title>{matchup.home_team_name} - Expected Scores (Team)</Card.Title>
+              </Card.Header>
+              <Card.Content>
+                <TeamConfidenceTable
+                  confidences={matchup.home_team_machine_confidence}
+                  formatScore={formatScore}
+                />
+              </Card.Content>
+            </Card>
 
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                {matchup.away_team_name} - Expected Scores (Team)
-              </h3>
-              <TeamConfidenceTable
-                confidences={matchup.away_team_machine_confidence}
-                formatScore={formatScore}
-              />
-            </div>
+            <Card>
+              <Card.Header>
+                <Card.Title>{matchup.away_team_name} - Expected Scores (Team)</Card.Title>
+              </Card.Header>
+              <Card.Content>
+                <TeamConfidenceTable
+                  confidences={matchup.away_team_machine_confidence}
+                  formatScore={formatScore}
+                />
+              </Card.Content>
+            </Card>
           </div>
 
           {/* Player Machine Preferences */}

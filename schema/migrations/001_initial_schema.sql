@@ -43,7 +43,7 @@ CREATE TABLE venues (
     venue_name VARCHAR(255) NOT NULL,
     address TEXT,
     city VARCHAR(100),
-    state VARCHAR(2) DEFAULT 'MN',
+    state VARCHAR(2),
     active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

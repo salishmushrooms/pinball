@@ -4,6 +4,15 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Machine } from '@/lib/types';
+import {
+  Card,
+  PageHeader,
+  Input,
+  Alert,
+  LoadingSpinner,
+  EmptyState,
+  Table,
+} from '@/components/ui';
 
 export default function MachinesPage() {
   const [machines, setMachines] = useState<Machine[]>([]);
@@ -41,81 +50,72 @@ export default function MachinesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Machines</h1>
-        <p className="text-gray-600 mt-2">
-          Browse pinball machines and view performance statistics
-        </p>
-      </div>
+      <PageHeader
+        title="Machines"
+        description="Browse pinball machines and view performance statistics"
+      />
 
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="grid grid-cols-1 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Search by Name or Machine Key
-            </label>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Type machine name or key (e.g., 'Medieval Madness' or 'MM')..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Tip: Try searching by abbreviations like "TOTAN", "MM", "AFM", etc.
-            </p>
-          </div>
-        </div>
-
-        {loading && (
-          <div className="mt-4 text-sm text-gray-500">
-            Searching...
-          </div>
-        )}
-      </div>
+      <Card>
+        <Card.Content>
+          <Input
+            label="Search by Name or Machine Key"
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Type machine name or key (e.g., 'Medieval Madness' or 'MM')..."
+            helpText="Tip: Try searching by abbreviations like 'TOTAN', 'MM', 'AFM', etc."
+          />
+          {loading && (
+            <div className="mt-4">
+              <LoadingSpinner size="sm" text="Searching..." />
+            </div>
+          )}
+        </Card.Content>
+      </Card>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          <strong className="font-bold">Error: </strong>
-          <span>{error}</span>
-        </div>
+        <Alert variant="error" title="Error">
+          {error}
+        </Alert>
       )}
 
       {!loading && !error && machines.length === 0 && searchTerm && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
-          No machines found matching "{searchTerm}". Try a different search term.
-        </div>
+        <Card>
+          <Card.Content>
+            <EmptyState
+              title="No machines found"
+              description={`No machines found matching "${searchTerm}". Try a different search term.`}
+            />
+          </Card.Content>
+        </Card>
       )}
 
       {machines.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Machine Name
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {machines.map((machine) => (
-                <tr
-                  key={machine.machine_key}
-                  className="hover:bg-gray-50 cursor-pointer"
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <Link
-                      href={`/machines/${machine.machine_key}`}
-                      className="block text-sm font-medium text-gray-900"
-                    >
-                      {machine.machine_name}
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Card>
+          <Card.Content>
+            <Table>
+              <Table.Header>
+                <Table.Row hoverable={false}>
+                  <Table.Head>Machine Name</Table.Head>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {machines.map((machine) => (
+                  <Table.Row key={machine.machine_key}>
+                    <Table.Cell>
+                      <Link
+                        href={`/machines/${machine.machine_key}`}
+                        className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                      >
+                        {machine.machine_name}
+                      </Link>
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table>
+          </Card.Content>
+        </Card>
       )}
 
       {machines.length > 0 && (

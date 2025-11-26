@@ -1,8 +1,48 @@
 @import "tailwindcss";
 
 :root {
+  /* Base Colors */
   --background: #ffffff;
   --foreground: #171717;
+  --card-bg: #ffffff;
+  --border: #e5e7eb;
+
+  /* Primary Blue */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+
+  /* Neutral Grays */
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
+  --color-gray-700: #374151;
+  --color-gray-900: #111827;
+
+  /* Success */
+  --color-success-50: #f0fdf4;
+  --color-success-500: #22c55e;
+  --color-success-700: #15803d;
+
+  /* Warning */
+  --color-warning-50: #fefce8;
+  --color-warning-500: #eab308;
+  --color-warning-700: #a16207;
+
+  /* Error */
+  --color-error-50: #fef2f2;
+  --color-error-500: #ef4444;
+  --color-error-700: #b91c1c;
+
+  /* Info */
+  --color-info-50: #f0f9ff;
+  --color-info-500: #0ea5e9;
+  --color-info-700: #0369a1;
 }
 
 @theme inline {
@@ -16,6 +56,14 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --card-bg: #1a1a1a;
+    --border: #2a2a2a;
+
+    /* Adjust colors for dark mode */
+    --color-gray-50: #1a1a1a;
+    --color-gray-100: #2a2a2a;
+    --color-gray-200: #3a3a3a;
+    --color-gray-900: #ededed;
   }
 }
 
@@ -23,4 +71,11 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Smooth transitions for theme changes */
+* {
+  transition-property: background-color, border-color, color;
+  transition-duration: 150ms;
+  transition-timing-function: ease-in-out;
 }

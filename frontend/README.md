@@ -1,46 +1,94 @@
 # MNP Analyzer Frontend
 
-A modern Next.js 14 frontend for the Monday Night Pinball score analysis.
+A modern Next.js 16 frontend for the Monday Night Pinball score analysis.
 
 ## Features
 
 - **Player Browser**: Search and filter players by name, IPR, and season
-- **Player Detail**: View individual player statistics across all machines
+- **Team Browser**: View teams with dynamic season filtering
 - **Machine Browser**: Browse pinball machines with filtering by manufacturer
-- **Machine Detail**: View detailed machine statistics with percentile visualizations
+- **Venue Browser**: Explore venues and their machine lineups
+- **Matchup Analysis**: Compare team performance head-to-head
 - **Type-Safe API**: Full TypeScript integration with type-safe API client
-- **Responsive Design**: Mobile-friendly interface with Tailwind CSS
+- **Design System**: Consistent UI components with reusable patterns
+- **Responsive Design**: Mobile-friendly interface with Tailwind CSS v4
 
 ## Tech Stack
 
-- **Framework**: Next.js 14 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
+- **Framework**: Next.js 16 (App Router with Turbopack)
+- **UI Library**: React 19
+- **Language**: TypeScript 5
+- **Styling**: Tailwind CSS v4 (PostCSS-based)
+- **Component Library**: Custom UI components with design system
 - **API Communication**: Native Fetch API
-- **Development**: Turbopack for fast development builds
+- **Fonts**: Geist Sans & Geist Mono (Google Fonts)
 
 ## Project Structure
 
 ```
 frontend/
-├── app/
-│   ├── layout.tsx           # Root layout with navigation
-│   ├── page.tsx             # Home page with data summary
-│   ├── players/
-│   │   ├── page.tsx         # Player list/search page
+├── app/                      # Next.js App Router pages
+│   ├── layout.tsx            # Root layout with navigation
+│   ├── page.tsx              # Home page with data summary
+│   ├── globals.css           # Global styles with design tokens
+│   ├── players/              # Player pages
+│   │   ├── page.tsx          # Player list (✅ MIGRATED)
+│   │   ├── page-refactored.tsx  # Example refactored version
 │   │   └── [player_key]/
-│   │       └── page.tsx     # Player detail page
-│   └── machines/
-│       ├── page.tsx         # Machine list/search page
-│       └── [machine_key]/
-│           └── page.tsx     # Machine detail page
+│   │       └── page.tsx      # Player detail
+│   ├── teams/                # Team pages
+│   │   ├── page.tsx          # Team list (✅ MIGRATED)
+│   │   ├── page-refactored.tsx  # Example refactored version
+│   │   └── [team_key]/
+│   │       └── page.tsx      # Team detail
+│   ├── machines/             # Machine pages
+│   │   ├── page.tsx          # Machine list
+│   │   └── [machine_key]/
+│   │       └── page.tsx      # Machine detail
+│   ├── venues/               # Venue pages
+│   │   ├── page.tsx          # Venue list
+│   │   └── [venue_key]/
+│   │       └── page.tsx      # Venue detail
+│   └── matchups/             # Matchup analysis
+│       └── page.tsx          # Matchup comparison
 ├── components/
-│   └── Navigation.tsx       # Main navigation component
+│   ├── Navigation.tsx        # Main navigation component
+│   └── ui/                   # ✨ NEW: UI Component Library
+│       ├── Card.tsx          # Card container component
+│       ├── Button.tsx        # Button component (4 variants)
+│       ├── Badge.tsx         # Status badges (5 variants)
+│       ├── Alert.tsx         # Alert messages (4 variants)
+│       ├── Input.tsx         # Form input with labels
+│       ├── Select.tsx        # Dropdown select with labels
+│       ├── Table.tsx         # Data table with sorting
+│       ├── PageHeader.tsx    # Page title component
+│       ├── LoadingSpinner.tsx # Loading states
+│       ├── EmptyState.tsx    # No data placeholders
+│       ├── StatCard.tsx      # Statistic display cards
+│       ├── index.ts          # Component exports
+│       └── README.md         # Component quick reference
 ├── lib/
-│   ├── api.ts              # API client
-│   └── types.ts            # TypeScript types
-└── .env.local              # Environment configuration
+│   ├── api.ts                # API client (fully typed)
+│   ├── types.ts              # TypeScript type definitions
+│   └── utils.ts              # ✨ NEW: Utility functions (cn)
+├── DESIGN_SYSTEM.md          # ✨ Complete design system specification
+├── COMPONENT_MIGRATION_GUIDE.md  # ✨ Step-by-step migration guide
+├── README.md                 # This file
+└── .env.local                # Environment configuration
 ```
+
+## 📚 Documentation
+
+### Core Documentation
+- **[DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)** - Complete design system with colors, typography, components, and patterns
+- **[COMPONENT_MIGRATION_GUIDE.md](COMPONENT_MIGRATION_GUIDE.md)** - Step-by-step guide for migrating pages to new components
+- **[components/ui/README.md](components/ui/README.md)** - Quick reference for all UI components with copy-paste examples
+
+### When to Use Each Doc
+- **Starting a new page?** → Read DESIGN_SYSTEM.md for patterns
+- **Migrating an existing page?** → Follow COMPONENT_MIGRATION_GUIDE.md
+- **Need component syntax?** → Check components/ui/README.md
+- **Updating styles globally?** → See DESIGN_SYSTEM.md color/typography sections
 
 ## Getting Started
 
@@ -183,14 +231,38 @@ Key types:
 - `GroupedPercentiles`: Percentile data grouped by venue/season
 - `Percentile`: Raw percentile records
 
-## Styling
+## Design System & Styling
 
-The application uses Tailwind CSS for styling with a consistent design system:
+The application uses a **comprehensive design system** with Tailwind CSS v4. See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for complete details.
 
-- **Primary Color**: Blue (#2563EB)
-- **Background**: Gray-50 (#F9FAFB)
-- **Cards**: White with shadow-md
-- **Text**: Gray-900 for primary, Gray-600 for secondary
+### Quick Reference
+
+**Colors:**
+- Primary: Blue-600 (#2563eb) - Interactive elements
+- Grays: 50-900 scale - Text, borders, backgrounds
+- Semantic: Success (green), Warning (yellow), Error (red), Info (blue)
+
+**Components:**
+- 11 reusable UI components in `components/ui/`
+- Consistent styling with variants (primary, secondary, ghost, etc.)
+- Full TypeScript support with IntelliSense
+- Accessibility built-in (ARIA, keyboard nav, focus states)
+
+**Using Components:**
+```tsx
+import { Card, Button, Alert, Table } from '@/components/ui';
+
+<Card>
+  <Card.Header>
+    <Card.Title>Title</Card.Title>
+  </Card.Header>
+  <Card.Content>
+    Content here
+  </Card.Content>
+</Card>
+```
+
+See [components/ui/README.md](components/ui/README.md) for all component examples.
 
 ## Development Notes
 
@@ -255,14 +327,54 @@ Potential improvements for future iterations:
    - Touch-optimized controls
    - Progressive Web App (PWA)
 
+## Migration Status
+
+Component library migration progress:
+
+### ✅ Completed
+- [x] Teams page - Fully migrated with dynamic season filtering
+- [x] Players page - Fully migrated with search and IPR filtering
+- [x] Design system established
+- [x] 11 UI components created
+- [x] Documentation complete
+
+### 🚧 Ready to Migrate
+- [ ] Machines page
+- [ ] Venues page
+- [ ] Matchups page
+
+### 📋 Not Started
+- [ ] Detail pages (player, team, machine, venue)
+
+**To continue migration:** See [COMPONENT_MIGRATION_GUIDE.md](COMPONENT_MIGRATION_GUIDE.md)
+
 ## Contributing
 
-When adding new features:
+### Adding New Features
 
-1. Update TypeScript types in `lib/types.ts`
-2. Add API methods to `lib/api.ts`
-3. Create new pages in appropriate directories
-4. Update this README
+1. **Use the design system**: Import components from `@/components/ui`
+2. **Update types**: Add TypeScript types to `lib/types.ts`
+3. **Add API methods**: Extend `lib/api.ts` with new endpoints
+4. **Follow patterns**: See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for page layout patterns
+5. **Update docs**: Update this README and relevant documentation
+
+### Migrating Existing Pages
+
+1. **Read the guide**: Follow [COMPONENT_MIGRATION_GUIDE.md](COMPONENT_MIGRATION_GUIDE.md)
+2. **Use examples**: Compare with `page-refactored.tsx` files
+3. **Test thoroughly**: Check responsive behavior, loading states, errors
+4. **Update status**: Mark page as migrated in this README
+
+### Creating New Components
+
+If you need a component that doesn't exist:
+
+1. **Check design system**: Ensure it fits the established patterns
+2. **Create in `components/ui/`**: Follow existing component structure
+3. **Add TypeScript interfaces**: Define clear prop types
+4. **Export from index**: Add to `components/ui/index.ts`
+5. **Document**: Add examples to `components/ui/README.md`
+6. **Update design system**: Add to DESIGN_SYSTEM.md if it's a new pattern
 
 ## Support
 
