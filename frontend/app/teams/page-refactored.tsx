@@ -12,35 +12,36 @@ import {
   EmptyState,
 } from '@/components/ui';
 
-export default function TeamsPage() {
+/**
+ * Refactored Teams Page using the new UI component library
+ *
+ * This demonstrates:
+ * - Consistent component usage
+ * - Clean, readable JSX
+ * - Proper separation of concerns
+ * - Design system adherence
+ *
+ * Compare this to the original page.tsx to see the improvements
+ */
+export default function TeamsPageRefactored() {
   const [teams, setTeams] = useState<Team[]>([]);
-  const [allTeams, setAllTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [seasonFilter, setSeasonFilter] = useState<number | undefined>(22);
-  const [availableSeasons, setAvailableSeasons] = useState<number[]>([]);
 
   useEffect(() => {
-    fetchAllTeams();
-  }, []);
+    fetchTeams();
+  }, [seasonFilter]);
 
-  useEffect(() => {
-    filterTeamsBySeason();
-  }, [seasonFilter, allTeams]);
-
-  async function fetchAllTeams() {
+  async function fetchTeams() {
     setLoading(true);
     setError(null);
     try {
       const data = await api.getTeams({
-        limit: 500, // API maximum limit
+        season: seasonFilter,
+        limit: 500,
       });
-      setAllTeams(data.teams);
-
-      // Extract unique seasons and sort them in descending order
-      const seasons = [...new Set(data.teams.map(team => team.season))]
-        .sort((a, b) => b - a);
-      setAvailableSeasons(seasons);
+      setTeams(data.teams);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch teams');
     } finally {
@@ -48,29 +49,25 @@ export default function TeamsPage() {
     }
   }
 
-  function filterTeamsBySeason() {
-    if (seasonFilter) {
-      setTeams(allTeams.filter(team => team.season === seasonFilter));
-    } else {
-      setTeams(allTeams);
-    }
-  }
-
+  // Loading state
   if (loading) {
     return <LoadingSpinner fullPage text="Loading teams..." />;
   }
 
+  // Error state
   if (error) {
     return <Alert variant="error" title="Error">{error}</Alert>;
   }
 
   return (
     <div className="space-y-6">
+      {/* Page Header */}
       <PageHeader
         title="Teams"
         description="Browse all teams and view their machine statistics"
       />
 
+      {/* Filters Card */}
       <Card>
         <Card.Content>
           <Select
@@ -80,15 +77,14 @@ export default function TeamsPage() {
             className="md:w-64"
             options={[
               { value: '', label: 'All Seasons' },
-              ...availableSeasons.map(season => ({
-                value: season,
-                label: `Season ${season}`
-              }))
+              { value: 22, label: 'Season 22' },
+              { value: 21, label: 'Season 21' },
             ]}
           />
         </Card.Content>
       </Card>
 
+      {/* Empty State */}
       {teams.length === 0 ? (
         <Card>
           <Card.Content>
@@ -100,6 +96,7 @@ export default function TeamsPage() {
         </Card>
       ) : (
         <>
+          {/* Teams Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {teams.map((team) => (
               <Card
@@ -132,6 +129,7 @@ export default function TeamsPage() {
             ))}
           </div>
 
+          {/* Results Count */}
           <div className="text-center text-sm text-gray-600">
             Showing {teams.length} team{teams.length !== 1 ? 's' : ''}
           </div>

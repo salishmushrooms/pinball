@@ -835,7 +835,7 @@ GET /api/v1/venues/T4B?season=22
     "venue_name": "4Bs Tavern",
     "address": "123 Main St",
     "city": "St Paul",
-    "state": "MN",
+    "state": null,
     "active": true,
     "machines": [
       {

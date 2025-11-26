@@ -1,9 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { ApiInfo } from '@/lib/types';
+import {
+  Card,
+  PageHeader,
+  Alert,
+  LoadingSpinner,
+  StatCard,
+} from '@/components/ui';
 
 export default function Home() {
   const [apiInfo, setApiInfo] = useState<ApiInfo | null>(null);
@@ -26,128 +32,105 @@ export default function Home() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="text-lg text-gray-600">Loading...</div>
-      </div>
-    );
+    return <LoadingSpinner fullPage text="Loading..." />;
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-        <strong className="font-bold">Error: </strong>
-        <span>{error}</span>
-      </div>
+      <Alert variant="error" title="Error">
+        {error}
+      </Alert>
     );
   }
 
   return (
     <div className="space-y-8">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          MNP Analyzer
-        </h1>
-        <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-          Monday Night Pinball Data Analysis Platform
-        </p>
-      </div>
+      <PageHeader
+        title="MNP Analyzer"
+        description="Monday Night Pinball Data Analysis Platform"
+      />
 
       {apiInfo && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-            Data Summary
-          </h2>
-          <p className="text-gray-600 mb-4">{apiInfo.data_summary.description}</p>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-blue-600">
-                {apiInfo.data_summary.players.toLocaleString()}
-              </div>
-              <div className="text-sm text-gray-600 mt-1">Players</div>
+        <Card>
+          <Card.Header>
+            <Card.Title>Data Summary</Card.Title>
+          </Card.Header>
+          <Card.Content>
+            <p className="text-gray-600 mb-4">{apiInfo.data_summary.description}</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <StatCard
+                label="Players"
+                value={apiInfo.data_summary.players.toLocaleString()}
+              />
+              <StatCard
+                label="Machines"
+                value={apiInfo.data_summary.machines.toLocaleString()}
+              />
+              <StatCard
+                label="Venues"
+                value={apiInfo.data_summary.venues.toLocaleString()}
+              />
+              <StatCard
+                label="Teams"
+                value={apiInfo.data_summary.teams.toLocaleString()}
+              />
+              <StatCard
+                label="Matches"
+                value={apiInfo.data_summary.matches.toLocaleString()}
+              />
+              <StatCard
+                label="Scores"
+                value={apiInfo.data_summary.total_scores}
+              />
             </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-green-600">
-                {apiInfo.data_summary.machines.toLocaleString()}
-              </div>
-              <div className="text-sm text-gray-600 mt-1">Machines</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-yellow-600">
-                {apiInfo.data_summary.venues.toLocaleString()}
-              </div>
-              <div className="text-sm text-gray-600 mt-1">Venues</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-red-600">
-                {apiInfo.data_summary.teams.toLocaleString()}
-              </div>
-              <div className="text-sm text-gray-600 mt-1">Teams</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-purple-600">
-                {apiInfo.data_summary.matches.toLocaleString()}
-              </div>
-              <div className="text-sm text-gray-600 mt-1">Matches</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-orange-600">
-                {apiInfo.data_summary.total_scores}
-              </div>
-              <div className="text-sm text-gray-600 mt-1">Scores</div>
-            </div>
-          </div>
-        </div>
+          </Card.Content>
+        </Card>
       )}
 
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Link
-          href="/players"
-          className="block bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
-        >
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            Browse Players
-          </h3>
-          <p className="text-gray-600">
-            Search and analyze player performance across machines and venues
-          </p>
-        </Link>
+        <Card variant="interactive" href="/players">
+          <Card.Content>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              Browse Players
+            </h3>
+            <p className="text-gray-600">
+              Search and analyze player performance across machines and venues
+            </p>
+          </Card.Content>
+        </Card>
 
-        <Link
-          href="/machines"
-          className="block bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
-        >
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            Browse Machines
-          </h3>
-          <p className="text-gray-600">
-            Explore machine statistics and percentile distributions
-          </p>
-        </Link>
+        <Card variant="interactive" href="/machines">
+          <Card.Content>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              Browse Machines
+            </h3>
+            <p className="text-gray-600">
+              Explore machine statistics and percentile distributions
+            </p>
+          </Card.Content>
+        </Card>
 
-        <Link
-          href="/venues"
-          className="block bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
-        >
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            Browse Venues
-          </h3>
-          <p className="text-gray-600">
-            View venue locations and their current machine lineups
-          </p>
-        </Link>
+        <Card variant="interactive" href="/venues">
+          <Card.Content>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              Browse Venues
+            </h3>
+            <p className="text-gray-600">
+              View venue locations and their current machine lineups
+            </p>
+          </Card.Content>
+        </Card>
 
-        <Link
-          href="/matchups"
-          className="block bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
-        >
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            Matchup Analysis
-          </h3>
-          <p className="text-gray-600">
-            Analyze team vs team matchups with score predictions and strategies
-          </p>
-        </Link>
+        <Card variant="interactive" href="/matchups">
+          <Card.Content>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              Matchup Analysis
+            </h3>
+            <p className="text-gray-600">
+              Analyze team vs team matchups with score predictions and strategies
+            </p>
+          </Card.Content>
+        </Card>
       </div>
     </div>
   );

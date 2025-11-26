@@ -4,6 +4,15 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Venue } from '@/lib/types';
+import {
+  Card,
+  PageHeader,
+  Input,
+  Alert,
+  LoadingSpinner,
+  EmptyState,
+  Table,
+} from '@/components/ui';
 
 export default function VenuesPage() {
   const [venues, setVenues] = useState<Venue[]>([]);
@@ -31,79 +40,74 @@ export default function VenuesPage() {
   );
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="text-lg text-gray-600">Loading venues...</div>
-      </div>
-    );
+    return <LoadingSpinner fullPage text="Loading venues..." />;
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-        <strong className="font-bold">Error: </strong>
-        <span>{error}</span>
-      </div>
+      <Alert variant="error" title="Error">
+        {error}
+      </Alert>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Venues</h1>
-        <p className="text-gray-600">
-          Browse all MNP venues and view their machine lineups
-        </p>
-      </div>
+      <PageHeader
+        title="Venues"
+        description="Browse all MNP venues and view their machine lineups"
+      />
 
-      <div className="bg-white rounded-lg shadow-md p-4">
-        <input
-          type="text"
-          placeholder="Search venues..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-      </div>
+      <Card>
+        <Card.Content>
+          <Input
+            type="text"
+            placeholder="Search venues..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </Card.Content>
+      </Card>
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Venue Name
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredVenues.length === 0 ? (
-                <tr>
-                  <td className="px-6 py-4 text-center text-gray-500">
-                    No venues found
-                  </td>
-                </tr>
-              ) : (
-                filteredVenues.map((venue) => (
-                  <tr key={venue.venue_key} className="hover:bg-gray-50 cursor-pointer">
-                    <td className="px-6 py-4 whitespace-nowrap">
+      {filteredVenues.length === 0 ? (
+        <Card>
+          <Card.Content>
+            <EmptyState
+              title="No venues found"
+              description={searchTerm ? `No venues match "${searchTerm}"` : 'No venues available'}
+            />
+          </Card.Content>
+        </Card>
+      ) : (
+        <Card>
+          <Card.Content>
+            <Table>
+              <Table.Header>
+                <Table.Row hoverable={false}>
+                  <Table.Head>Venue Name</Table.Head>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {filteredVenues.map((venue) => (
+                  <Table.Row key={venue.venue_key}>
+                    <Table.Cell>
                       <Link
                         href={`/venues/${venue.venue_key}`}
-                        className="block text-blue-600 hover:text-blue-800 font-medium"
+                        className="text-sm font-medium text-blue-600 hover:text-blue-800"
                       >
                         {venue.venue_name}
                       </Link>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table>
+          </Card.Content>
+        </Card>
+      )}
 
-      <div className="text-sm text-gray-600">
-        Showing {filteredVenues.length} of {venues.length} venues
+      <div className="text-center text-sm text-gray-600">
+        Showing {filteredVenues.length} of {venues.length} venue{venues.length !== 1 ? 's' : ''}
       </div>
     </div>
   );

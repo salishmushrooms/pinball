@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Team, TeamMachineStat, TeamPlayer, Venue } from '@/lib/types';
+import { MultiSelect } from '@/components/ui';
 
 export default function TeamDetailPage() {
   const params = useParams();
@@ -76,15 +77,12 @@ export default function TeamDetailPage() {
     }
   }
 
-  function toggleRound(round: number) {
-    setRoundsFilter(prev => {
-      if (prev.includes(round)) {
-        return prev.filter(r => r !== round);
-      } else {
-        return [...prev, round].sort();
-      }
-    });
-  }
+  const roundOptions = [
+    { value: 1, label: 'Round 1' },
+    { value: 2, label: 'Round 2' },
+    { value: 3, label: 'Round 3' },
+    { value: 4, label: 'Round 4' },
+  ];
 
   if (loading) {
     return (
@@ -184,26 +182,13 @@ export default function TeamDetailPage() {
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Rounds
-            </label>
-            <div className="flex gap-2">
-              {[1, 2, 3, 4].map((round) => (
-                <button
-                  key={round}
-                  onClick={() => toggleRound(round)}
-                  className={`flex-1 px-3 py-2 border rounded-md text-sm font-medium transition-colors ${
-                    roundsFilter.includes(round)
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  R{round}
-                </button>
-              ))}
-            </div>
-          </div>
+          <MultiSelect
+            label="Rounds"
+            helpText="Select one or more rounds to filter"
+            options={roundOptions}
+            value={roundsFilter}
+            onChange={setRoundsFilter}
+          />
         </div>
 
         {/* Machine Stats Table */}

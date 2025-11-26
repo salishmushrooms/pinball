@@ -41,7 +41,7 @@ class DatabaseLoader:
                     'venue_key': venue['venue_key'],
                     'venue_name': venue['venue_name'],
                     'city': venue.get('city'),
-                    'state': venue.get('state', 'MN'),
+                    'state': venue.get('state'),
                     'active': venue.get('active', True)
                 })
                 count += 1
@@ -136,7 +136,8 @@ class DatabaseLoader:
                     ON CONFLICT (player_key) DO UPDATE SET
                         name = EXCLUDED.name,
                         current_ipr = EXCLUDED.current_ipr,
-                        last_seen_season = EXCLUDED.last_seen_season
+                        first_seen_season = LEAST(players.first_seen_season, EXCLUDED.first_seen_season),
+                        last_seen_season = GREATEST(players.last_seen_season, EXCLUDED.last_seen_season)
                 """), {
                     'player_key': player['player_key'],
                     'name': player['name'],

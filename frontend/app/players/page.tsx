@@ -4,6 +4,19 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Player } from '@/lib/types';
+import {
+  Card,
+  PageHeader,
+  Input,
+  Alert,
+  EmptyState,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui';
 
 export default function PlayersPage() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -48,114 +61,98 @@ export default function PlayersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Players</h1>
-        <p className="text-gray-600 mt-2">
-          Browse and search player statistics
-        </p>
-      </div>
+      {/* Page Header */}
+      <PageHeader
+        title="Players"
+        description="Browse and search player statistics"
+      />
 
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Search Name
-            </label>
-            <input
+      {/* Search Filters */}
+      <Card>
+        <Card.Content>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Search Name"
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Type to search players..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Min IPR (1-6)
-            </label>
-            <input
+            <Input
+              label="Min IPR (1-6)"
               type="number"
               value={minIpr}
               onChange={(e) => setMinIpr(e.target.value)}
               placeholder="e.g., 3"
-              min="1"
-              max="6"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              min={1}
+              max={6}
             />
           </div>
-        </div>
 
-        {loading && (
-          <div className="mt-4 text-sm text-gray-500">
-            Searching...
-          </div>
-        )}
-      </div>
+          {loading && (
+            <div className="mt-4 text-sm text-gray-500">
+              Searching...
+            </div>
+          )}
+        </Card.Content>
+      </Card>
 
+      {/* Error State */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          <strong className="font-bold">Error: </strong>
-          <span>{error}</span>
-        </div>
+        <Alert variant="error" title="Error">
+          {error}
+        </Alert>
       )}
 
+      {/* Empty State */}
       {!loading && !error && players.length === 0 && (searchTerm || minIpr) && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
-          No players found matching your criteria.
-        </div>
+        <Card>
+          <Card.Content>
+            <EmptyState
+              title="No players found"
+              description="No players found matching your criteria. Try adjusting your search."
+            />
+          </Card.Content>
+        </Card>
       )}
 
+      {/* Players Table */}
       {players.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Player Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  IPR
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Seasons
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow hoverable={false}>
+                <TableHead>Player Name</TableHead>
+                <TableHead>IPR</TableHead>
+                <TableHead>Seasons</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {players.map((player) => (
-                <tr key={player.player_key} className="hover:bg-gray-50 cursor-pointer">
-                  <td className="px-6 py-4 whitespace-nowrap">
+                <TableRow key={player.player_key}>
+                  <TableCell>
                     <Link
                       href={`/players/${player.player_key}`}
-                      className="block text-sm font-medium text-gray-900"
+                      className="font-medium text-blue-600 hover:text-blue-700"
                     >
                       {player.name}
                     </Link>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <Link
-                      href={`/players/${player.player_key}`}
-                      className="block text-sm text-gray-900"
-                    >
-                      {player.current_ipr ? player.current_ipr.toFixed(2) : 'N/A'}
-                    </Link>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <Link
-                      href={`/players/${player.player_key}`}
-                      className="block"
-                    >
-                      {player.first_seen_season} - {player.last_seen_season}
-                    </Link>
-                  </td>
-                </tr>
+                  </TableCell>
+                  <TableCell>
+                    {player.current_ipr ? player.current_ipr.toFixed(2) : 'N/A'}
+                  </TableCell>
+                  <TableCell className="text-gray-500">
+                    {player.first_seen_season} - {player.last_seen_season}
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </Card>
       )}
 
+      {/* Results Count */}
       {players.length > 0 && (
         <div className="text-center text-sm text-gray-600">
           Showing {players.length} player{players.length !== 1 ? 's' : ''}

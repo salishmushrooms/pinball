@@ -1,6 +1,6 @@
 # MNP Analyzer - Current Status
 
-**Last Updated**: 2025-11-24 18:00 PST
+**Last Updated**: 2025-11-26 06:20 PST
 **Current Phase**: Week 2, Day 3 - Frontend Development! 🚀
 **Overall Progress**: API Complete, Frontend Built, Environment Setup Needed
 
@@ -31,14 +31,14 @@
 - ✅ Match JSON parser (`etl/parsers/match_parser.py`)
 - ✅ Database loader module (`etl/loaders/db_loader.py`)
 - ✅ Main ETL orchestrator script (`etl/load_season.py`)
-- ✅ **Season 22 data loaded successfully**
-  - 341 machines (332 + 9 auto-created)
-  - 19 venues
-  - 34 teams
-  - 523 players
-  - 184 matches
-  - 3,916 games
-  - 10,680 scores
+- ✅ **Seasons 18-22 data loaded successfully**
+  - 405 machines (332 + 73 auto-created)
+  - 22 venues
+  - 38 unique teams (170 team-season records)
+  - 938 players
+  - 943 matches across 5 seasons
+  - 20,720 games
+  - 56,504 scores
 
 ### Frontend Development (Week 2, Day 3)
 - ✅ Next.js 14 project created with TypeScript and Tailwind CSS
@@ -92,7 +92,7 @@
 - **Solution**: Removed constraint to allow all scores; outliers will be flagged via 3-sigma analysis
 - **Result**: All scores preserved as-is; statistical analysis will identify true outliers
 
-**ETL Status**: ✅ COMPLETE - All Season 22 data loaded successfully!
+**ETL Status**: ✅ COMPLETE - All Seasons 18-22 data loaded successfully!
 
 ---
 
@@ -128,10 +128,13 @@ pinball/
 │       └── db_loader.py                   ✅ Database insert
 │
 ├── mnp-data-archive/
-│   └── season-22/
-│       ├── matches/*.json                 📂 ~100 match files
-│       ├── teams.csv
-│       └── venues.csv
+│   ├── season-18/ ... season-22/
+│   │   ├── matches/*.json                 📂 ~190 match files per season
+│   │   ├── teams.csv
+│   │   └── venues.csv
+│   ├── machines.json
+│   ├── venues.json
+│   └── IPR.csv
 │
 ├── machine_variations.json                ⚠️  Incomplete - missing some machines
 │
@@ -168,9 +171,9 @@ psql mnp_analyzer
 ```
 
 ### Current Data
-- **Database**: Empty tables, ready for data
-- **Source Data**: Season 22 match files in `mnp-data-archive/season-22/matches/`
-- **Machine Variations**: `machine_variations.json` (needs updating)
+- **Database**: Populated with Seasons 18-22 data (943 matches, 56,504 scores)
+- **Source Data**: Seasons 18-22 match files in `mnp-data-archive/season-XX/matches/`
+- **Machine Variations**: `machine_variations.json` (73 machines auto-created)
 
 ---
 
@@ -189,7 +192,7 @@ psql mnp_analyzer
 3. **Verify database connection**
    - Check PostgreSQL is running
    - Test connection to `mnp_analyzer` database
-   - Verify data is loaded (should have 10,680 scores)
+   - Verify data is loaded (should have 56,504 scores across seasons 18-22)
 
 4. **Start backend API**
    - Start FastAPI server: `uvicorn api.main:app --reload`
@@ -227,7 +230,7 @@ psql mnp_analyzer
 
 ## ⚠️ Known Issues & Data Quality Notes
 
-1. **Auto-created machines (9 total)**
+1. **Auto-created machines (73 total across all seasons)**
    - Some machines were missing from `machine_variations.json`
    - Auto-created with key = name (e.g., "Scooby Doo", "Harry Potter")
    - **Action needed**: Review and add proper metadata (manufacturer, year, etc.)
