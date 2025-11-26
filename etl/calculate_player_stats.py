@@ -83,7 +83,7 @@ def fetch_percentile_map(season: int):
     query = """
         SELECT machine_key, percentile, score_threshold
         FROM score_percentiles
-        WHERE season = :season AND venue_key IS NULL
+        WHERE season = :season AND venue_key = '_ALL_'
         ORDER BY machine_key, percentile
     """
 
@@ -244,12 +244,12 @@ def insert_player_stats(stats_dict, season: int):
         INSERT INTO player_machine_stats (
             player_key, machine_key, venue_key, season,
             games_played, total_score, median_score, avg_score,
-            best_score, worst_score, percentile
+            best_score, worst_score, median_percentile, avg_percentile
         )
         VALUES (
             :player_key, :machine_key, :venue_key, :season,
             :games_played, :total_score, :median_score, :avg_score,
-            :best_score, :worst_score, :percentile
+            :best_score, :worst_score, :median_percentile, :avg_percentile
         )
         ON CONFLICT (player_key, machine_key, venue_key, season)
         DO UPDATE SET
@@ -259,7 +259,8 @@ def insert_player_stats(stats_dict, season: int):
             avg_score = EXCLUDED.avg_score,
             best_score = EXCLUDED.best_score,
             worst_score = EXCLUDED.worst_score,
-            percentile = EXCLUDED.percentile,
+            median_percentile = EXCLUDED.median_percentile,
+            avg_percentile = EXCLUDED.avg_percentile,
             last_calculated = CURRENT_TIMESTAMP
     """
 
@@ -281,8 +282,8 @@ def insert_player_stats(stats_dict, season: int):
                 'avg_score': stat['avg_score'],
                 'best_score': stat['best_score'],
                 'worst_score': stat['worst_score'],
-                'median_percentile': stat['median_percentile'],
-                'avg_percentile': stat['avg_percentile']
+                'median_percentile': stat['percentile'],
+                'avg_percentile': stat['percentile']  # Using median percentile for now
             }
 
             batch.append(record)

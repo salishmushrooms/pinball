@@ -8,7 +8,7 @@
 
 ## What Was Created
 
-This session produced complete planning and design documentation for the MNP Analyzer project - a mobile-first Progressive Web App for Minnesota Pinball League data analysis.
+This session produced complete planning and design documentation for the MNP Analyzer project - a mobile-first Progressive Web App for Monday Night Pinball data analysis.
 
 ### Documentation Files Created (7 files)
 

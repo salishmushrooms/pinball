@@ -49,7 +49,7 @@ export default function Home() {
           MNP Analyzer
         </h1>
         <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-          Minnesota Pinball League Data Analysis Platform
+          Monday Night Pinball Data Analysis Platform
         </p>
       </div>
 
@@ -100,7 +100,7 @@ export default function Home() {
         </div>
       )}
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Link
           href="/players"
           className="block bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
@@ -122,6 +122,30 @@ export default function Home() {
           </h3>
           <p className="text-gray-600">
             Explore machine statistics and percentile distributions
+          </p>
+        </Link>
+
+        <Link
+          href="/venues"
+          className="block bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+        >
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            Browse Venues
+          </h3>
+          <p className="text-gray-600">
+            View venue locations and their current machine lineups
+          </p>
+        </Link>
+
+        <Link
+          href="/matchups"
+          className="block bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+        >
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            Matchup Analysis
+          </h3>
+          <p className="text-gray-600">
+            Analyze team vs team matchups with score predictions and strategies
           </p>
         </Link>
       </div>

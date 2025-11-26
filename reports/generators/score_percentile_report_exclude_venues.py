@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
-MNP Score Percentile Report Generator - Excluding Specific Home Venues
+MNP Score Percentile Report Generator - Excluding Scores By Players With Specific Home Venues
 
 Generates a chart showing scores vs percentile rankings for a specific machine,
-excluding scores from matches where certain teams are playing at their home venue.
+excluding scores from players on teams whose home venue is in the excluded venues list.
 
-This version excludes scores from matches played at home by teams whose home venue
-is The 4 Bs (T4B) or Ice Box (IBX).
+This removes home advantage bias by filtering out ALL scores from players on teams based
+at certain venues (e.g., T4B-based teams and nearby IBX-based teams are both excluded
+when analyzing T4B scores, since IBX teams also play at T4B frequently and have familiarity
+with those machines).
 """
 
 import json
@@ -302,7 +304,7 @@ class ScorePercentileReporterExcludeVenues:
 
                 # Apply venue filter if specified
                 if self.target_venue:
-                    if match_data.get('venue', {}).get('key') != self.target_venue.get('code'):
+                    if match_data.get('venue', {}).get('key') != self.target_venue:
                         continue
 
                 # Include complete matches and optionally incomplete ones
@@ -314,7 +316,7 @@ class ScorePercentileReporterExcludeVenues:
             print(f"Season {season}: Loaded {season_matches} matches")
 
         self.matches = loaded_matches
-        venue_info = f" at venue {self.target_venue['code']}" if self.target_venue else ""
+        venue_info = f" at venue {self.target_venue}" if self.target_venue else ""
         seasons_info = ", ".join(self.seasons) if len(self.seasons) > 1 else self.seasons[0]
         print(f"Total: {len(self.matches)} matches from season(s) {seasons_info}{venue_info}")
 
@@ -450,7 +452,7 @@ class ScorePercentileReporterExcludeVenues:
         excluded_venues_str = ', '.join(self.excluded_venues)
         venue_suffix = f" (Excluding home games at: {excluded_venues_str})"
         if self.target_venue:
-            venue_suffix = f" at {self.target_venue['name']}" + venue_suffix
+            venue_suffix = f" at {self.target_venue}" + venue_suffix
 
         ipr_suffix = ""
         if self.ipr_filter:
@@ -501,7 +503,7 @@ class ScorePercentileReporterExcludeVenues:
         os.makedirs(output_dir, exist_ok=True)
 
         # Generate filename
-        venue_code = self.target_venue['code'] if self.target_venue else 'all_venues'
+        venue_code = self.target_venue if self.target_venue else 'all_venues'
         ipr_code = ""
         if self.ipr_filter:
             min_ipr = self.ipr_filter.get('min_ipr')
@@ -560,7 +562,7 @@ class ScorePercentileReporterExcludeVenues:
         excluded_venues_str = ', '.join(self.excluded_venues)
         venue_info = f" (Excluding home games at: {excluded_venues_str})"
         if self.target_venue:
-            venue_info = f" at {self.target_venue['name']} ({self.target_venue['code']})" + venue_info
+            venue_info = f" at {self.target_venue}" + venue_info
 
         ipr_info = ""
         if self.ipr_filter:
@@ -678,7 +680,7 @@ class ScorePercentileReporterExcludeVenues:
         report_content = self.generate_report(target_machine, machine_scores, outlier_info)
 
         # Generate filename
-        venue_code = self.target_venue['code'] if self.target_venue else 'all_venues'
+        venue_code = self.target_venue if self.target_venue else 'all_venues'
         target_machine_normalized = self.normalize_machine_key(target_machine)
         ipr_code = ""
         if self.ipr_filter:

@@ -48,6 +48,17 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
+# Environment files (contain secrets)
+.env
+.env.local
+frontend/.env.local
+
+# Node.js
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+
 # Project specific
 output/
 *.log

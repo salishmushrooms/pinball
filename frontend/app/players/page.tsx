@@ -37,8 +37,8 @@ export default function PlayersPage() {
         }
       }
 
-      const data = await api.getPlayers(params);
-      setPlayers(data);
+      const response = await api.getPlayers(params);
+      setPlayers(response.players);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch players');
     } finally {
@@ -118,47 +118,35 @@ export default function PlayersPage() {
                   IPR
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Matches
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Games
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Seasons
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {players.map((player) => (
-                <tr key={player.player_key} className="hover:bg-gray-50">
+                <tr key={player.player_key} className="hover:bg-gray-50 cursor-pointer">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
-                      {player.name}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {player.current_ipr ? player.current_ipr.toFixed(2) : 'N/A'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {player.total_matches}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {player.total_games}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {player.first_seen_season} - {player.last_seen_season}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <Link
                       href={`/players/${player.player_key}`}
-                      className="text-blue-600 hover:text-blue-800 font-medium"
+                      className="block text-sm font-medium text-gray-900"
                     >
-                      View Details
+                      {player.name}
+                    </Link>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <Link
+                      href={`/players/${player.player_key}`}
+                      className="block text-sm text-gray-900"
+                    >
+                      {player.current_ipr ? player.current_ipr.toFixed(2) : 'N/A'}
+                    </Link>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <Link
+                      href={`/players/${player.player_key}`}
+                      className="block"
+                    >
+                      {player.first_seen_season} - {player.last_seen_season}
                     </Link>
                   </td>
                 </tr>

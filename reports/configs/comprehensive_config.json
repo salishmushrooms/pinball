@@ -1,12 +1,9 @@
 {
   "description": "Comprehensive configuration - edit the values below directly",
   
-  "season": ["22"],
-  "target_machine": null, 
-  "target_venue": {
-    "code": "TWP",
-    "name": "The Time Warp"
-  },
+  "season": ["21", "22"],
+  "target_machine": "Godzilla", 
+  "target_venue": null,
   "ipr_filter": {
     "min_ipr": 1,
     "max_ipr": 6
@@ -14,6 +11,7 @@
   
   "outlier_filter": {
     "method": "percentile",
+    "lower_percentile": 5,
     "upper_percentile": 95
   },
   
@@ -33,8 +31,8 @@
   "_usage_notes": {
     "season": "Single season: '21' | Multiple seasons: ['20', '21'] | Comma-separated string: '20,21'",
     "target_machine": "Single: 'AFM' | Multiple: ['AFM', 'MM'] | Auto-discover: null or 'auto' | Comma-separated: 'AFM,MM'",
-    "target_venue": "Set to null for all venues, or {code: 'XXX', name: 'Venue Name'}",
+    "target_venue": "All venues: null | Single venue: 'TWP' | Multiple venues: ['TWP', '8BT', 'SHR']",
     "ipr_filter": "Set to null for all players, or {min_ipr: X, max_ipr: Y} for skill range",
-    "outlier_filter": "Methods: 'percentile' (upper_percentile: 95), 'iqr' (iqr_multiplier: 1.5), 'absolute' (max_score: 1000000). Set to null to disable."
+    "outlier_filter": "Methods: 'percentile' (lower_percentile: 5, upper_percentile: 95), 'iqr' (iqr_multiplier: 1.5), 'absolute' (max_score: 1000000). Set to null to disable."
   }
 }

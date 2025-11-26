@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "MNP Analyzer",
-  description: "Minnesota Pinball League Data Analysis Platform",
+  description: "Monday Night Pinball Data Analysis Platform",
 };
 
 export default function RootLayout({

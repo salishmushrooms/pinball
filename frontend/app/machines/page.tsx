@@ -30,8 +30,8 @@ export default function MachinesPage() {
 
       if (searchTerm) params.search = searchTerm;
 
-      const data = await api.getMachines(params);
-      setMachines(data);
+      const response = await api.getMachines(params);
+      setMachines(response.machines);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch machines');
     } finally {
@@ -95,47 +95,20 @@ export default function MachinesPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Machine Name
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Key
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Manufacturer
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Year
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {machines.map((machine) => (
-                <tr key={machine.machine_key} className="hover:bg-gray-50">
+                <tr
+                  key={machine.machine_key}
+                  className="hover:bg-gray-50 cursor-pointer"
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
-                      {machine.machine_name}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-xs font-mono text-gray-600">
-                      {machine.machine_key}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {machine.manufacturer || 'N/A'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {machine.year || 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <Link
                       href={`/machines/${machine.machine_key}`}
-                      className="text-blue-600 hover:text-blue-800 font-medium"
+                      className="block text-sm font-medium text-gray-900"
                     >
-                      View Details
+                      {machine.machine_name}
                     </Link>
                   </td>
                 </tr>

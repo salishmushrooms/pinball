@@ -1,0 +1,42 @@
+{
+  "description": "Team comparison: Trolls! vs Slap Kraken Pop on 4Bs machines (all venues)",
+
+  "season": "22",
+
+  "team1": {
+    "key": "TRL",
+    "name": "Trolls!"
+  },
+
+  "team2": {
+    "key": "SKP",
+    "name": "Slap Kraken Pop"
+  },
+
+  "target_machines": [
+    "Baywatch",
+    "SDND",
+    "F-14",
+    "FT",
+    "Godzilla",
+    "Guardians",
+    "Indy",
+    "IronMaiden",
+    "007",
+    "Jaws",
+    "JW",
+    "MM",
+    "SternWars",
+    "StrangerThings",
+    "TOTAN",
+    "TBL",
+    "TOM",
+    "TZ"
+  ],
+
+  "_notes": {
+    "purpose": "Compare two teams on machines currently at 4Bs Tavern",
+    "venue_filtering": "NO venue filtering - includes scores from all venues",
+    "machines": "All machines currently at 4Bs (T4B)"
+  }
+}

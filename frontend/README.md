@@ -1,6 +1,6 @@
 # MNP Analyzer Frontend
 
-A modern Next.js 14 frontend for the Minnesota Pinball League Data Analysis Platform.
+A modern Next.js 14 frontend for the Monday Night Pinball score analysis.
 
 ## Features
 

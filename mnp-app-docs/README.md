@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**MNP Analyzer** is a mobile-first Progressive Web App (PWA) designed to provide Minnesota Pinball League players with instant access to performance analytics, machine recommendations, and competitive intelligence while at venues.
+**MNP Analyzer** is a mobile-first Progressive Web App (PWA) designed to provide Monday Night Pinball players with instant access to performance analytics, machine recommendations, and competitive intelligence while at venues.
 
 ## Core Value Proposition
 
@@ -297,7 +297,7 @@ Currently a single-developer project. Future expansion may include:
 ## License
 
 TBD - Likely MIT or similar open source license for code
-Data remains property of Minnesota Pinball League
+Data remains property of Monday Night Pinball
 
 ---
 

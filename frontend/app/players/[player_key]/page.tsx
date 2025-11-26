@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Player, PlayerMachineStat } from '@/lib/types';
+import { Player, PlayerMachineStat, Venue } from '@/lib/types';
 
 export default function PlayerDetailPage() {
   const params = useParams();
@@ -12,16 +12,31 @@ export default function PlayerDetailPage() {
 
   const [player, setPlayer] = useState<Player | null>(null);
   const [machineStats, setMachineStats] = useState<PlayerMachineStat[]>([]);
+  const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [minGames, setMinGames] = useState('1');
-  const [sortBy, setSortBy] = useState<'avg_percentile' | 'games_played' | 'avg_score'>('avg_percentile');
+  const [sortBy, setSortBy] = useState<'avg_percentile' | 'games_played' | 'avg_score' | 'win_percentage'>('avg_percentile');
+  const [seasonFilter, setSeasonFilter] = useState<number | undefined>(undefined);
+  const [venueFilter, setVenueFilter] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    fetchVenues();
+  }, []);
 
   useEffect(() => {
     if (playerKey) {
       fetchPlayerData();
     }
-  }, [playerKey, minGames, sortBy]);
+  }, [playerKey, sortBy, seasonFilter, venueFilter]);
+
+  async function fetchVenues() {
+    try {
+      const venuesData = await api.getVenues({ limit: 500 });
+      setVenues(venuesData.venues);
+    } catch (err) {
+      console.error('Failed to fetch venues:', err);
+    }
+  }
 
   async function fetchPlayerData() {
     setLoading(true);
@@ -30,8 +45,9 @@ export default function PlayerDetailPage() {
       const [playerData, statsData] = await Promise.all([
         api.getPlayer(playerKey),
         api.getPlayerMachineStats(playerKey, {
-          venue_key: '_ALL_',
-          min_games: parseInt(minGames),
+          season: seasonFilter,
+          venue_key: venueFilter,
+          min_games: 1,
           sort_by: sortBy,
           sort_order: 'desc',
           limit: 100,
@@ -39,7 +55,7 @@ export default function PlayerDetailPage() {
       ]);
 
       setPlayer(playerData);
-      setMachineStats(statsData);
+      setMachineStats(statsData.stats);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch player data');
     } finally {
@@ -88,23 +104,11 @@ export default function PlayerDetailPage() {
         <h2 className="text-xl font-semibold text-gray-900 mb-4">
           Player Information
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
           <div>
             <div className="text-sm text-gray-600">IPR</div>
             <div className="text-2xl font-bold text-blue-600">
               {player.current_ipr ? player.current_ipr.toLocaleString() : 'N/A'}
-            </div>
-          </div>
-          <div>
-            <div className="text-sm text-gray-600">Total Matches</div>
-            <div className="text-2xl font-bold text-gray-900">
-              {player.total_matches}
-            </div>
-          </div>
-          <div>
-            <div className="text-sm text-gray-600">Total Games</div>
-            <div className="text-2xl font-bold text-gray-900">
-              {player.total_games}
             </div>
           </div>
           <div>
@@ -127,18 +131,38 @@ export default function PlayerDetailPage() {
           Machine Statistics
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Min Games
+              Season
             </label>
-            <input
-              type="number"
-              value={minGames}
-              onChange={(e) => setMinGames(e.target.value)}
-              min="1"
+            <select
+              value={seasonFilter || ''}
+              onChange={(e) => setSeasonFilter(e.target.value ? parseInt(e.target.value) : undefined)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            >
+              <option value="">All Seasons</option>
+              <option value="22">Season 22</option>
+              <option value="21">Season 21</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Venue
+            </label>
+            <select
+              value={venueFilter || ''}
+              onChange={(e) => setVenueFilter(e.target.value || undefined)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Venues</option>
+              {venues.map((venue) => (
+                <option key={venue.venue_key} value={venue.venue_key}>
+                  {venue.venue_name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -150,7 +174,8 @@ export default function PlayerDetailPage() {
               onChange={(e) => setSortBy(e.target.value as any)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="avg_percentile">Avg Percentile</option>
+              <option value="avg_percentile">Percentile</option>
+              <option value="win_percentage">Win %</option>
               <option value="games_played">Games Played</option>
               <option value="avg_score">Avg Score</option>
             </select>
@@ -173,7 +198,10 @@ export default function PlayerDetailPage() {
                     Games
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Avg Percentile
+                    Win %
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Percentile
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Median Score
@@ -197,13 +225,11 @@ export default function PlayerDetailPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {stat.games_played}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-semibold text-gray-900">
-                        {stat.avg_percentile.toFixed(1)}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        Median: {stat.median_percentile.toFixed(1)}
-                      </div>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {stat.win_percentage !== null ? `${stat.win_percentage.toFixed(1)}%` : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {stat.avg_percentile !== null ? stat.avg_percentile.toFixed(1) : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {stat.median_score.toLocaleString(undefined, {

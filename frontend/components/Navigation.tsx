@@ -9,7 +9,10 @@ export default function Navigation() {
   const navItems = [
     { href: '/', label: 'Home' },
     { href: '/players', label: 'Players' },
+    { href: '/teams', label: 'Teams' },
     { href: '/machines', label: 'Machines' },
+    { href: '/venues', label: 'Venues' },
+    { href: '/matchups', label: 'Matchups' },
   ];
 
   return (
