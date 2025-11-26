@@ -1,0 +1,41 @@
+{
+  "description": "Slap Kraken Pop machine choices - 4Bs machines, seasons 21-22",
+
+  "seasons": ["21", "22"],
+
+  "team": {
+    "key": "SKP",
+    "name": "Slap Kraken Pop"
+  },
+
+  "home_venue_key": "KRA",
+
+  "target_machines": [
+    "Baywatch",
+    "SDND",
+    "F-14",
+    "FT",
+    "Godzilla",
+    "Guardians",
+    "Indy",
+    "IronMaiden",
+    "007",
+    "Jaws",
+    "JW",
+    "MM",
+    "SternWars",
+    "StrangerThings",
+    "TOTAN",
+    "TBL",
+    "TOM",
+    "TZ"
+  ],
+
+  "_notes": {
+    "purpose": "Track when Slap Kraken Pop chose these machines vs when opponent chose them",
+    "home_venue": "KRA = Kraken bar (team picks rounds 2 & 4)",
+    "away_venues": "All other venues (team picks rounds 1 & 3)",
+    "machines": "All machines currently at 4Bs Tavern",
+    "filtering": "Only includes scores by Slap Kraken Pop team members"
+  }
+}

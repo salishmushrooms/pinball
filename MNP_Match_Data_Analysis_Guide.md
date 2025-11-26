@@ -1,15 +1,16 @@
 # MNP Match Data Analysis Guide
 
 ## Overview
-This document provides a comprehensive guide to analyzing Minnesota Pinball League (MNP) match data, including data structure, scoring mechanics, reliability considerations, and analytical opportunities.
+This document provides a comprehensive guide to analyzing Monday Night Pinball (MNP) match data, including data structure, scoring mechanics, reliability considerations, and analytical opportunities.
 
 ## Season Structure
 
 ### Organization
-- **Current Season**: Season 21 (`mnp-data-archive/season-21`)
+- **Available Seasons**: Season 21 & 22 (`mnp-data-archive/season-21`, `mnp-data-archive/season-22`)
 - **Regular Season**: 10 weeks of matches
 - **Teams**: Up to 10 players per team
 - **Match Distribution**: Each team plays 5 home matches and 5 away matches
+- **File Naming**: `mnp-{season}-{week}-{away}-{home}.json`
 
 ### Venue Considerations
 - Teams typically play at their designated home venue
@@ -102,7 +103,7 @@ Each match consists of 4 rounds with alternating machine selection:
 
 ### Score Normalization Approaches
 1. **Z-Score by Machine**: `(score - machine_mean) / machine_std`
-2. **Percentile Ranking**: Position within machine score distribution
+2. **Percentile Ranking**: Position within machine score distribution (RECOMMENDED)
 3. **IPR-Adjusted Performance**: Compare to expected performance by IPR level
 
 ### Filtering Strategies
@@ -114,6 +115,123 @@ Each match consists of 4 rounds with alternating machine selection:
 - Account for small sample sizes on individual machines
 - Consider seasonal effects and learning curves
 - Handle missing data appropriately (incomplete games, etc.)
+
+## Advanced Filtering Patterns
+
+### Venue-Specific Score Filtering
+
+When analyzing performance at a specific venue, filter matches by venue key:
+
+```python
+# Only include matches played at specific venue
+venue_key = match.get('venue', {}).get('key', '')
+if venue_key == 'T4B':  # 4Bs Tavern
+    # Process this match
+```
+
+**Use Cases:**
+- Venue-specific score distributions
+- Home venue advantage analysis
+- Machine performance at different locations
+
+### Machine Selection Analysis (Home/Away)
+
+Understanding who picked which machine is critical for strategic analysis:
+
+**Machine Selection Rules:**
+- **Home Team** picks machines in Rounds 2 & 4
+- **Away Team** picks machines in Rounds 1 & 3
+
+**Implementation Pattern:**
+```python
+# Determine if team picked the machine based on venue and round
+is_home_venue = (venue_key == team_home_venue_key)
+
+if is_home_venue:
+    # At home venue: team picks rounds 2 & 4
+    team_picked_machine = (round_num in [2, 4])
+else:
+    # At away venues: team picks rounds 1 & 3
+    team_picked_machine = (round_num in [1, 3])
+```
+
+**Analytical Applications:**
+- Compare team performance on self-selected vs opponent-selected machines
+- Identify team's preferred machines
+- Analyze strategic machine selection patterns
+- Evaluate performance advantage from machine choice
+
+### Multi-Season Analysis
+
+When analyzing across multiple seasons, handle both single and multi-season configs:
+
+```python
+# Support flexible season configuration
+seasons = config['seasons']
+if isinstance(seasons, list):
+    season_list = seasons
+else:
+    season_list = [str(seasons)]
+
+# Load matches from all specified seasons
+for season in season_list:
+    matches_pattern = f"mnp-data-archive/season-{season}/matches/*.json"
+    # Process matches...
+```
+
+### Team-Specific Filtering
+
+Extract scores only for specific team members:
+
+```python
+# Build player lookup
+match_players = {}
+for team_type in ['home', 'away']:
+    for player in match[team_type].get('lineup', []):
+        match_players[player['key']] = {
+            'team': match[team_type]['key'],
+            'name': player['name']
+        }
+
+# Filter scores by team
+if player_info['team'] == target_team_key:
+    # Include this score
+```
+
+### IPR-Based Filtering
+
+Filter scores by player skill level for fair comparisons:
+
+```python
+# Only include players within IPR range
+player_ipr = player_info.get('ipr', 0)
+if min_ipr <= player_ipr <= max_ipr:
+    # Include this score
+```
+
+**Use Cases:**
+- Compare performance within skill tiers
+- Analyze machine difficulty by skill level
+- Create skill-normalized benchmarks
+
+### Reliable Position Filtering
+
+Standard pattern for excluding unreliable scores:
+
+```python
+# Define reliable positions by round type
+if round_num in [1, 4]:  # 4-player doubles
+    reliable_positions = [1, 2, 3, 4]
+    # Or more conservative: [1, 2, 3] to exclude P4
+else:  # 2-player singles
+    reliable_positions = [1, 2]
+    # Or most conservative: [1] for highest reliability
+
+# Only process reliable positions
+for pos in reliable_positions:
+    if f'score_{pos}' in game:
+        # Process this score
+```
 
 ## Future Research Directions
 
@@ -148,8 +266,55 @@ Each match consists of 4 rounds with alternating machine selection:
 
 ---
 
-**Last Updated**: [Current Date]  
-**Version**: 1.0  
-**Maintainer**: [Your Name]
+## Quick Reference: Common Analysis Patterns
 
-*This document will be expanded and refined as analysis progresses and new insights are discovered.*
+### Pattern 1: Venue-Specific Score Distribution
+```python
+# Get all scores for a machine at a specific venue
+target_venue = "T4B"  # 4Bs Tavern
+target_machine = "MM"  # Medieval Madness
+
+for match in matches:
+    if match.get('venue', {}).get('key') != target_venue:
+        continue
+    # Process games on target_machine...
+```
+
+### Pattern 2: Team Machine Preference Analysis
+```python
+# Determine which machines a team chooses most often
+team_choices = defaultdict(int)
+team_home_venue = "KRA"  # Kraken
+
+for match in matches:
+    venue = match.get('venue', {}).get('key')
+    is_home = (venue == team_home_venue)
+
+    for round_data in match['rounds']:
+        round_num = round_data['n']
+        machine = round_data['games'][0]['machine']
+
+        if is_home and round_num in [2, 4]:
+            team_choices[machine] += 1
+        elif not is_home and round_num in [1, 3]:
+            team_choices[machine] += 1
+```
+
+### Pattern 3: Cross-Season Performance Comparison
+```python
+# Compare performance across seasons
+seasons = ["21", "22"]
+performance_by_season = {}
+
+for season in seasons:
+    matches = load_season_matches(season)
+    performance_by_season[season] = analyze_performance(matches)
+```
+
+---
+
+**Last Updated**: 2025-11-10
+**Version**: 2.0
+**Maintainer**: JJC
+
+*This document is continuously updated as new analysis patterns and insights are discovered. For practical report generation, see [reports/README.md](reports/README.md).*

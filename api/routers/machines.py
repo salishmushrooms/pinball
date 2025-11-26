@@ -11,6 +11,8 @@ from api.models.schemas import (
     MachineList,
     MachinePercentiles,
     ScorePercentile,
+    MachineScore,
+    MachineScoreList,
     ErrorResponse
 )
 from api.dependencies import execute_query
@@ -119,7 +121,7 @@ def get_machine(machine_key: str):
             m.game_type,
             COALESCE(COUNT(s.score_id), 0) as total_scores,
             COALESCE(COUNT(DISTINCT s.player_key), 0) as unique_players,
-            COALESCE(CAST(AVG(s.score) AS INTEGER), 0) as avg_score,
+            COALESCE(CAST(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY s.score) AS INTEGER), 0) as median_score,
             COALESCE(MAX(s.score), 0) as max_score
         FROM machines m
         LEFT JOIN scores s ON m.machine_key = s.machine_key
@@ -292,3 +294,167 @@ def get_machine_percentiles_raw(
         row['machine_name'] = machine_name
 
     return [ScorePercentile(**row) for row in rows]
+
+
+@router.get(
+    "/{machine_key}/scores",
+    response_model=MachineScoreList,
+    responses={404: {"model": ErrorResponse}},
+    summary="Get all scores for a machine",
+    description="Get individual score records for a specific machine with optional filtering"
+)
+def get_machine_scores(
+    machine_key: str,
+    season: Optional[int] = Query(None, description="Filter by season"),
+    venue_key: Optional[str] = Query(None, description="Filter by venue"),
+    team_keys: Optional[str] = Query(None, description="Filter by team keys (comma-separated, e.g., 'SKP,TRL,ADB')"),
+    limit: int = Query(100, ge=1, le=1000, description="Number of results to return"),
+    offset: int = Query(0, ge=0, description="Number of results to skip")
+):
+    """
+    Get all individual scores for a specific machine with optional filtering.
+
+    Example queries:
+    - `/machines/MM/scores` - All scores for Medieval Madness
+    - `/machines/MM/scores?season=22` - Season 22 scores only
+    - `/machines/MM/scores?venue_key=T4B` - Scores from 4Bs Tavern only
+    - `/machines/MM/scores?team_keys=SKP,TRL` - Scores from Slap Kraken Pop and Trolls teams
+    - `/machines/MM/scores?season=22&venue_key=T4B` - Season 22 scores from 4Bs Tavern
+    """
+    # First verify machine exists
+    machine_query = "SELECT machine_name FROM machines WHERE machine_key = :machine_key"
+    machine_result = execute_query(machine_query, {'machine_key': machine_key})
+    if not machine_result:
+        raise HTTPException(status_code=404, detail=f"Machine '{machine_key}' not found")
+
+    # Build WHERE clauses
+    where_clauses = ["s.machine_key = :machine_key"]
+    params = {'machine_key': machine_key}
+
+    if season is not None:
+        where_clauses.append("s.season = :season")
+        params['season'] = season
+
+    if venue_key is not None:
+        where_clauses.append("s.venue_key = :venue_key")
+        params['venue_key'] = venue_key
+
+    if team_keys is not None:
+        # Parse comma-separated team keys
+        team_list = [tk.strip() for tk in team_keys.split(',') if tk.strip()]
+        if team_list:
+            placeholders = ','.join([f":team_{i}" for i in range(len(team_list))])
+            where_clauses.append(f"s.team_key IN ({placeholders})")
+            for i, team_key in enumerate(team_list):
+                params[f'team_{i}'] = team_key
+
+    where_clause = " AND ".join(where_clauses)
+
+    # Get total count
+    count_query = f"SELECT COUNT(*) as total FROM scores s WHERE {where_clause}"
+    count_result = execute_query(count_query, params)
+    total = count_result[0]['total'] if count_result else 0
+
+    # Get paginated scores with player and venue names
+    query = f"""
+        SELECT
+            s.score_id,
+            s.score,
+            s.player_key,
+            p.name as player_name,
+            s.venue_key,
+            v.venue_name,
+            s.season,
+            s.week,
+            s.round_number,
+            s.match_key,
+            s.date,
+            s.player_position,
+            s.team_key
+        FROM scores s
+        LEFT JOIN players p ON s.player_key = p.player_key
+        LEFT JOIN venues v ON s.venue_key = v.venue_key
+        WHERE {where_clause}
+        ORDER BY s.score DESC
+        LIMIT :limit OFFSET :offset
+    """
+    params['limit'] = limit
+    params['offset'] = offset
+    scores = execute_query(query, params)
+
+    return MachineScoreList(
+        scores=[MachineScore(**score) for score in scores],
+        total=total,
+        limit=limit,
+        offset=offset
+    )
+
+
+@router.get(
+    "/{machine_key}/venues",
+    response_model=List[dict],
+    responses={404: {"model": ErrorResponse}},
+    summary="Get venues where machine has been played",
+    description="Get list of venues with score counts for a specific machine"
+)
+def get_machine_venues(machine_key: str):
+    """
+    Get list of venues where this machine has been played, with score counts.
+
+    Returns venue_key, venue_name, and score count for each venue.
+    """
+    # First verify machine exists
+    machine_query = "SELECT machine_name FROM machines WHERE machine_key = :machine_key"
+    machine_result = execute_query(machine_query, {'machine_key': machine_key})
+    if not machine_result:
+        raise HTTPException(status_code=404, detail=f"Machine '{machine_key}' not found")
+
+    query = """
+        SELECT
+            v.venue_key,
+            v.venue_name,
+            COUNT(s.score_id) as score_count
+        FROM venues v
+        INNER JOIN scores s ON v.venue_key = s.venue_key
+        WHERE s.machine_key = :machine_key
+        GROUP BY v.venue_key, v.venue_name
+        ORDER BY v.venue_name
+    """
+    venues = execute_query(query, {'machine_key': machine_key})
+
+    return venues
+
+
+@router.get(
+    "/{machine_key}/teams",
+    response_model=List[dict],
+    responses={404: {"model": ErrorResponse}},
+    summary="Get teams that have played on a machine",
+    description="Get list of teams with score counts for a specific machine"
+)
+def get_machine_teams(machine_key: str):
+    """
+    Get list of teams that have played on this machine, with score counts.
+
+    Returns team_key, team_name, and score count for each team.
+    """
+    # First verify machine exists
+    machine_query = "SELECT machine_name FROM machines WHERE machine_key = :machine_key"
+    machine_result = execute_query(machine_query, {'machine_key': machine_key})
+    if not machine_result:
+        raise HTTPException(status_code=404, detail=f"Machine '{machine_key}' not found")
+
+    query = """
+        SELECT
+            t.team_key,
+            t.team_name,
+            COUNT(s.score_id) as score_count
+        FROM teams t
+        INNER JOIN scores s ON t.team_key = s.team_key AND t.season = s.season
+        WHERE s.machine_key = :machine_key
+        GROUP BY t.team_key, t.team_name
+        ORDER BY t.team_name
+    """
+    teams = execute_query(query, {'machine_key': machine_key})
+
+    return teams

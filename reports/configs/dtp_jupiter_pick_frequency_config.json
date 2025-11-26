@@ -1,0 +1,58 @@
+{
+  "description": "DTP machine pick frequency at Jupiter - Season 22, current machines only",
+
+  "season": "22",
+
+  "team": {
+    "key": "DTP",
+    "name": "DTP"
+  },
+
+  "team_home_venue_key": "JUP",
+
+  "target_venue": {
+    "key": "JUP",
+    "name": "Jupiter"
+  },
+
+  "current_machines": [
+    "SternTrek",
+    "Fire",
+    "KONG",
+    "UXMEN",
+    "Getaway",
+    "Spiderman",
+    "007",
+    "FOO",
+    "SS",
+    "Jaws",
+    "Sopranos",
+    "CactusCanyon",
+    "Godzilla",
+    "StrangerThings",
+    "WCS",
+    "POTC",
+    "BKSoR",
+    "SternPark",
+    "Harlem",
+    "AFM",
+    "GOT",
+    "SpaceInvaders",
+    "TAF",
+    "FT",
+    "MM",
+    "Paragon",
+    "MB",
+    "Metallica",
+    "Hotdoggin'",
+    "Embryon"
+  ],
+
+  "_notes": {
+    "purpose": "Show what machines DTP picks most often at Jupiter",
+    "filtering": "Only includes machines currently at Jupiter venue",
+    "doubles_rounds": "Round 4 when DTP is home, Round 1 when DTP is away",
+    "singles_rounds": "Round 2 when DTP is home, Round 3 when DTP is away",
+    "note": "DTP is home team for most matches at Jupiter (4 out of 5 in Season 22)"
+  }
+}

@@ -1,6 +1,6 @@
 # MNP Data Archive
 
-This repository contains data from the Minnesota Pinball League (MNP) starting with season 14. The data is organized by season and includes match results, machine information, and other league data.
+This repository contains data from the Monday Night Pinball (MNP) starting with season 14. The data is organized by season and includes match results, machine information, and other league data.
 
 ## Directory Structure
 

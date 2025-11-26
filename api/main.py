@@ -1,7 +1,7 @@
 """
 MNP Analyzer API
 
-FastAPI application for Minnesota Pinball League data analysis.
+FastAPI application for Monday Night Pinball data analysis.
 Provides REST endpoints for accessing player stats, machine data, and score percentiles.
 """
 from fastapi import FastAPI, Request
@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
-from api.routers import players, machines
+from api.routers import players, machines, venues, teams, matchups
 
 # Configure logging
 logging.basicConfig(
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="MNP Analyzer API",
     description="""
-    Minnesota Pinball League (MNP) Data Analysis API
+    Monday Night Pinball (MNP) Data Analysis API
 
     This API provides access to:
     - Player statistics and performance data
@@ -38,7 +38,7 @@ app = FastAPI(
 
     ## Data Source
 
-    Data is sourced from the Minnesota Pinball League (MNP) match archives.
+    Data is sourced from the Monday Night Pinball (MNP) match archives.
     Currently includes Season 22 data with 523 players, 341 machines, and 10,680+ scores.
 
     ## Tips
@@ -70,6 +70,9 @@ app.add_middleware(
 # Include routers
 app.include_router(players.router)
 app.include_router(machines.router)
+app.include_router(venues.router)
+app.include_router(teams.router)
+app.include_router(matchups.router)
 
 
 @app.get("/", tags=["root"])
@@ -84,10 +87,13 @@ def read_root():
         "redoc_url": "/redoc",
         "endpoints": {
             "players": "/players",
-            "machines": "/machines"
+            "machines": "/machines",
+            "venues": "/venues",
+            "teams": "/teams",
+            "matchups": "/matchups"
         },
         "data_summary": {
-            "description": "Minnesota Pinball League Season 22 data",
+            "description": "Monday Night Pinball Season 22 data",
             "players": 523,
             "machines": 341,
             "venues": 19,

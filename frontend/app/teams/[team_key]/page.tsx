@@ -1,0 +1,362 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { api } from '@/lib/api';
+import { Team, TeamMachineStat, TeamPlayer, Venue } from '@/lib/types';
+
+export default function TeamDetailPage() {
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const teamKey = params.team_key as string;
+  const initialSeason = searchParams.get('season');
+
+  const [team, setTeam] = useState<Team | null>(null);
+  const [machineStats, setMachineStats] = useState<TeamMachineStat[]>([]);
+  const [players, setPlayers] = useState<TeamPlayer[]>([]);
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Filters
+  const [sortBy, setSortBy] = useState<'games_played' | 'avg_score' | 'best_score' | 'win_percentage' | 'median_score'>('games_played');
+  const [seasonFilter, setSeasonFilter] = useState<number | undefined>(
+    initialSeason ? parseInt(initialSeason) : 22
+  );
+  const [venueFilter, setVenueFilter] = useState<string | undefined>(undefined);
+  const [roundsFilter, setRoundsFilter] = useState<number[]>([1, 2, 3, 4]);
+
+  useEffect(() => {
+    fetchVenues();
+  }, []);
+
+  useEffect(() => {
+    if (teamKey) {
+      fetchTeamData();
+    }
+  }, [teamKey, sortBy, seasonFilter, venueFilter, roundsFilter]);
+
+  async function fetchVenues() {
+    try {
+      const venuesData = await api.getVenues({ limit: 500 });
+      setVenues(venuesData.venues);
+    } catch (err) {
+      console.error('Failed to fetch venues:', err);
+    }
+  }
+
+  async function fetchTeamData() {
+    setLoading(true);
+    setError(null);
+    try {
+      const roundsParam = roundsFilter.length > 0 ? roundsFilter.join(',') : undefined;
+
+      const [teamData, statsData, playersData] = await Promise.all([
+        api.getTeam(teamKey, seasonFilter),
+        api.getTeamMachineStats(teamKey, {
+          season: seasonFilter,
+          venue_key: venueFilter,
+          rounds: roundsParam,
+          min_games: 1,
+          sort_by: sortBy,
+          sort_order: 'desc',
+          limit: 100,
+        }),
+        api.getTeamPlayers(teamKey, seasonFilter, venueFilter),
+      ]);
+
+      setTeam(teamData);
+      setMachineStats(statsData.stats);
+      setPlayers(playersData.players);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch team data');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function toggleRound(round: number) {
+    setRoundsFilter(prev => {
+      if (prev.includes(round)) {
+        return prev.filter(r => r !== round);
+      } else {
+        return [...prev, round].sort();
+      }
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <div className="text-lg text-gray-600">Loading team data...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        <strong className="font-bold">Error: </strong>
+        <span>{error}</span>
+      </div>
+    );
+  }
+
+  if (!team) {
+    return (
+      <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
+        Team not found
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <Link
+          href="/teams"
+          className="text-blue-600 hover:text-blue-800 text-sm mb-2 inline-block"
+        >
+          ← Back to Teams
+        </Link>
+        <h1 className="text-3xl font-bold text-gray-900">{team.team_name}</h1>
+        <p className="text-gray-600 mt-1">
+          Season {team.season} {team.home_venue_key && `• Home Venue: ${team.home_venue_key}`}
+        </p>
+      </div>
+
+      {/* Machine Statistics Section */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          Machine Statistics
+        </h2>
+
+        {/* Filters */}
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Season
+            </label>
+            <select
+              value={seasonFilter || ''}
+              onChange={(e) => setSeasonFilter(e.target.value ? parseInt(e.target.value) : undefined)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Seasons</option>
+              <option value="22">Season 22</option>
+              <option value="21">Season 21</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Venue
+            </label>
+            <select
+              value={venueFilter || ''}
+              onChange={(e) => setVenueFilter(e.target.value || undefined)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Venues</option>
+              {venues.map((venue) => (
+                <option key={venue.venue_key} value={venue.venue_key}>
+                  {venue.venue_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Sort By
+            </label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="games_played">Games Played</option>
+              <option value="win_percentage">Win %</option>
+              <option value="avg_score">Avg Score</option>
+              <option value="median_score">Median Score</option>
+              <option value="best_score">Best Score</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Rounds
+            </label>
+            <div className="flex gap-2">
+              {[1, 2, 3, 4].map((round) => (
+                <button
+                  key={round}
+                  onClick={() => toggleRound(round)}
+                  className={`flex-1 px-3 py-2 border rounded-md text-sm font-medium transition-colors ${
+                    roundsFilter.includes(round)
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  R{round}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Machine Stats Table */}
+        {machineStats.length === 0 ? (
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
+            No machine statistics found for the selected filters.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Machine
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Games
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Win %
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Median Score
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Best Score
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Rounds
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {machineStats.map((stat, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Link
+                        href={`/machines/${stat.machine_key}`}
+                        className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                      >
+                        {stat.machine_name}
+                      </Link>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {stat.games_played}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {stat.win_percentage !== null ? `${stat.win_percentage.toFixed(1)}%` : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {stat.median_score?.toLocaleString(undefined, {
+                        maximumFractionDigits: 0,
+                      }) || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {stat.best_score?.toLocaleString() || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {stat.rounds_played?.join(', ') || 'N/A'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="mt-4 text-sm text-gray-600">
+          Showing {machineStats.length} machine{machineStats.length !== 1 ? 's' : ''}
+        </div>
+      </div>
+
+      {/* Team Roster Section */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          Team Roster
+        </h2>
+
+        {players.length === 0 ? (
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
+            No players found for the selected filters.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Player
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    IPR
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Games
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Win %
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Most Played Machine
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Seasons
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {players.map((player) => (
+                  <tr key={player.player_key} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Link
+                        href={`/players/${player.player_key}`}
+                        className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                      >
+                        {player.player_name}
+                      </Link>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {player.current_ipr || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {player.games_played}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {player.win_percentage !== null ? `${player.win_percentage.toFixed(1)}%` : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {player.most_played_machine_name ? (
+                        <Link
+                          href={`/machines/${player.most_played_machine_key}`}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          {player.most_played_machine_name} ({player.most_played_machine_games})
+                        </Link>
+                      ) : (
+                        'N/A'
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {player.seasons_played.join(', ')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="mt-4 text-sm text-gray-600">
+          Showing {players.length} player{players.length !== 1 ? 's' : ''}
+        </div>
+      </div>
+    </div>
+  );
+}
