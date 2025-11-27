@@ -183,6 +183,16 @@ python reports/generators/score_percentile_report.py
 3. **Home advantage**: Real and measurable - account for it
 4. **Machine variance**: Some machines are high-variance, others consistent
 
+### Frontend Development
+1. **Component Reuse**: Always check for existing reusable components before creating new ones
+   - Check `frontend/components/` for specialized components (e.g., SeasonMultiSelect)
+   - Check `frontend/components/ui/` for base UI components (Button, Card, Select, etc.)
+   - When creating new components, design them to be reusable across multiple pages
+   - Document reusable components so they can be easily discovered
+2. **Consistent Patterns**: Follow established patterns from DESIGN_SYSTEM.md
+3. **Type Safety**: Use TypeScript types from `lib/types.ts` for all API interactions
+4. **Design System**: Import from `@/components/ui` for all standard UI elements
+
 ---
 
 ## Tools & Technologies
@@ -212,6 +222,7 @@ python reports/generators/score_percentile_report.py
 
 ## Current Status
 
+### Data & Analytics
 - **Season 21 & 22 data available**
 - **Four specialized report generators created**:
   - Score percentile analysis (multi-machine, multi-season)
@@ -219,6 +230,14 @@ python reports/generators/score_percentile_report.py
   - Team comparison reports
   - Machine choice analysis (home/away picks)
 - Home advantage analysis in progress
+
+### Frontend Application
+- **Component library**: 14+ reusable UI components in `components/ui/`
+- **Reusable specialized components**:
+  - `SeasonMultiSelect` - Multi-season selector (used on Matchups page, reusable for Venue/Player/Team details)
+- **Multi-season support**: Matchups page supports analyzing data across multiple seasons
+- **API**: Fully typed TypeScript API client with array parameter support
+- **Pages migrated**: Teams, Players, Matchups
 
 ---
 

@@ -4,7 +4,19 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Player, PlayerMachineStat, Venue } from '@/lib/types';
+import { Player, PlayerMachineStat, Venue, PlayerMachineScoreHistory } from '@/lib/types';
+import {
+  Card,
+  PageHeader,
+  Select,
+  Alert,
+  LoadingSpinner,
+  StatCard,
+  Table,
+} from '@/components/ui';
+import PlayerMachineProgressionChart from '@/components/PlayerMachineProgressionChart';
+import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
+import { useDebouncedEffect } from '@/lib/hooks';
 
 export default function PlayerDetailPage() {
   const params = useParams();
@@ -15,21 +27,38 @@ export default function PlayerDetailPage() {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [availableSeasons, setAvailableSeasons] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<'avg_percentile' | 'games_played' | 'avg_score' | 'win_percentage'>('avg_percentile');
-  const [seasonFilter, setSeasonFilter] = useState<number | undefined>(undefined);
+  const [sortBy, setSortBy] = useState<'avg_percentile' | 'games_played' | 'avg_score' | 'win_percentage'>('games_played');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [seasonsFilter, setSeasonsFilter] = useState<number[]>([22]);
   const [venueFilter, setVenueFilter] = useState<string | undefined>(undefined);
+
+  // Chart-related state
+  const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
+  const [scoreHistory, setScoreHistory] = useState<PlayerMachineScoreHistory | null>(null);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [chartError, setChartError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchVenues();
     fetchAvailableSeasons();
   }, []);
 
-  useEffect(() => {
-    if (playerKey) {
-      fetchPlayerData();
-    }
-  }, [playerKey, sortBy, seasonFilter, venueFilter]);
+  // Debounced effect for filter changes (waits 500ms after last change)
+  useDebouncedEffect(() => {
+    if (!playerKey) return;
+
+    setFetching(true);
+    fetchPlayerData();
+  }, 500, [playerKey, sortBy, sortDirection, seasonsFilter, venueFilter]);
+
+  // Refresh chart when filters change (if a machine is already selected)
+  useDebouncedEffect(() => {
+    if (!playerKey || !selectedMachine) return;
+
+    fetchScoreHistory(selectedMachine);
+  }, 500, [seasonsFilter, venueFilter]);
 
   async function fetchVenues() {
     try {
@@ -63,13 +92,16 @@ export default function PlayerDetailPage() {
   }
 
   async function fetchPlayerData() {
-    setLoading(true);
+    // Only set loading true on initial load, use fetching for subsequent updates
+    if (!player) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const [playerData, statsData] = await Promise.all([
         api.getPlayer(playerKey),
         api.getPlayerMachineStats(playerKey, {
-          season: seasonFilter,
+          seasons: seasonsFilter.length > 0 ? seasonsFilter : undefined,
           venue_key: venueFilter,
           min_games: 1,
           sort_by: sortBy,
@@ -79,36 +111,174 @@ export default function PlayerDetailPage() {
       ]);
 
       setPlayer(playerData);
-      setMachineStats(statsData.stats);
+
+      // If multiple seasons selected, aggregate stats by machine
+      if (seasonsFilter.length !== 1) {
+        const aggregated = aggregateStatsByMachine(statsData.stats);
+        setMachineStats(aggregated);
+      } else {
+        // Apply client-side sorting for single season data
+        const sorted = sortAggregatedStats(statsData.stats, sortBy, sortDirection);
+        setMachineStats(sorted);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch player data');
     } finally {
       setLoading(false);
+      setFetching(false);
+    }
+  }
+
+  async function fetchScoreHistory(machineKey: string) {
+    setChartLoading(true);
+    setChartError(null);
+    try {
+      const history = await api.getPlayerMachineScoreHistory(
+        playerKey,
+        machineKey,
+        {
+          venue_key: venueFilter,
+          seasons: seasonsFilter.length > 0 ? seasonsFilter : undefined,
+        }
+      );
+      setScoreHistory(history);
+    } catch (err) {
+      setChartError(err instanceof Error ? err.message : 'Failed to fetch score history');
+    } finally {
+      setChartLoading(false);
+    }
+  }
+
+  function handleMachineSelect(machineKey: string) {
+    setSelectedMachine(machineKey);
+    fetchScoreHistory(machineKey);
+  }
+
+  function aggregateStatsByMachine(stats: PlayerMachineStat[]): PlayerMachineStat[] {
+    // Group stats by machine_key
+    const grouped = new Map<string, PlayerMachineStat[]>();
+
+    stats.forEach(stat => {
+      const existing = grouped.get(stat.machine_key) || [];
+      existing.push(stat);
+      grouped.set(stat.machine_key, existing);
+    });
+
+    // Aggregate each group
+    const aggregated: PlayerMachineStat[] = [];
+
+    grouped.forEach((machineStats) => {
+      // Sum games played
+      const totalGames = machineStats.reduce((sum, s) => sum + s.games_played, 0);
+
+      // Collect all scores for median calculation (approximate from aggregated data)
+      const allScores: number[] = [];
+      machineStats.forEach(s => {
+        // Add best and worst scores
+        allScores.push(s.best_score, s.worst_score);
+        // Approximate median by adding median_score
+        allScores.push(s.median_score);
+      });
+
+      // Calculate aggregated values
+      const bestScore = Math.max(...machineStats.map(s => s.best_score));
+      const worstScore = Math.min(...machineStats.map(s => s.worst_score));
+      const medianScore = allScores.sort((a, b) => a - b)[Math.floor(allScores.length / 2)];
+      const avgScore = machineStats.reduce((sum, s) => sum + s.avg_score * s.games_played, 0) / totalGames;
+
+      // Average percentiles (weighted by games played)
+      const totalPercentileWeight = machineStats.reduce((sum, s) =>
+        (s.avg_percentile !== null ? sum + s.games_played : sum), 0
+      );
+      const avgPercentile = totalPercentileWeight > 0
+        ? machineStats.reduce((sum, s) =>
+            s.avg_percentile !== null ? sum + s.avg_percentile * s.games_played : sum, 0
+          ) / totalPercentileWeight
+        : null;
+
+      const medianPercentile = totalPercentileWeight > 0
+        ? machineStats.reduce((sum, s) =>
+            s.median_percentile !== null ? sum + s.median_percentile * s.games_played : sum, 0
+          ) / totalPercentileWeight
+        : null;
+
+      // Calculate win percentage across all seasons
+      const totalWins = machineStats.reduce((sum, s) =>
+        sum + ((s.win_percentage || 0) / 100 * s.games_played), 0
+      );
+      const winPercentage = (totalWins / totalGames) * 100;
+
+      // Use first entry as template, update aggregated values
+      aggregated.push({
+        ...machineStats[0],
+        games_played: totalGames,
+        best_score: bestScore,
+        worst_score: worstScore,
+        median_score: Math.round(medianScore),
+        avg_score: Math.round(avgScore),
+        avg_percentile: avgPercentile,
+        median_percentile: medianPercentile,
+        win_percentage: winPercentage,
+        season: 0, // Indicate this is aggregated across all seasons
+      });
+    });
+
+    // Sort aggregated results based on sortBy and sortDirection
+    return sortAggregatedStats(aggregated, sortBy, sortDirection);
+  }
+
+  function sortAggregatedStats(stats: PlayerMachineStat[], sortBy: string, direction: 'asc' | 'desc' = 'desc'): PlayerMachineStat[] {
+    const sorted = [...stats].sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case 'avg_percentile':
+          comparison = (b.avg_percentile || 0) - (a.avg_percentile || 0);
+          break;
+        case 'games_played':
+          comparison = b.games_played - a.games_played;
+          break;
+        case 'avg_score':
+          comparison = b.avg_score - a.avg_score;
+          break;
+        case 'win_percentage':
+          comparison = (b.win_percentage || 0) - (a.win_percentage || 0);
+          break;
+        default:
+          return 0;
+      }
+      return direction === 'asc' ? -comparison : comparison;
+    });
+    return sorted;
+  }
+
+  function handleSort(column: 'avg_percentile' | 'games_played' | 'avg_score' | 'win_percentage') {
+    if (sortBy === column) {
+      // Toggle direction if clicking the same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column: default to descending (highest first)
+      setSortBy(column);
+      setSortDirection('desc');
     }
   }
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="text-lg text-gray-600">Loading player data...</div>
-      </div>
-    );
+    return <LoadingSpinner fullPage text="Loading player data..." />;
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-        <strong className="font-bold">Error: </strong>
-        <span>{error}</span>
-      </div>
+      <Alert variant="error" title="Error">
+        {error}
+      </Alert>
     );
   }
 
   if (!player) {
     return (
-      <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
+      <Alert variant="warning" title="Not Found">
         Player not found
-      </div>
+      </Alert>
     );
   }
 
@@ -121,162 +291,187 @@ export default function PlayerDetailPage() {
         >
           ← Back to Players
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900">{player.name}</h1>
+        <PageHeader title={player.name} />
       </div>
 
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
-          Player Information
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-          <div>
-            <div className="text-sm text-gray-600">IPR</div>
-            <div className="text-2xl font-bold text-blue-600">
-              {player.current_ipr ? player.current_ipr.toLocaleString() : 'N/A'}
-            </div>
+      <Card>
+        <Card.Header>
+          <Card.Title>Player Information</Card.Title>
+        </Card.Header>
+        <Card.Content>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+            <StatCard
+              label="IPR"
+              value={player.current_ipr ? player.current_ipr.toLocaleString() : 'N/A'}
+            />
+            <StatCard
+              label="First Season"
+              value={player.first_seen_season}
+            />
+            <StatCard
+              label="Last Season"
+              value={player.last_seen_season}
+            />
           </div>
-          <div>
-            <div className="text-sm text-gray-600">First Season</div>
-            <div className="text-2xl font-bold text-gray-900">
-              {player.first_seen_season}
-            </div>
-          </div>
-          <div>
-            <div className="text-sm text-gray-600">Last Season</div>
-            <div className="text-2xl font-bold text-gray-900">
-              {player.last_seen_season}
-            </div>
-          </div>
-        </div>
-      </div>
+        </Card.Content>
+      </Card>
 
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
-          Machine Statistics
-        </h2>
-
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Season
-            </label>
-            <select
-              value={seasonFilter || ''}
-              onChange={(e) => setSeasonFilter(e.target.value ? parseInt(e.target.value) : undefined)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Seasons</option>
-              {availableSeasons.map(season => (
-                <option key={season} value={season}>
-                  Season {season}
-                </option>
-              ))}
-            </select>
+      <Card>
+        <Card.Header>
+          <div className="flex items-center justify-between">
+            <Card.Title>Machine Statistics</Card.Title>
+            {fetching && (
+              <div className="flex items-center text-sm text-gray-600">
+                <svg className="animate-spin h-4 w-4 mr-2 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Updating...
+              </div>
+            )}
           </div>
+        </Card.Header>
+        <Card.Content>
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <SeasonMultiSelect
+              value={seasonsFilter}
+              onChange={setSeasonsFilter}
+              availableSeasons={availableSeasons}
+            />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Venue
-            </label>
-            <select
+            <Select
+              label="Venue"
               value={venueFilter || ''}
               onChange={(e) => setVenueFilter(e.target.value || undefined)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Venues</option>
-              {venues.map((venue) => (
-                <option key={venue.venue_key} value={venue.venue_key}>
-                  {venue.venue_name}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'All Venues' },
+                ...venues.map((venue) => ({
+                  value: venue.venue_key,
+                  label: venue.venue_name,
+                })),
+              ]}
+            />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Sort By
-            </label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="avg_percentile">Percentile</option>
-              <option value="win_percentage">Win %</option>
-              <option value="games_played">Games Played</option>
-              <option value="avg_score">Avg Score</option>
-            </select>
-          </div>
-        </div>
-
-        {machineStats.length === 0 ? (
-          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
-            No machine statistics found for the selected filters.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Machine
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          {machineStats.length === 0 ? (
+            <Alert variant="warning">
+              No machine statistics found for the selected filters.
+            </Alert>
+          ) : (
+            <Table>
+              <Table.Header>
+                <Table.Row hoverable={false}>
+                  <Table.Head>Machine</Table.Head>
+                  <Table.Head
+                    sortable
+                    onSort={() => handleSort('games_played')}
+                    sortDirection={sortBy === 'games_played' ? sortDirection : null}
+                  >
                     Games
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  </Table.Head>
+                  <Table.Head
+                    sortable
+                    onSort={() => handleSort('win_percentage')}
+                    sortDirection={sortBy === 'win_percentage' ? sortDirection : null}
+                  >
                     Win %
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  </Table.Head>
+                  <Table.Head
+                    sortable
+                    onSort={() => handleSort('avg_percentile')}
+                    sortDirection={sortBy === 'avg_percentile' ? sortDirection : null}
+                  >
                     Percentile
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Median Score
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Best Score
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+                  </Table.Head>
+                  <Table.Head>Median Score</Table.Head>
+                  <Table.Head>Best Score</Table.Head>
+                  <Table.Head className="text-center">Chart</Table.Head>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
                 {machineStats.map((stat, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                  <Table.Row key={idx}>
+                    <Table.Cell>
                       <Link
                         href={`/machines/${stat.machine_key}`}
                         className="text-sm font-medium text-blue-600 hover:text-blue-800"
                       >
                         {stat.machine_name}
                       </Link>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    </Table.Cell>
+                    <Table.Cell>
                       {stat.games_played}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    </Table.Cell>
+                    <Table.Cell>
                       {stat.win_percentage !== null ? `${stat.win_percentage.toFixed(1)}%` : 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    </Table.Cell>
+                    <Table.Cell>
                       {stat.avg_percentile !== null ? stat.avg_percentile.toFixed(1) : 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    </Table.Cell>
+                    <Table.Cell>
                       {stat.median_score.toLocaleString(undefined, {
                         maximumFractionDigits: 0,
                       })}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    </Table.Cell>
+                    <Table.Cell>
                       {stat.best_score.toLocaleString()}
-                    </td>
-                  </tr>
+                    </Table.Cell>
+                    <Table.Cell className="text-center">
+                      <button
+                        onClick={() => handleMachineSelect(stat.machine_key)}
+                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                          selectedMachine === stat.machine_key
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                        title="View score progression chart"
+                      >
+                        📊
+                      </button>
+                    </Table.Cell>
+                  </Table.Row>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              </Table.Body>
+            </Table>
+          )}
 
-        <div className="mt-4 text-sm text-gray-600">
-          Showing {machineStats.length} machine{machineStats.length !== 1 ? 's' : ''}
-        </div>
-      </div>
+          <div className="mt-4 text-sm text-gray-600">
+            Showing {machineStats.length} machine{machineStats.length !== 1 ? 's' : ''}
+            {machineStats.length > 0 && (
+              <span className="ml-2 text-gray-500">
+                (Click 📊 to view score progression)
+              </span>
+            )}
+          </div>
+        </Card.Content>
+      </Card>
+
+      {/* Score Progression Chart */}
+      {selectedMachine && (
+        <Card>
+          <Card.Header>
+            <Card.Title>Score Progression for {selectedMachine}</Card.Title>
+          </Card.Header>
+          <Card.Content>
+            {chartLoading ? (
+              <LoadingSpinner text="Loading score history..." />
+            ) : chartError ? (
+              <Alert variant="error" title="Error">
+                {chartError}
+              </Alert>
+            ) : scoreHistory ? (
+              <div>
+                <p className="text-sm text-gray-600 mb-4">
+                  Loaded {scoreHistory.total_games} games
+                </p>
+                <PlayerMachineProgressionChart data={scoreHistory} />
+              </div>
+            ) : (
+              <p className="text-gray-500">No data loaded</p>
+            )}
+          </Card.Content>
+        </Card>
+      )}
     </div>
   );
 }

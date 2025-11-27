@@ -16,6 +16,7 @@ import {
   Badge,
   StatCard,
 } from '@/components/ui';
+import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 
 export default function VenueDetailPage() {
   const params = useParams();
@@ -24,6 +25,7 @@ export default function VenueDetailPage() {
   const [venue, setVenue] = useState<VenueDetail | null>(null);
   const [machines, setMachines] = useState<VenueMachineStats[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [availableSeasons, setAvailableSeasons] = useState<number[]>([21, 22]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,18 +34,26 @@ export default function VenueDetailPage() {
   const [selectedTeam, setSelectedTeam] = useState<string>('');
   const [scoresFrom, setScoresFrom] = useState<'venue' | 'all'>('venue');
   const [sortBy, setSortBy] = useState<'name' | 'games'>('games');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [seasons, setSeasons] = useState<number[]>([]);
 
-  // Fetch teams on mount
+  // Fetch available seasons and teams on mount
   useEffect(() => {
-    async function fetchTeams() {
+    async function fetchInitialData() {
       try {
-        const data = await api.getTeams({ limit: 500 });
-        setTeams(data.teams);
+        const [seasonsData, teamsData] = await Promise.all([
+          api.getSeasons(),
+          api.getTeams({ limit: 500 }),
+        ]);
+        setAvailableSeasons(seasonsData.seasons);
+        setTeams(teamsData.teams);
+        // Default to all available seasons
+        setSeasons(seasonsData.seasons);
       } catch (err) {
-        console.error('Failed to fetch teams:', err);
+        console.error('Failed to fetch initial data:', err);
       }
     }
-    fetchTeams();
+    fetchInitialData();
   }, []);
 
   // Fetch venue and machines when filters change
@@ -57,6 +67,7 @@ export default function VenueDetailPage() {
             current_only: currentOnly,
             team_key: selectedTeam || undefined,
             scores_from: scoresFrom,
+            seasons: seasons.length > 0 ? seasons : undefined,
           }),
         ]);
         setVenue(venueData);
@@ -69,16 +80,29 @@ export default function VenueDetailPage() {
     }
 
     fetchVenueData();
-  }, [venueKey, currentOnly, selectedTeam, scoresFrom]);
+  }, [venueKey, currentOnly, selectedTeam, scoresFrom, seasons]);
 
-  // Sort machines based on sortBy state
+  // Sort machines based on sortBy state and direction
   const sortedMachines = [...machines].sort((a, b) => {
+    let comparison = 0;
     if (sortBy === 'games') {
-      return b.total_scores - a.total_scores;
+      comparison = b.total_scores - a.total_scores;
     } else {
-      return a.machine_name.localeCompare(b.machine_name);
+      comparison = a.machine_name.localeCompare(b.machine_name);
     }
+    return sortDirection === 'asc' ? -comparison : comparison;
   });
+
+  function handleSort(column: 'name' | 'games') {
+    if (sortBy === column) {
+      // Toggle direction if clicking the same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column: set appropriate default direction
+      setSortBy(column);
+      setSortDirection(column === 'games' ? 'desc' : 'asc');
+    }
+  }
 
   if (loading) {
     return <LoadingSpinner fullPage text="Loading venue details..." />;
@@ -127,6 +151,14 @@ export default function VenueDetailPage() {
         </Card.Header>
         <Card.Content>
           <div className="space-y-4">
+            {/* Season Filter */}
+            <SeasonMultiSelect
+              value={seasons}
+              onChange={setSeasons}
+              availableSeasons={availableSeasons}
+              helpText="Select one or more seasons to aggregate statistics"
+            />
+
             {/* Machine Filter */}
             <div className="flex items-center gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -153,10 +185,11 @@ export default function VenueDetailPage() {
               className="max-w-md"
               options={[
                 { value: '', label: 'All Teams' },
-                ...teams.map((team) => ({
-                  value: team.team_key,
-                  label: team.team_name,
-                })),
+                ...Array.from(new Map(teams.map((team) => [team.team_key, team])).values())
+                  .map((team) => ({
+                    value: team.team_key,
+                    label: team.team_name,
+                  })),
               ]}
             />
 
@@ -207,18 +240,6 @@ export default function VenueDetailPage() {
               </div>
             )}
 
-            {/* Sort Control */}
-            <Select
-              label="Sort By"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'name' | 'games')}
-              className="max-w-md"
-              options={[
-                { value: 'games', label: 'Total Games (Most to Least)' },
-                { value: 'name', label: 'Machine Name (A-Z)' },
-              ]}
-            />
-
             {/* Info messages */}
             {currentOnly && (
               <p className="text-xs text-gray-500">
@@ -265,15 +286,26 @@ export default function VenueDetailPage() {
             <Table>
               <Table.Header>
                 <Table.Row hoverable={false}>
-                  <Table.Head>Machine</Table.Head>
-                  <Table.Head align="right">
+                  <Table.Head
+                    sortable
+                    onSort={() => handleSort('name')}
+                    sortDirection={sortBy === 'name' ? sortDirection : null}
+                  >
+                    Machine
+                  </Table.Head>
+                  <Table.Head
+                    className="text-right"
+                    sortable
+                    onSort={() => handleSort('games')}
+                    sortDirection={sortBy === 'games' ? sortDirection : null}
+                  >
                     {selectedTeam ? 'Games Played' : 'Total Scores'}
                   </Table.Head>
-                  <Table.Head align="right">Players</Table.Head>
-                  <Table.Head align="right">Median Score</Table.Head>
-                  <Table.Head align="right">Max Score</Table.Head>
+                  <Table.Head className="text-right">Players</Table.Head>
+                  <Table.Head className="text-right">Median Score</Table.Head>
+                  <Table.Head className="text-right">Max Score</Table.Head>
                   {!currentOnly && (
-                    <Table.Head align="center">Current</Table.Head>
+                    <Table.Head className="text-center">Current</Table.Head>
                   )}
                 </Table.Row>
               </Table.Header>
@@ -288,20 +320,20 @@ export default function VenueDetailPage() {
                         {machine.machine_name}
                       </Link>
                     </Table.Cell>
-                    <Table.Cell align="right">
+                    <Table.Cell className="text-right">
                       {machine.total_scores.toLocaleString()}
                     </Table.Cell>
-                    <Table.Cell align="right" className="text-gray-600">
+                    <Table.Cell className="text-right text-gray-600">
                       {machine.unique_players}
                     </Table.Cell>
-                    <Table.Cell align="right">
+                    <Table.Cell className="text-right">
                       {machine.median_score.toLocaleString()}
                     </Table.Cell>
-                    <Table.Cell align="right" className="font-medium text-green-600">
+                    <Table.Cell className="text-right font-medium text-green-600">
                       {machine.max_score.toLocaleString()}
                     </Table.Cell>
                     {!currentOnly && (
-                      <Table.Cell align="center">
+                      <Table.Cell className="text-center">
                         <Badge variant={machine.is_current ? 'success' : 'default'}>
                           {machine.is_current ? 'Current' : 'Past'}
                         </Badge>

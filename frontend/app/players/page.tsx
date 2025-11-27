@@ -11,11 +11,6 @@ import {
   Alert,
   EmptyState,
   Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
 } from '@/components/ui';
 
 export default function PlayersPage() {
@@ -121,33 +116,33 @@ export default function PlayersPage() {
       {players.length > 0 && (
         <Card>
           <Table>
-            <TableHeader>
-              <TableRow hoverable={false}>
-                <TableHead>Player Name</TableHead>
-                <TableHead>IPR</TableHead>
-                <TableHead>Seasons</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+            <Table.Header>
+              <Table.Row hoverable={false}>
+                <Table.Head>Player Name</Table.Head>
+                <Table.Head>IPR</Table.Head>
+                <Table.Head>Seasons</Table.Head>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
               {players.map((player) => (
-                <TableRow key={player.player_key}>
-                  <TableCell>
+                <Table.Row key={player.player_key}>
+                  <Table.Cell>
                     <Link
                       href={`/players/${player.player_key}`}
                       className="font-medium text-blue-600 hover:text-blue-700"
                     >
                       {player.name}
                     </Link>
-                  </TableCell>
-                  <TableCell>
+                  </Table.Cell>
+                  <Table.Cell>
                     {player.current_ipr ? player.current_ipr.toFixed(2) : 'N/A'}
-                  </TableCell>
-                  <TableCell className="text-gray-500">
+                  </Table.Cell>
+                  <Table.Cell className="text-gray-500">
                     {player.first_seen_season} - {player.last_seen_season}
-                  </TableCell>
-                </TableRow>
+                  </Table.Cell>
+                </Table.Row>
               ))}
-            </TableBody>
+            </Table.Body>
           </Table>
         </Card>
       )}

@@ -1,7 +1,7 @@
 """
 Matchup API endpoints for analyzing team vs team matchups
 """
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Union
 from fastapi import APIRouter, HTTPException, Query
 import json
 import glob
@@ -22,26 +22,30 @@ from api.dependencies import execute_query
 router = APIRouter(prefix="/matchups", tags=["matchups"])
 
 
-def get_current_machines_for_venue(venue_key: str, season: int = 22) -> List[str]:
+def get_current_machines_for_venue(venue_key: str, seasons: List[int]) -> List[str]:
     """
-    Get the current machine lineup for a venue by checking the most recent match.
-    Returns list of machine keys that are currently at this venue.
+    Get the machine lineup for a venue by checking the most recent match across seasons.
+    Returns list of machine keys that are at this venue.
     """
-    matches_path = f"/Users/JJC/Pinball/MNP/mnp-data-archive/season-{season}/matches"
+    most_recent_match = None
+    highest_week = -1
+    highest_season = -1
 
     try:
-        match_files = glob.glob(f"{matches_path}/*.json")
-        most_recent_match = None
-        highest_week = -1
+        for season in seasons:
+            matches_path = f"/Users/JJC/Pinball/MNP/mnp-data-archive/season-{season}/matches"
+            match_files = glob.glob(f"{matches_path}/*.json")
 
-        for match_file in match_files:
-            with open(match_file, 'r') as f:
-                match_data = json.load(f)
-                if match_data.get('venue', {}).get('key') == venue_key:
-                    week = int(match_data.get('week', 0))
-                    if week > highest_week:
-                        highest_week = week
-                        most_recent_match = match_data
+            for match_file in match_files:
+                with open(match_file, 'r') as f:
+                    match_data = json.load(f)
+                    if match_data.get('venue', {}).get('key') == venue_key:
+                        week = int(match_data.get('week', 0))
+                        # Prioritize higher season, then higher week
+                        if (season > highest_season) or (season == highest_season and week > highest_week):
+                            highest_season = season
+                            highest_week = week
+                            most_recent_match = match_data
 
         if most_recent_match and 'venue' in most_recent_match and 'machines' in most_recent_match['venue']:
             return most_recent_match['venue']['machines']
@@ -82,61 +86,61 @@ def get_team_machine_pick_frequency(
     team_key: str,
     team_home_venue: str,
     available_machines: List[str],
-    season: int
+    seasons: List[int]
 ) -> List[MachinePickFrequency]:
     """
-    Calculate how often a team picks each machine.
+    Calculate how often a team picks each machine across multiple seasons.
     Counts with 2x multiplier for doubles rounds (1 & 4).
     Filtering logic:
     - At HOME venue: Team picks rounds 2 & 4
     - At AWAY venues: Team picks rounds 1 & 3
     """
-    matches_path = f"/Users/JJC/Pinball/MNP/mnp-data-archive/season-{season}/matches"
-
     machine_picks = defaultdict(int)
 
     try:
-        match_files = glob.glob(f"{matches_path}/*.json")
+        for season in seasons:
+            matches_path = f"/Users/JJC/Pinball/MNP/mnp-data-archive/season-{season}/matches"
+            match_files = glob.glob(f"{matches_path}/*.json")
 
-        for match_file in match_files:
-            with open(match_file, 'r') as f:
-                match_data = json.load(f)
+            for match_file in match_files:
+                with open(match_file, 'r') as f:
+                    match_data = json.load(f)
 
-                # Only process matches involving this team
-                home_team = match_data.get('home', {}).get('key')
-                away_team = match_data.get('away', {}).get('key')
+                    # Only process matches involving this team
+                    home_team = match_data.get('home', {}).get('key')
+                    away_team = match_data.get('away', {}).get('key')
 
-                if team_key not in [home_team, away_team]:
-                    continue
+                    if team_key not in [home_team, away_team]:
+                        continue
 
-                venue_key = match_data.get('venue', {}).get('key')
-                is_home_venue = (venue_key == team_home_venue)
+                    venue_key = match_data.get('venue', {}).get('key')
+                    is_home_venue = (venue_key == team_home_venue)
 
-                # Determine which rounds this team picked
-                if is_home_venue:
-                    team_pick_rounds = [2, 4]  # Home team picks rounds 2 & 4 at their venue
-                else:
-                    # Away - need to check if this team is home or away in match
-                    if team_key == home_team:
-                        team_pick_rounds = [2, 4]  # Home in match picks 2 & 4
+                    # Determine which rounds this team picked
+                    if is_home_venue:
+                        team_pick_rounds = [2, 4]  # Home team picks rounds 2 & 4 at their venue
                     else:
-                        team_pick_rounds = [1, 3]  # Away in match picks 1 & 3
+                        # Away - need to check if this team is home or away in match
+                        if team_key == home_team:
+                            team_pick_rounds = [2, 4]  # Home in match picks 2 & 4
+                        else:
+                            team_pick_rounds = [1, 3]  # Away in match picks 1 & 3
 
-                # Process rounds
-                for round_data in match_data.get('rounds', []):
-                    round_num = round_data.get('n')
+                    # Process rounds
+                    for round_data in match_data.get('rounds', []):
+                        round_num = round_data.get('n')
 
-                    for game in round_data.get('games', []):
-                        machine = game.get('machine')
+                        for game in round_data.get('games', []):
+                            machine = game.get('machine')
 
-                        # Only count machines available at target venue
-                        if machine not in available_machines:
-                            continue
+                            # Only count machines available at target venue
+                            if machine not in available_machines:
+                                continue
 
-                        # Count picks (2x for doubles rounds 1 & 4)
-                        if round_num in team_pick_rounds:
-                            pick_multiplier = 2 if round_num in [1, 4] else 1
-                            machine_picks[machine] += pick_multiplier
+                            # Count picks (2x for doubles rounds 1 & 4)
+                            if round_num in team_pick_rounds:
+                                pick_multiplier = 2 if round_num in [1, 4] else 1
+                                machine_picks[machine] += pick_multiplier
 
         # Build result
         result = []
@@ -169,10 +173,10 @@ def get_team_machine_pick_frequency(
 def get_player_machine_preferences(
     team_key: str,
     available_machines: List[str],
-    season: int
+    seasons: List[int]
 ) -> List[PlayerMachinePreference]:
     """
-    Get each player's machine picking preferences on this team.
+    Get each player's machine picking preferences on this team across multiple seasons.
     OPTIMIZED: Single query to get all player machine counts.
     """
     if not available_machines:
@@ -190,7 +194,7 @@ def get_player_machine_preferences(
         INNER JOIN players p ON s.player_key = p.player_key
         INNER JOIN machines m ON s.machine_key = m.machine_key
         WHERE s.team_key = :team_key
-            AND s.season = :season
+            AND s.season = ANY(:seasons)
             AND s.machine_key = ANY(:machines)
         GROUP BY s.player_key, p.name, s.machine_key, m.machine_name
         ORDER BY s.player_key, times_played DESC
@@ -198,7 +202,7 @@ def get_player_machine_preferences(
 
     all_picks = execute_query(all_picks_query, {
         'team_key': team_key,
-        'season': season,
+        'seasons': seasons,
         'machines': available_machines
     })
 
@@ -241,10 +245,10 @@ def get_player_machine_preferences(
 def get_player_machine_confidence(
     team_key: str,
     available_machines: List[str],
-    season: int
+    seasons: List[int]
 ) -> List[PlayerMachineConfidence]:
     """
-    Get confidence intervals for each player on each available machine.
+    Get confidence intervals for each player on each available machine across multiple seasons.
     OPTIMIZED: Single query to fetch all scores at once.
     """
     # Get all machine names in one query
@@ -269,14 +273,14 @@ def get_player_machine_confidence(
         FROM scores s
         INNER JOIN players p ON s.player_key = p.player_key
         WHERE s.team_key = :team_key
-            AND s.season = :season
+            AND s.season = ANY(:seasons)
             AND s.machine_key = ANY(:machines)
         ORDER BY s.player_key, s.machine_key, s.score
     """
 
     all_scores = execute_query(all_scores_query, {
         'team_key': team_key,
-        'season': season,
+        'seasons': seasons,
         'machines': available_machines
     })
 
@@ -320,18 +324,18 @@ def get_player_machine_confidence(
 def get_team_machine_confidence(
     team_key: str,
     available_machines: List[str],
-    season: int
+    seasons: List[int]
 ) -> List[TeamMachineConfidence]:
     """
-    Get confidence intervals for the team (all players combined) on each available machine.
+    Get confidence intervals for the team (all players combined) on each available machine across multiple seasons.
     OPTIMIZED: Single query to fetch all scores at once.
     """
     if not available_machines:
         return []
 
-    # Get team name
-    team_query = "SELECT team_name FROM teams WHERE team_key = :team_key AND season = :season LIMIT 1"
-    team_result = execute_query(team_query, {'team_key': team_key, 'season': season})
+    # Get team name (from most recent season)
+    team_query = "SELECT team_name FROM teams WHERE team_key = :team_key AND season = ANY(:seasons) ORDER BY season DESC LIMIT 1"
+    team_result = execute_query(team_query, {'team_key': team_key, 'seasons': seasons})
     team_name = team_result[0]['team_name'] if team_result else team_key
 
     # Get all machine names in one query
@@ -348,14 +352,14 @@ def get_team_machine_confidence(
         SELECT machine_key, score
         FROM scores
         WHERE team_key = :team_key
-            AND season = :season
+            AND season = ANY(:seasons)
             AND machine_key = ANY(:machines)
         ORDER BY machine_key, score
     """
 
     all_scores = execute_query(all_scores_query, {
         'team_key': team_key,
-        'season': season,
+        'seasons': seasons,
         'machines': available_machines
     })
 
@@ -392,41 +396,47 @@ def get_team_machine_confidence(
     response_model=MatchupAnalysis,
     responses={404: {"model": ErrorResponse}},
     summary="Analyze team matchup at a venue",
-    description="Get comprehensive matchup analysis between two teams at a specific venue"
+    description="Get comprehensive matchup analysis between two teams at a specific venue across one or more seasons"
 )
 def get_matchup_analysis(
     home_team: str = Query(..., description="Home team key (e.g., 'TRL')"),
     away_team: str = Query(..., description="Away team key (e.g., 'ETB')"),
     venue: str = Query(..., description="Venue key (e.g., 'T4B')"),
-    season: int = Query(22, description="Season number")
+    seasons: Union[List[int], None] = Query(None, description="Season numbers (e.g., [21, 22])")
 ):
     """
-    Analyze a matchup between two teams at a specific venue.
+    Analyze a matchup between two teams at a specific venue across one or more seasons.
 
     Returns:
     - Available machines at the venue
-    - Team machine pick frequencies
-    - Player machine preferences
-    - Player-specific confidence intervals
-    - Team-level confidence intervals
+    - Team machine pick frequencies (aggregated across seasons)
+    - Player machine preferences (aggregated across seasons)
+    - Player-specific confidence intervals (aggregated across seasons)
+    - Team-level confidence intervals (aggregated across seasons)
 
-    Example: `/matchups?home_team=TRL&away_team=ETB&venue=T4B&season=22`
+    Examples:
+    - Single season: `/matchups?home_team=TRL&away_team=ETB&venue=T4B&seasons=22`
+    - Multiple seasons: `/matchups?home_team=TRL&away_team=ETB&venue=T4B&seasons=21&seasons=22`
     """
 
-    # Validate teams exist
-    home_team_query = "SELECT team_name, home_venue_key FROM teams WHERE team_key = :team_key AND season = :season LIMIT 1"
-    home_team_result = execute_query(home_team_query, {'team_key': home_team, 'season': season})
+    # Default to season 22 if not specified
+    if not seasons or len(seasons) == 0:
+        seasons = [22]
+
+    # Validate teams exist in at least one season
+    home_team_query = "SELECT team_name, home_venue_key, season FROM teams WHERE team_key = :team_key AND season = ANY(:seasons) ORDER BY season DESC LIMIT 1"
+    home_team_result = execute_query(home_team_query, {'team_key': home_team, 'seasons': seasons})
 
     if not home_team_result:
-        raise HTTPException(status_code=404, detail=f"Home team '{home_team}' not found for season {season}")
+        raise HTTPException(status_code=404, detail=f"Home team '{home_team}' not found in seasons {seasons}")
 
     home_team_name = home_team_result[0]['team_name']
     home_team_home_venue = home_team_result[0]['home_venue_key']
 
-    away_team_result = execute_query(home_team_query, {'team_key': away_team, 'season': season})
+    away_team_result = execute_query(home_team_query, {'team_key': away_team, 'seasons': seasons})
 
     if not away_team_result:
-        raise HTTPException(status_code=404, detail=f"Away team '{away_team}' not found for season {season}")
+        raise HTTPException(status_code=404, detail=f"Away team '{away_team}' not found in seasons {seasons}")
 
     away_team_name = away_team_result[0]['team_name']
     away_team_home_venue = away_team_result[0]['home_venue_key']
@@ -441,29 +451,32 @@ def get_matchup_analysis(
     venue_name = venue_result[0]['venue_name']
 
     # Get available machines at venue
-    available_machines = get_current_machines_for_venue(venue, season)
+    available_machines = get_current_machines_for_venue(venue, seasons)
 
     if not available_machines:
         raise HTTPException(
             status_code=404,
-            detail=f"No machine data found for venue '{venue}' in season {season}"
+            detail=f"No machine data found for venue '{venue}' in seasons {seasons}"
         )
 
     # Get team machine pick frequencies
-    home_pick_freq = get_team_machine_pick_frequency(home_team, home_team_home_venue, available_machines, season)
-    away_pick_freq = get_team_machine_pick_frequency(away_team, away_team_home_venue, available_machines, season)
+    home_pick_freq = get_team_machine_pick_frequency(home_team, home_team_home_venue, available_machines, seasons)
+    away_pick_freq = get_team_machine_pick_frequency(away_team, away_team_home_venue, available_machines, seasons)
 
     # Get player machine preferences
-    home_player_prefs = get_player_machine_preferences(home_team, available_machines, season)
-    away_player_prefs = get_player_machine_preferences(away_team, available_machines, season)
+    home_player_prefs = get_player_machine_preferences(home_team, available_machines, seasons)
+    away_player_prefs = get_player_machine_preferences(away_team, available_machines, seasons)
 
     # Get player confidence intervals
-    home_player_confidence = get_player_machine_confidence(home_team, available_machines, season)
-    away_player_confidence = get_player_machine_confidence(away_team, available_machines, season)
+    home_player_confidence = get_player_machine_confidence(home_team, available_machines, seasons)
+    away_player_confidence = get_player_machine_confidence(away_team, available_machines, seasons)
 
     # Get team confidence intervals
-    home_team_confidence = get_team_machine_confidence(home_team, available_machines, season)
-    away_team_confidence = get_team_machine_confidence(away_team, available_machines, season)
+    home_team_confidence = get_team_machine_confidence(home_team, available_machines, seasons)
+    away_team_confidence = get_team_machine_confidence(away_team, available_machines, seasons)
+
+    # Format season display (single number or "21-22" for multiple)
+    season_display = seasons[0] if len(seasons) == 1 else f"{min(seasons)}-{max(seasons)}"
 
     return MatchupAnalysis(
         home_team_key=home_team,
@@ -472,7 +485,7 @@ def get_matchup_analysis(
         away_team_name=away_team_name,
         venue_key=venue,
         venue_name=venue_name,
-        season=season,
+        season=season_display,
         available_machines=available_machines,
         home_team_pick_frequency=home_pick_freq,
         away_team_pick_frequency=away_pick_freq,
