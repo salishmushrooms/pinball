@@ -17,25 +17,51 @@ import {
   Button,
   Alert,
   Badge,
+  Table,
+  Tabs,
+  Collapsible,
+  EmptyState,
+  LoadingSpinner,
 } from '@/components/ui';
+import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 
 export default function MatchupsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
+  const [availableSeasons, setAvailableSeasons] = useState<number[]>([21, 22]);
   const [homeTeam, setHomeTeam] = useState<string>('');
   const [awayTeam, setAwayTeam] = useState<string>('');
   const [venue, setVenue] = useState<string>('');
-  const [season, setSeason] = useState<number>(22);
+  const [seasons, setSeasons] = useState<number[]>([22]);
   const [matchup, setMatchup] = useState<MatchupAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load teams and venues on mount
+  // Load available seasons on mount
+  useEffect(() => {
+    async function loadSeasons() {
+      try {
+        const data = await api.getSeasons();
+        setAvailableSeasons(data.seasons);
+        // Default to most recent season
+        if (data.seasons.length > 0) {
+          setSeasons([Math.max(...data.seasons)]);
+        }
+      } catch (err) {
+        console.error('Failed to load seasons:', err);
+      }
+    }
+    loadSeasons();
+  }, []);
+
+  // Load teams and venues when seasons change
   useEffect(() => {
     async function loadData() {
       try {
+        // Use the most recent selected season for fetching teams
+        const latestSeason = seasons.length > 0 ? Math.max(...seasons) : 22;
         const [teamsData, venuesData] = await Promise.all([
-          api.getTeams({ season, limit: 100 }),
+          api.getTeams({ season: latestSeason, limit: 100 }),
           api.getVenues({ limit: 100 }),
         ]);
         setTeams(teamsData.teams);
@@ -44,8 +70,10 @@ export default function MatchupsPage() {
         console.error('Failed to load teams/venues:', err);
       }
     }
-    loadData();
-  }, [season]);
+    if (seasons.length > 0) {
+      loadData();
+    }
+  }, [seasons]);
 
   // Load matchup analysis
   const handleAnalyzeMatchup = async () => {
@@ -54,7 +82,11 @@ export default function MatchupsPage() {
       return;
     }
 
-    console.log('Starting matchup analysis...', { homeTeam, awayTeam, venue, season });
+    if (seasons.length === 0) {
+      setError('Please select at least one season');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setMatchup(null);
@@ -64,16 +96,13 @@ export default function MatchupsPage() {
         home_team: homeTeam,
         away_team: awayTeam,
         venue: venue,
-        season: season,
+        seasons: seasons,
       });
-      console.log('Matchup analysis received:', data);
       setMatchup(data);
     } catch (err) {
-      console.error('Matchup analysis error:', err);
       setError(err instanceof Error ? err.message : 'Failed to analyze matchup');
     } finally {
       setLoading(false);
-      console.log('Matchup analysis complete');
     }
   };
 
@@ -101,7 +130,7 @@ export default function MatchupsPage() {
           <Card.Title>Select Matchup</Card.Title>
         </Card.Header>
         <Card.Content>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Select
               label="Home Team"
               value={homeTeam}
@@ -140,25 +169,31 @@ export default function MatchupsPage() {
                 })),
               ]}
             />
-
-            <Select
-              label="Season"
-              value={season}
-              onChange={(e) => setSeason(Number(e.target.value))}
-              options={[
-                { value: 22, label: 'Season 22' },
-                { value: 21, label: 'Season 21' },
-              ]}
-            />
           </div>
 
           <div className="mt-4">
+            <SeasonMultiSelect
+              value={seasons}
+              onChange={setSeasons}
+              availableSeasons={availableSeasons}
+              helpText="Select one or more seasons to aggregate statistics"
+            />
+          </div>
+
+          <div className="mt-6">
             <Button
               onClick={handleAnalyzeMatchup}
-              disabled={loading || !homeTeam || !awayTeam || !venue}
+              disabled={loading || !homeTeam || !awayTeam || !venue || seasons.length === 0}
               variant="primary"
             >
-              {loading ? 'Analyzing...' : 'Analyze Matchup'}
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <LoadingSpinner size="sm" />
+                  Analyzing...
+                </span>
+              ) : (
+                'Analyze Matchup'
+              )}
             </Button>
           </div>
 
@@ -180,10 +215,7 @@ export default function MatchupsPage() {
                 {matchup.home_team_name} vs {matchup.away_team_name}
               </h2>
               <p className="text-gray-600">
-                Venue: {matchup.venue_name} | Season: {matchup.season}
-              </p>
-              <p className="text-sm text-gray-500 mt-2">
-                {matchup.available_machines.length} machines available
+                Venue: {matchup.venue_name} | Season{typeof matchup.season === 'string' && matchup.season.includes('-') ? 's' : ''}: {matchup.season}
               </p>
             </Card.Content>
           </Card>
@@ -191,12 +223,17 @@ export default function MatchupsPage() {
           {/* Available Machines */}
           <Card>
             <Card.Header>
-              <Card.Title>Available Machines</Card.Title>
+              <Card.Title>
+                Available Machines
+                <Badge variant="info" className="ml-2">
+                  {matchup.available_machines.length}
+                </Badge>
+              </Card.Title>
             </Card.Header>
             <Card.Content>
               <div className="flex flex-wrap gap-2">
                 {matchup.available_machines.map((machine) => (
-                  <Badge key={machine} variant="info">
+                  <Badge key={machine} variant="default">
                     {machine}
                   </Badge>
                 ))}
@@ -204,103 +241,141 @@ export default function MatchupsPage() {
             </Card.Content>
           </Card>
 
-          {/* Team Machine Pick Frequency */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-              <Card.Header>
-                <Card.Title>{matchup.home_team_name} - Most Picked Machines</Card.Title>
-              </Card.Header>
-              <Card.Content>
-                <MachinePickTable picks={matchup.home_team_pick_frequency} />
-              </Card.Content>
-            </Card>
+          {/* Tab Navigation for Teams */}
+          <Tabs defaultValue="home">
+            <Tabs.List className="w-full md:w-auto">
+              <Tabs.Trigger value="home">{matchup.home_team_name}</Tabs.Trigger>
+              <Tabs.Trigger value="away">{matchup.away_team_name}</Tabs.Trigger>
+            </Tabs.List>
 
-            <Card>
-              <Card.Header>
-                <Card.Title>{matchup.away_team_name} - Most Picked Machines</Card.Title>
-              </Card.Header>
-              <Card.Content>
-                <MachinePickTable picks={matchup.away_team_pick_frequency} />
-              </Card.Content>
-            </Card>
-          </div>
+            {/* Home Team Tab */}
+            <Tabs.Content value="home">
+              <div className="space-y-4">
+                {/* Team Expected Scores - Always visible */}
+                <Card>
+                  <Card.Header>
+                    <Card.Title>Expected Scores (Team Average)</Card.Title>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Based on all team members' performance at this venue
+                    </p>
+                  </Card.Header>
+                  <Card.Content>
+                    <TeamConfidenceTable
+                      confidences={matchup.home_team_machine_confidence}
+                      formatScore={formatScore}
+                    />
+                  </Card.Content>
+                </Card>
 
-          {/* Team Confidence Intervals */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-              <Card.Header>
-                <Card.Title>{matchup.home_team_name} - Expected Scores (Team)</Card.Title>
-              </Card.Header>
-              <Card.Content>
-                <TeamConfidenceTable
-                  confidences={matchup.home_team_machine_confidence}
-                  formatScore={formatScore}
-                />
-              </Card.Content>
-            </Card>
+                {/* Machine Pick Frequency - Collapsible */}
+                <Collapsible
+                  title="Most Picked Machines"
+                  badge={
+                    <Badge variant="default">
+                      {matchup.home_team_pick_frequency.length}
+                    </Badge>
+                  }
+                >
+                  <MachinePickTable picks={matchup.home_team_pick_frequency} />
+                </Collapsible>
 
-            <Card>
-              <Card.Header>
-                <Card.Title>{matchup.away_team_name} - Expected Scores (Team)</Card.Title>
-              </Card.Header>
-              <Card.Content>
-                <TeamConfidenceTable
-                  confidences={matchup.away_team_machine_confidence}
-                  formatScore={formatScore}
-                />
-              </Card.Content>
-            </Card>
-          </div>
+                {/* Player Preferences - Collapsible */}
+                <Collapsible
+                  title="Player Preferences"
+                  badge={
+                    <Badge variant="default">
+                      {matchup.home_team_player_preferences.length} players
+                    </Badge>
+                  }
+                >
+                  <PlayerPreferencesGrid
+                    preferences={matchup.home_team_player_preferences}
+                  />
+                </Collapsible>
 
-          {/* Player Machine Preferences */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                {matchup.home_team_name} - Player Preferences
-              </h3>
-              <PlayerPreferencesTable
-                preferences={matchup.home_team_player_preferences}
-              />
-            </div>
-
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                {matchup.away_team_name} - Player Preferences
-              </h3>
-              <PlayerPreferencesTable
-                preferences={matchup.away_team_player_preferences}
-              />
-            </div>
-          </div>
-
-          {/* Player Confidence Intervals - Expandable Section */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <details>
-              <summary className="text-xl font-semibold text-gray-900 cursor-pointer">
-                Player-Specific Expected Scores (Click to expand)
-              </summary>
-              <div className="mt-4 grid md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="text-lg font-semibold text-gray-800 mb-3">
-                    {matchup.home_team_name}
-                  </h4>
-                  <PlayerConfidenceTable
+                {/* Player-Specific Expected Scores - Collapsible */}
+                <Collapsible
+                  title="Player-Specific Expected Scores"
+                  badge={
+                    <Badge variant="info">Requires 5+ games</Badge>
+                  }
+                >
+                  <p className="text-sm text-gray-600 mb-4">
+                    Only showing players with 5 or more games on each machine for
+                    statistical confidence (95% confidence interval).
+                  </p>
+                  <PlayerConfidenceGrid
                     confidences={matchup.home_team_player_confidence}
                     formatScore={formatScore}
                   />
-                </div>
-                <div>
-                  <h4 className="text-lg font-semibold text-gray-800 mb-3">
-                    {matchup.away_team_name}
-                  </h4>
-                  <PlayerConfidenceTable
+                </Collapsible>
+              </div>
+            </Tabs.Content>
+
+            {/* Away Team Tab */}
+            <Tabs.Content value="away">
+              <div className="space-y-4">
+                {/* Team Expected Scores - Always visible */}
+                <Card>
+                  <Card.Header>
+                    <Card.Title>Expected Scores (Team Average)</Card.Title>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Based on all team members' performance at this venue
+                    </p>
+                  </Card.Header>
+                  <Card.Content>
+                    <TeamConfidenceTable
+                      confidences={matchup.away_team_machine_confidence}
+                      formatScore={formatScore}
+                    />
+                  </Card.Content>
+                </Card>
+
+                {/* Machine Pick Frequency - Collapsible */}
+                <Collapsible
+                  title="Most Picked Machines"
+                  badge={
+                    <Badge variant="default">
+                      {matchup.away_team_pick_frequency.length}
+                    </Badge>
+                  }
+                >
+                  <MachinePickTable picks={matchup.away_team_pick_frequency} />
+                </Collapsible>
+
+                {/* Player Preferences - Collapsible */}
+                <Collapsible
+                  title="Player Preferences"
+                  badge={
+                    <Badge variant="default">
+                      {matchup.away_team_player_preferences.length} players
+                    </Badge>
+                  }
+                >
+                  <PlayerPreferencesGrid
+                    preferences={matchup.away_team_player_preferences}
+                  />
+                </Collapsible>
+
+                {/* Player-Specific Expected Scores - Collapsible */}
+                <Collapsible
+                  title="Player-Specific Expected Scores"
+                  badge={
+                    <Badge variant="info">Requires 5+ games</Badge>
+                  }
+                >
+                  <p className="text-sm text-gray-600 mb-4">
+                    Only showing players with 5 or more games on each machine for
+                    statistical confidence (95% confidence interval).
+                  </p>
+                  <PlayerConfidenceGrid
                     confidences={matchup.away_team_player_confidence}
                     formatScore={formatScore}
                   />
-                </div>
+                </Collapsible>
               </div>
-            </details>
-          </div>
+            </Tabs.Content>
+          </Tabs>
         </div>
       )}
     </div>
@@ -310,36 +385,28 @@ export default function MatchupsPage() {
 // Component for machine pick frequency table
 function MachinePickTable({ picks }: { picks: MachinePickFrequency[] }) {
   if (picks.length === 0) {
-    return <p className="text-gray-500">No pick data available</p>;
+    return <EmptyState title="No pick data available" />;
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Machine
-            </th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-              Times Picked
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {picks.slice(0, 10).map((pick) => (
-            <tr key={pick.machine_key}>
-              <td className="px-4 py-3 text-sm text-gray-900">
-                {pick.machine_name}
-              </td>
-              <td className="px-4 py-3 text-sm text-right text-gray-900 font-medium">
-                {pick.times_picked}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Table>
+      <Table.Header>
+        <Table.Row>
+          <Table.Head>Machine</Table.Head>
+          <Table.Head className="text-right">Times Picked</Table.Head>
+        </Table.Row>
+      </Table.Header>
+      <Table.Body>
+        {picks.slice(0, 10).map((pick) => (
+          <Table.Row key={pick.machine_key}>
+            <Table.Cell>{pick.machine_name}</Table.Cell>
+            <Table.Cell className="text-right font-medium">
+              {pick.times_picked}
+            </Table.Cell>
+          </Table.Row>
+        ))}
+      </Table.Body>
+    </Table>
   );
 }
 
@@ -354,78 +421,74 @@ function TeamConfidenceTable({
   const withData = confidences.filter((c) => !c.insufficient_data);
 
   if (withData.length === 0) {
-    return <p className="text-gray-500">Insufficient data for predictions</p>;
+    return <EmptyState title="Insufficient data for predictions" />;
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Machine
-            </th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-              Expected Score
-            </th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-              95% Range
-            </th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-              Sample
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {withData.slice(0, 10).map((conf) => (
-            <tr key={conf.machine_key}>
-              <td className="px-4 py-3 text-sm text-gray-900">
-                {conf.machine_name}
-              </td>
-              <td className="px-4 py-3 text-sm text-right font-medium text-blue-600">
-                {conf.confidence_interval
-                  ? formatScore(conf.confidence_interval.mean)
-                  : 'N/A'}
-              </td>
-              <td className="px-4 py-3 text-sm text-right text-gray-600">
-                {conf.confidence_interval
-                  ? `${formatScore(conf.confidence_interval.lower_bound)} - ${formatScore(conf.confidence_interval.upper_bound)}`
-                  : 'N/A'}
-              </td>
-              <td className="px-4 py-3 text-sm text-right text-gray-500">
-                n={conf.confidence_interval?.sample_size || 0}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Table>
+      <Table.Header>
+        <Table.Row>
+          <Table.Head>Machine</Table.Head>
+          <Table.Head className="text-right">Expected Score</Table.Head>
+          <Table.Head className="text-right">95% Range</Table.Head>
+          <Table.Head className="text-right">Sample</Table.Head>
+        </Table.Row>
+      </Table.Header>
+      <Table.Body>
+        {withData.slice(0, 10).map((conf) => (
+          <Table.Row key={conf.machine_key}>
+            <Table.Cell className="font-medium">{conf.machine_name}</Table.Cell>
+            <Table.Cell className="text-right font-semibold text-blue-600">
+              {conf.confidence_interval
+                ? formatScore(conf.confidence_interval.mean)
+                : 'N/A'}
+            </Table.Cell>
+            <Table.Cell className="text-right text-gray-600 text-xs">
+              {conf.confidence_interval
+                ? `${formatScore(conf.confidence_interval.lower_bound)} - ${formatScore(conf.confidence_interval.upper_bound)}`
+                : 'N/A'}
+            </Table.Cell>
+            <Table.Cell className="text-right text-gray-500 text-xs">
+              n={conf.confidence_interval?.sample_size || 0}
+            </Table.Cell>
+          </Table.Row>
+        ))}
+      </Table.Body>
+    </Table>
   );
 }
 
-// Component for player preferences table
-function PlayerPreferencesTable({
+// Component for player preferences grid
+function PlayerPreferencesGrid({
   preferences,
 }: {
   preferences: { player_key: string; player_name: string; top_machines: MachinePickFrequency[] }[];
 }) {
   if (preferences.length === 0) {
-    return <p className="text-gray-500">No preference data available</p>;
+    return <EmptyState title="No preference data available" />;
   }
 
   return (
-    <div className="space-y-4">
-      {preferences.slice(0, 5).map((pref) => (
-        <div key={pref.player_key} className="border-b pb-3">
-          <p className="font-medium text-gray-900 mb-2">{pref.player_name}</p>
-          <div className="flex flex-wrap gap-2">
-            {pref.top_machines.slice(0, 3).map((machine) => (
-              <span
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {preferences.map((pref) => (
+        <div
+          key={pref.player_key}
+          className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+        >
+          <p className="font-semibold text-gray-900 mb-3">{pref.player_name}</p>
+          <div className="space-y-2">
+            {pref.top_machines.slice(0, 5).map((machine, idx) => (
+              <div
                 key={machine.machine_key}
-                className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
+                className="flex items-center justify-between text-sm"
               >
-                {machine.machine_name}
-              </span>
+                <span className="text-gray-700">
+                  {idx + 1}. {machine.machine_name}
+                </span>
+                <Badge variant="default" className="text-xs">
+                  {machine.times_picked}
+                </Badge>
+              </div>
             ))}
           </div>
         </div>
@@ -434,8 +497,8 @@ function PlayerPreferencesTable({
   );
 }
 
-// Component for player confidence interval table
-function PlayerConfidenceTable({
+// Component for player confidence grid
+function PlayerConfidenceGrid({
   confidences,
   formatScore,
 }: {
@@ -445,7 +508,9 @@ function PlayerConfidenceTable({
   const withData = confidences.filter((c) => !c.insufficient_data);
 
   if (withData.length === 0) {
-    return <p className="text-gray-500">Insufficient data for player predictions</p>;
+    return (
+      <EmptyState title="Insufficient data for player predictions" description="Players need 5+ games on a machine to generate confidence intervals." />
+    );
   }
 
   // Group by player
@@ -458,49 +523,48 @@ function PlayerConfidenceTable({
   });
 
   return (
-    <div className="space-y-4 max-h-96 overflow-y-auto">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {Object.entries(byPlayer).map(([playerKey, confs]) => (
-        <details key={playerKey} className="border rounded p-3">
-          <summary className="font-medium text-gray-900 cursor-pointer">
-            {confs[0].player_name} ({confs.length} machines)
-          </summary>
-          <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">
-                    Machine
-                  </th>
-                  <th className="px-2 py-2 text-right text-xs font-medium text-gray-500">
-                    Expected
-                  </th>
-                  <th className="px-2 py-2 text-right text-xs font-medium text-gray-500">
-                    Range
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+        <Card key={playerKey} className="shadow-sm">
+          <Card.Header>
+            <Card.Title className="text-base">
+              {confs[0].player_name}
+              <Badge variant="info" className="ml-2">
+                {confs.length} machines
+              </Badge>
+            </Card.Title>
+          </Card.Header>
+          <Card.Content>
+            <Table>
+              <Table.Header>
+                <Table.Row>
+                  <Table.Head className="text-xs">Machine</Table.Head>
+                  <Table.Head className="text-xs text-right">Expected</Table.Head>
+                  <Table.Head className="text-xs text-right">Range</Table.Head>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
                 {confs.map((conf) => (
-                  <tr key={conf.machine_key}>
-                    <td className="px-2 py-2 text-xs text-gray-900">
+                  <Table.Row key={conf.machine_key}>
+                    <Table.Cell className="text-xs py-2">
                       {conf.machine_name}
-                    </td>
-                    <td className="px-2 py-2 text-xs text-right font-medium text-blue-600">
+                    </Table.Cell>
+                    <Table.Cell className="text-xs text-right font-semibold text-blue-600 py-2">
                       {conf.confidence_interval
                         ? formatScore(conf.confidence_interval.mean)
                         : 'N/A'}
-                    </td>
-                    <td className="px-2 py-2 text-xs text-right text-gray-600">
+                    </Table.Cell>
+                    <Table.Cell className="text-xs text-right text-gray-600 py-2">
                       {conf.confidence_interval
                         ? `${formatScore(conf.confidence_interval.lower_bound)}-${formatScore(conf.confidence_interval.upper_bound)}`
                         : 'N/A'}
-                    </td>
-                  </tr>
+                    </Table.Cell>
+                  </Table.Row>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </details>
+              </Table.Body>
+            </Table>
+          </Card.Content>
+        </Card>
       ))}
     </div>
   );

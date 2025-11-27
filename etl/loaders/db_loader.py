@@ -112,7 +112,13 @@ class DatabaseLoader:
         return count
 
     def load_players(self, players: List[Dict]) -> int:
-        """Load players with upsert logic"""
+        """
+        Load players with upsert logic.
+
+        NOTE: This does NOT update current_ipr from match files.
+        IPR values should be loaded separately using load_ipr() to ensure
+        IPR.csv is the source of truth.
+        """
         if not players:
             return 0
 
@@ -135,7 +141,7 @@ class DatabaseLoader:
                     )
                     ON CONFLICT (player_key) DO UPDATE SET
                         name = EXCLUDED.name,
-                        current_ipr = EXCLUDED.current_ipr,
+                        -- Do NOT update current_ipr here - use load_ipr() instead
                         first_seen_season = LEAST(players.first_seen_season, EXCLUDED.first_seen_season),
                         last_seen_season = GREATEST(players.last_seen_season, EXCLUDED.last_seen_season)
                 """), {
@@ -149,6 +155,54 @@ class DatabaseLoader:
 
         logger.info(f"Loaded {count} players")
         return count
+
+    def load_ipr(self, ipr_updates: List[Dict]) -> int:
+        """
+        Load IPR data from IPR.csv (source of truth for player ratings).
+
+        Args:
+            ipr_updates: List of dicts with 'player_name' and 'current_ipr'
+
+        Returns:
+            Number of players updated
+        """
+        if not ipr_updates:
+            return 0
+
+        count = 0
+        updated = 0
+        not_found = 0
+
+        with self.db.engine.begin() as conn:
+            for update in ipr_updates:
+                player_name = update['player_name']
+                ipr = update['current_ipr']
+
+                # Convert IPR of 0 to None (NULL)
+                if ipr == 0 or ipr is None:
+                    ipr = None
+
+                # Update player by name
+                result = conn.execute(text("""
+                    UPDATE players
+                    SET current_ipr = :current_ipr,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE name = :player_name
+                """), {
+                    'current_ipr': ipr,
+                    'player_name': player_name
+                })
+
+                if result.rowcount > 0:
+                    updated += 1
+                else:
+                    not_found += 1
+                    logger.debug(f"Player not found in database: {player_name}")
+
+                count += 1
+
+        logger.info(f"Processed {count} IPR updates: {updated} updated, {not_found} not found")
+        return updated
 
     def load_venue_machines(self, venue_machines: List[Dict]) -> int:
         """Load venue-machine relationships, auto-creating missing machines"""

@@ -1,7 +1,7 @@
 """
 Players API endpoints
 """
-from typing import Optional, Dict, List as TypingList
+from typing import Optional, Dict, List as TypingList, Union
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
 from collections import defaultdict
@@ -12,6 +12,7 @@ from api.models.schemas import (
     PlayerList,
     PlayerMachineStats,
     PlayerMachineStatsList,
+    PlayerMachineScoreHistoryResponse,
     ErrorResponse
 )
 from api.dependencies import execute_query
@@ -22,7 +23,7 @@ router = APIRouter(prefix="/players", tags=["players"])
 
 def calculate_stats_from_scores(
     player_key: str,
-    season: Optional[int] = None,
+    seasons: Optional[TypingList[int]] = None,
     venue_key: Optional[str] = None,
     min_games: int = 1
 ) -> TypingList[Dict]:
@@ -31,7 +32,7 @@ def calculate_stats_from_scores(
 
     Args:
         player_key: Player's unique key
-        season: Optional season filter
+        seasons: Optional list of seasons to filter
         venue_key: Optional venue filter
         min_games: Minimum games played
 
@@ -44,9 +45,11 @@ def calculate_stats_from_scores(
     where_clauses = ["s.player_key = :player_key"]
     params = {'player_key': player_key}
 
-    if season is not None:
-        where_clauses.append("s.season = :season")
-        params['season'] = season
+    if seasons is not None and len(seasons) > 0:
+        placeholders = ','.join([f':season{i}' for i in range(len(seasons))])
+        where_clauses.append(f"s.season IN ({placeholders})")
+        for i, season in enumerate(seasons):
+            params[f'season{i}'] = season
 
     if venue_key is not None:
         where_clauses.append("s.venue_key = :venue_key")
@@ -116,7 +119,7 @@ def calculate_stats_from_scores(
 
 def calculate_win_percentage_for_player(
     player_key: str,
-    season: Optional[int] = None,
+    seasons: Optional[TypingList[int]] = None,
     venue_key: Optional[str] = None
 ) -> Dict[str, float]:
     """
@@ -128,7 +131,7 @@ def calculate_win_percentage_for_player(
 
     Args:
         player_key: Player's unique key
-        season: Optional season filter
+        seasons: Optional list of seasons to filter
         venue_key: Optional venue filter
 
     Returns:
@@ -138,9 +141,11 @@ def calculate_win_percentage_for_player(
     where_clauses = ["s.player_key = :player_key"]
     params = {'player_key': player_key}
 
-    if season is not None:
-        where_clauses.append("s.season = :season")
-        params['season'] = season
+    if seasons is not None and len(seasons) > 0:
+        placeholders = ','.join([f':season{i}' for i in range(len(seasons))])
+        where_clauses.append(f"s.season IN ({placeholders})")
+        for i, season in enumerate(seasons):
+            params[f'season{i}'] = season
 
     if venue_key is not None:
         where_clauses.append("s.venue_key = :venue_key")
@@ -329,7 +334,7 @@ def get_player(player_key: str):
 )
 def get_player_machine_stats(
     player_key: str,
-    season: Optional[int] = Query(None, description="Filter by season"),
+    seasons: Union[TypingList[int], None] = Query(None, description="Filter by season(s) - can pass multiple"),
     venue_key: Optional[str] = Query(None, description="Filter by venue"),
     min_games: int = Query(1, ge=1, description="Minimum games played on machine"),
     sort_by: str = Query("median_percentile", description="Sort field: median_percentile, avg_percentile, games_played, avg_score, best_score, win_percentage"),
@@ -342,7 +347,8 @@ def get_player_machine_stats(
 
     Example queries:
     - `/players/sean_irby/machines` - All machines Sean has played
-    - `/players/sean_irby/machines?season=22` - Season 22 only
+    - `/players/sean_irby/machines?seasons=22` - Season 22 only
+    - `/players/sean_irby/machines?seasons=21&seasons=22` - Seasons 21 and 22
     - `/players/sean_irby/machines?venue_key=KRA` - Kraken venue only
     - `/players/sean_irby/machines?min_games=5` - Only machines with 5+ games played
     - `/players/sean_irby/machines?sort_by=win_percentage&sort_order=desc` - Sort by win percentage
@@ -361,13 +367,13 @@ def get_player_machine_stats(
         raise HTTPException(status_code=404, detail=f"Player '{player_key}' not found")
 
     # Calculate win percentages for this player (with filters applied)
-    win_percentages = calculate_win_percentage_for_player(player_key, season, venue_key)
+    win_percentages = calculate_win_percentage_for_player(player_key, seasons, venue_key)
 
     # If filtering by specific venue, calculate stats from raw scores
     # Otherwise use pre-aggregated player_machine_stats table
     if venue_key is not None:
         # Calculate from raw scores
-        all_stats = calculate_stats_from_scores(player_key, season, venue_key, min_games)
+        all_stats = calculate_stats_from_scores(player_key, seasons, venue_key, min_games)
 
         # Add player_name to each stat
         player_name_query = "SELECT name FROM players WHERE player_key = :player_key"
@@ -381,9 +387,11 @@ def get_player_machine_stats(
         where_clauses = ["pms.player_key = :player_key", "pms.games_played >= :min_games"]
         params = {'player_key': player_key, 'min_games': min_games}
 
-        if season is not None:
-            where_clauses.append("pms.season = :season")
-            params['season'] = season
+        if seasons is not None and len(seasons) > 0:
+            placeholders = ','.join([f':season{i}' for i in range(len(seasons))])
+            where_clauses.append(f"pms.season IN ({placeholders})")
+            for i, season in enumerate(seasons):
+                params[f'season{i}'] = season
 
         # For no venue filter, use _ALL_ aggregate
         where_clauses.append("pms.venue_key = '_ALL_'")
@@ -441,4 +449,144 @@ def get_player_machine_stats(
         total=total,
         limit=limit,
         offset=offset
+    )
+
+
+@router.get(
+    "/{player_key}/machines/{machine_key}/scores",
+    response_model=PlayerMachineScoreHistoryResponse,
+    responses={404: {"model": ErrorResponse}},
+    summary="Get player's score history on a specific machine",
+    description="Get all individual scores for a player on a specific machine, grouped by season for trend analysis"
+)
+def get_player_machine_score_history(
+    player_key: str,
+    machine_key: str,
+    venue_key: Optional[str] = Query(None, description="Filter by venue"),
+    seasons: Union[TypingList[int], None] = Query(None, description="Filter by season(s) - can pass multiple")
+):
+    """
+    Get all individual scores for a player on a specific machine.
+
+    Returns scores grouped by season with statistics for candlestick/scatter charts.
+    Useful for visualizing player progression over time.
+
+    Example: `/players/sean_irby/machines/MM/scores`
+    Example: `/players/sean_irby/machines/MM/scores?seasons=21&seasons=22`
+    """
+    # First verify player exists
+    player_check = execute_query(
+        "SELECT name FROM players WHERE player_key = :player_key",
+        {'player_key': player_key}
+    )
+    if not player_check:
+        raise HTTPException(status_code=404, detail=f"Player '{player_key}' not found")
+
+    player_name = player_check[0]['name']
+
+    # Verify machine exists
+    machine_check = execute_query(
+        "SELECT machine_name FROM machines WHERE machine_key = :machine_key",
+        {'machine_key': machine_key}
+    )
+    if not machine_check:
+        raise HTTPException(status_code=404, detail=f"Machine '{machine_key}' not found")
+
+    machine_name = machine_check[0]['machine_name']
+
+    # Build WHERE clause
+    where_clauses = [
+        "s.player_key = :player_key",
+        "s.machine_key = :machine_key"
+    ]
+    params = {
+        'player_key': player_key,
+        'machine_key': machine_key
+    }
+
+    if venue_key is not None:
+        where_clauses.append("s.venue_key = :venue_key")
+        params['venue_key'] = venue_key
+
+    if seasons is not None and len(seasons) > 0:
+        placeholders = ','.join([f':season{i}' for i in range(len(seasons))])
+        where_clauses.append(f"s.season IN ({placeholders})")
+        for i, season in enumerate(seasons):
+            params[f'season{i}'] = season
+
+    where_clause = " AND ".join(where_clauses)
+
+    # Fetch all scores with details
+    query = f"""
+        SELECT
+            s.score,
+            s.season,
+            s.week,
+            s.date,
+            s.venue_key,
+            v.venue_name,
+            s.round_number,
+            s.player_position,
+            s.match_key
+        FROM scores s
+        JOIN venues v ON s.venue_key = v.venue_key
+        WHERE {where_clause}
+        ORDER BY s.season, s.week, s.date
+    """
+
+    scores = execute_query(query, params)
+
+    if not scores:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No scores found for player '{player_key}' on machine '{machine_key}'"
+        )
+
+    # Group scores by season for aggregation
+    import numpy as np
+    from collections import defaultdict
+
+    season_groups = defaultdict(list)
+    all_scores_data = []
+
+    for score_record in scores:
+        season_num = score_record['season']
+        score_val = score_record['score']
+        season_groups[season_num].append(score_val)
+
+        all_scores_data.append({
+            'score': score_val,
+            'season': season_num,
+            'week': score_record['week'],
+            'date': score_record['date'].isoformat() if score_record['date'] else None,
+            'venue_key': score_record['venue_key'],
+            'venue_name': score_record['venue_name'],
+            'round_number': score_record['round_number'],
+            'player_position': score_record['player_position'],
+            'match_key': score_record['match_key']
+        })
+
+    # Calculate statistics per season (for candlestick view)
+    season_stats = []
+    for season_num in sorted(season_groups.keys()):
+        scores_array = np.array(season_groups[season_num])
+        season_stats.append({
+            'season': season_num,
+            'games_played': len(scores_array),
+            'min_score': int(np.min(scores_array)),
+            'max_score': int(np.max(scores_array)),
+            'median_score': int(np.median(scores_array)),
+            'mean_score': int(np.mean(scores_array)),
+            'q1_score': int(np.percentile(scores_array, 25)),
+            'q3_score': int(np.percentile(scores_array, 75))
+        })
+
+    return PlayerMachineScoreHistoryResponse(
+        player_key=player_key,
+        player_name=player_name,
+        machine_key=machine_key,
+        machine_name=machine_name,
+        total_games=len(scores),
+        scores=all_scores_data,
+        season_stats=season_stats
     )

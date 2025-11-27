@@ -5,7 +5,9 @@ import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Team, TeamMachineStat, TeamPlayer, Venue } from '@/lib/types';
-import { MultiSelect } from '@/components/ui';
+import { RoundMultiSelect } from '@/components/RoundMultiSelect';
+import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
+import { useDebouncedEffect } from '@/lib/hooks';
 
 export default function TeamDetailPage() {
   const params = useParams();
@@ -18,12 +20,13 @@ export default function TeamDetailPage() {
   const [players, setPlayers] = useState<TeamPlayer[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Filters
   const [sortBy, setSortBy] = useState<'games_played' | 'avg_score' | 'best_score' | 'win_percentage' | 'median_score'>('games_played');
-  const [seasonFilter, setSeasonFilter] = useState<number | undefined>(
-    initialSeason ? parseInt(initialSeason) : 22
+  const [seasonsFilter, setSeasonsFilter] = useState<number[]>(
+    initialSeason ? [parseInt(initialSeason)] : [22]
   );
   const [venueFilter, setVenueFilter] = useState<string | undefined>(undefined);
   const [roundsFilter, setRoundsFilter] = useState<number[]>([1, 2, 3, 4]);
@@ -32,11 +35,13 @@ export default function TeamDetailPage() {
     fetchVenues();
   }, []);
 
-  useEffect(() => {
-    if (teamKey) {
-      fetchTeamData();
-    }
-  }, [teamKey, sortBy, seasonFilter, venueFilter, roundsFilter]);
+  // Debounced effect for filter changes (waits 500ms after last change)
+  useDebouncedEffect(() => {
+    if (!teamKey) return;
+
+    setFetching(true);
+    fetchTeamData();
+  }, 500, [teamKey, sortBy, seasonsFilter, venueFilter, roundsFilter]);
 
   async function fetchVenues() {
     try {
@@ -48,15 +53,19 @@ export default function TeamDetailPage() {
   }
 
   async function fetchTeamData() {
-    setLoading(true);
+    // Only set loading true on initial load, use fetching for subsequent updates
+    if (!team) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const roundsParam = roundsFilter.length > 0 ? roundsFilter.join(',') : undefined;
+      const seasonsParam = seasonsFilter.length > 0 ? seasonsFilter.join(',') : undefined;
 
       const [teamData, statsData, playersData] = await Promise.all([
-        api.getTeam(teamKey, seasonFilter),
+        api.getTeam(teamKey, seasonsFilter.length === 1 ? seasonsFilter[0] : undefined),
         api.getTeamMachineStats(teamKey, {
-          season: seasonFilter,
+          seasons: seasonsParam,
           venue_key: venueFilter,
           rounds: roundsParam,
           min_games: 1,
@@ -64,7 +73,7 @@ export default function TeamDetailPage() {
           sort_order: 'desc',
           limit: 100,
         }),
-        api.getTeamPlayers(teamKey, seasonFilter, venueFilter),
+        api.getTeamPlayers(teamKey, seasonsFilter.length === 1 ? seasonsFilter[0] : undefined, venueFilter),
       ]);
 
       setTeam(teamData);
@@ -74,15 +83,10 @@ export default function TeamDetailPage() {
       setError(err instanceof Error ? err.message : 'Failed to fetch team data');
     } finally {
       setLoading(false);
+      setFetching(false);
     }
   }
 
-  const roundOptions = [
-    { value: 1, label: 'Round 1' },
-    { value: 2, label: 'Round 2' },
-    { value: 3, label: 'Round 3' },
-    { value: 4, label: 'Round 4' },
-  ];
 
   if (loading) {
     return (
@@ -126,26 +130,28 @@ export default function TeamDetailPage() {
 
       {/* Machine Statistics Section */}
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
-          Machine Statistics
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Machine Statistics
+          </h2>
+          {fetching && (
+            <div className="flex items-center text-sm text-gray-600">
+              <svg className="animate-spin h-4 w-4 mr-2 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Updating...
+            </div>
+          )}
+        </div>
 
         {/* Filters */}
         <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Season
-            </label>
-            <select
-              value={seasonFilter || ''}
-              onChange={(e) => setSeasonFilter(e.target.value ? parseInt(e.target.value) : undefined)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Seasons</option>
-              <option value="22">Season 22</option>
-              <option value="21">Season 21</option>
-            </select>
-          </div>
+          <SeasonMultiSelect
+            value={seasonsFilter}
+            onChange={setSeasonsFilter}
+            availableSeasons={[21, 22]}
+          />
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -182,12 +188,10 @@ export default function TeamDetailPage() {
             </select>
           </div>
 
-          <MultiSelect
-            label="Rounds"
-            helpText="Select one or more rounds to filter"
-            options={roundOptions}
+          <RoundMultiSelect
             value={roundsFilter}
             onChange={setRoundsFilter}
+            helpText="Doubles: 1 & 4 | Singles: 2 & 3"
           />
         </div>
 

@@ -53,14 +53,18 @@ frontend/
 │       └── page.tsx          # Matchup comparison
 ├── components/
 │   ├── Navigation.tsx        # Main navigation component
-│   └── ui/                   # ✨ NEW: UI Component Library
+│   ├── SeasonMultiSelect.tsx # ✨ NEW: Reusable season multi-select (used across pages)
+│   └── ui/                   # ✨ UI Component Library
 │       ├── Card.tsx          # Card container component
 │       ├── Button.tsx        # Button component (4 variants)
 │       ├── Badge.tsx         # Status badges (5 variants)
 │       ├── Alert.tsx         # Alert messages (4 variants)
 │       ├── Input.tsx         # Form input with labels
 │       ├── Select.tsx        # Dropdown select with labels
+│       ├── MultiSelect.tsx   # Multi-select component (checkbox & button variants)
 │       ├── Table.tsx         # Data table with sorting
+│       ├── Tabs.tsx          # Tabbed content navigation
+│       ├── Collapsible.tsx   # Expandable/collapsible sections
 │       ├── PageHeader.tsx    # Page title component
 │       ├── LoadingSpinner.tsx # Loading states
 │       ├── EmptyState.tsx    # No data placeholders
@@ -348,15 +352,112 @@ Component library migration progress:
 
 **To continue migration:** See [COMPONENT_MIGRATION_GUIDE.md](COMPONENT_MIGRATION_GUIDE.md)
 
+## Reusable Components
+
+The project emphasizes **component reuse** to maintain consistency and reduce duplication.
+
+### Specialized Reusable Components
+
+Located in `components/`:
+
+#### SeasonMultiSelect
+Multi-season selector with button-style UI. Use this for filtering data by one or more seasons.
+
+```tsx
+import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
+
+<SeasonMultiSelect
+  value={seasons}
+  onChange={setSeasons}
+  availableSeasons={[21, 22]}
+  helpText="Select one or more seasons"
+/>
+```
+
+**Used on:**
+- Matchups page (team vs team analysis across seasons)
+- Machine details page (filter scores by season)
+- Can be used on: Venue details, Player details
+
+#### RoundMultiSelect
+Round selector with button-style UI for filtering by MNP rounds (1-4).
+
+```tsx
+import { RoundMultiSelect } from '@/components/RoundMultiSelect';
+
+<RoundMultiSelect
+  value={rounds}
+  onChange={setRounds}
+  helpText="Doubles: 1 & 4 | Singles: 2 & 3"
+/>
+```
+
+**Used on:**
+- Team details page (filter machine stats by round)
+
+### Custom Hooks
+
+Located in `lib/hooks.ts`:
+
+#### useDebouncedEffect
+Delays execution of an effect until after a specified delay since the last dependency change. Perfect for expensive operations triggered by user input.
+
+```tsx
+import { useDebouncedEffect } from '@/lib/hooks';
+
+const [searchTerm, setSearchTerm] = useState('');
+const [filters, setFilters] = useState<number[]>([]);
+const [fetching, setFetching] = useState(false);
+
+// Wait 500ms after user stops changing filters before fetching
+useDebouncedEffect(() => {
+  setFetching(true);
+  fetchData();
+}, 500, [searchTerm, filters]);
+```
+
+**Use cases:**
+- Multi-select filters that trigger expensive API calls
+- Search input fields
+- Any filter that causes slow database queries
+
+**Used on:**
+- Team details page (debounced filter changes)
+
+### Base UI Components
+
+Located in `components/ui/`:
+- Card, Button, Badge, Alert, Input, Select
+- MultiSelect (checkbox & button variants)
+- Table, Tabs, Collapsible
+- PageHeader, LoadingSpinner, EmptyState, StatCard
+
+See [components/ui/README.md](components/ui/README.md) for full component reference.
+
+### Before Creating New Components
+
+**Always check:**
+1. `components/` - for specialized reusable components
+2. `components/ui/` - for base UI components
+3. `components/ui/README.md` - for component examples
+
+**If you need a new component:**
+1. Design it to be reusable (accept flexible props)
+2. Place specialized components in `components/`
+3. Place generic UI components in `components/ui/`
+4. Document usage with code examples
+5. Export from appropriate index file
+
 ## Contributing
 
 ### Adding New Features
 
-1. **Use the design system**: Import components from `@/components/ui`
-2. **Update types**: Add TypeScript types to `lib/types.ts`
-3. **Add API methods**: Extend `lib/api.ts` with new endpoints
-4. **Follow patterns**: See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for page layout patterns
-5. **Update docs**: Update this README and relevant documentation
+1. **Check for existing components**: Review `components/` and `components/ui/` before creating new ones
+2. **Use the design system**: Import components from `@/components/ui`
+3. **Update types**: Add TypeScript types to `lib/types.ts`
+4. **Add API methods**: Extend `lib/api.ts` with new endpoints
+5. **Follow patterns**: See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for page layout patterns
+6. **Update docs**: Update this README and relevant documentation
 
 ### Migrating Existing Pages
 

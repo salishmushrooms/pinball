@@ -160,7 +160,7 @@ def get_venue(venue_key: str):
 def get_venue_machines(
     venue_key: str,
     current_only: bool = Query(False, description="Filter to only show current machines at this venue"),
-    season: Optional[int] = Query(None, description="Filter by season"),
+    seasons: Optional[List[int]] = Query(None, description="Filter by one or more seasons"),
     team_key: Optional[str] = Query(None, description="Filter statistics to a specific team"),
     scores_from: str = Query("venue", description="Score source: 'venue' (only scores at this venue) or 'all' (all scores on these machines across all venues)")
 ):
@@ -169,7 +169,7 @@ def get_venue_machines(
 
     Parameters:
     - current_only: If true, only returns machines currently at the venue (based on most recent match)
-    - season: Filter scores to a specific season
+    - seasons: Filter scores to one or more seasons (e.g., seasons=21&seasons=22)
     - team_key: Filter statistics to show only this team's performance
     - scores_from: 'venue' = only scores at this venue, 'all' = all scores on these machines (useful for team experience)
 
@@ -177,7 +177,8 @@ def get_venue_machines(
     - `/venues/T4B/machines` - All machines ever played at 4Bs Tavern
     - `/venues/T4B/machines?current_only=true` - Only current machines at 4Bs Tavern
     - `/venues/T4B/machines?current_only=true&team_key=SKP&scores_from=all` - Current machines at 4Bs, showing SKP's experience across all venues
-    - `/venues/T4B/machines?season=22` - Machines played at 4Bs in season 22
+    - `/venues/T4B/machines?seasons=22` - Machines played at 4Bs in season 22
+    - `/venues/T4B/machines?seasons=21&seasons=22` - Machines played at 4Bs in seasons 21 and 22
     """
     # First verify venue exists
     venue_query = "SELECT venue_name FROM venues WHERE venue_key = :venue_key"
@@ -222,9 +223,9 @@ def get_venue_machines(
         params['venue_key'] = venue_key
     # else scores_from == "all": no venue filter, get all scores on these machines
 
-    if season is not None:
-        where_clauses.append("s.season = :season")
-        params['season'] = season
+    if seasons is not None and len(seasons) > 0:
+        where_clauses.append("s.season = ANY(:seasons)")
+        params['seasons'] = seasons
 
     if team_key is not None:
         where_clauses.append("s.team_key = :team_key")

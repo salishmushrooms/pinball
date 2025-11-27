@@ -5,6 +5,17 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Machine, MachineScore, MachineVenue, MachineTeam } from '@/lib/types';
+import {
+  Card,
+  PageHeader,
+  Select,
+  Alert,
+  LoadingSpinner,
+  StatCard,
+  Table,
+  MultiSelect,
+} from '@/components/ui';
+import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 
 export default function MachineDetailPage() {
   const params = useParams();
@@ -14,10 +25,29 @@ export default function MachineDetailPage() {
   const [scores, setScores] = useState<MachineScore[]>([]);
   const [venues, setVenues] = useState<MachineVenue[]>([]);
   const [teams, setTeams] = useState<MachineTeam[]>([]);
+  const [availableSeasons, setAvailableSeasons] = useState<number[]>([21, 22]);
   const [selectedVenue, setSelectedVenue] = useState<string>('all');
   const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
+  const [selectedSeasons, setSelectedSeasons] = useState<number[]>([22]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Load available seasons on mount
+  useEffect(() => {
+    async function loadSeasons() {
+      try {
+        const data = await api.getSeasons();
+        setAvailableSeasons(data.seasons);
+        // Default to most recent season
+        if (data.seasons.length > 0) {
+          setSelectedSeasons([Math.max(...data.seasons)]);
+        }
+      } catch (err) {
+        console.error('Failed to load seasons:', err);
+      }
+    }
+    loadSeasons();
+  }, []);
 
   useEffect(() => {
     if (machineKey) {
@@ -29,7 +59,7 @@ export default function MachineDetailPage() {
     if (machineKey) {
       fetchScores();
     }
-  }, [machineKey, selectedVenue, selectedTeams]);
+  }, [machineKey, selectedVenue, selectedTeams, selectedSeasons]);
 
   async function fetchMachineData() {
     setLoading(true);
@@ -60,21 +90,24 @@ export default function MachineDetailPage() {
       if (selectedTeams.length > 0) {
         params.team_keys = selectedTeams.join(',');
       }
-      const scoresData = await api.getMachineScores(machineKey, params);
-      setScores(scoresData.scores);
+      // If specific seasons are selected, use them; otherwise fetch all
+      if (selectedSeasons.length > 0 && selectedSeasons.length < availableSeasons.length) {
+        // For now, the API only supports single season filtering
+        // So we'll fetch scores for each season and combine them
+        const allScoresPromises = selectedSeasons.map(season =>
+          api.getMachineScores(machineKey, { ...params, season })
+        );
+        const allScoresResults = await Promise.all(allScoresPromises);
+        const combinedScores = allScoresResults.flatMap(result => result.scores);
+        setScores(combinedScores);
+      } else {
+        // Fetch all seasons
+        const scoresData = await api.getMachineScores(machineKey, params);
+        setScores(scoresData.scores);
+      }
     } catch (err) {
       console.error('Failed to fetch scores:', err);
     }
-  }
-
-  function handleTeamToggle(teamKey: string) {
-    setSelectedTeams(prev => {
-      if (prev.includes(teamKey)) {
-        return prev.filter(t => t !== teamKey);
-      } else {
-        return [...prev, teamKey];
-      }
-    });
   }
 
   function formatScore(score: number): string {
@@ -107,27 +140,22 @@ export default function MachineDetailPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="text-lg text-gray-600">Loading machine data...</div>
-      </div>
-    );
+    return <LoadingSpinner fullPage text="Loading machine data..." />;
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-        <strong className="font-bold">Error: </strong>
-        <span>{error}</span>
-      </div>
+      <Alert variant="error" title="Error">
+        {error}
+      </Alert>
     );
   }
 
   if (!machine) {
     return (
-      <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
+      <Alert variant="warning" title="Not Found">
         Machine not found
-      </div>
+      </Alert>
     );
   }
 
@@ -142,183 +170,157 @@ export default function MachineDetailPage() {
         >
           ← Back to Machines
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900">{machine.machine_name}</h1>
-        {machine.manufacturer && (
-          <p className="text-gray-600 mt-1">
-            {machine.manufacturer}
-            {machine.year && ` (${machine.year})`}
-          </p>
-        )}
+        <PageHeader
+          title={machine.machine_name}
+          description={
+            machine.manufacturer
+              ? `${machine.manufacturer}${machine.year ? ` (${machine.year})` : ''}`
+              : undefined
+          }
+        />
       </div>
 
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
-          Machine Statistics
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <div>
-            <div className="text-sm text-gray-600">Total Scores</div>
-            <div className="text-2xl font-bold text-blue-600">
-              {machine.total_scores?.toLocaleString() || 0}
-            </div>
+      <Card>
+        <Card.Header>
+          <Card.Title>Machine Statistics</Card.Title>
+        </Card.Header>
+        <Card.Content>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <StatCard
+              label="Total Scores"
+              value={machine.total_scores?.toLocaleString() || '0'}
+            />
+            <StatCard
+              label="Unique Players"
+              value={machine.unique_players?.toString() || '0'}
+            />
+            <StatCard
+              label="Median Score"
+              value={formatScore(machine.median_score || 0)}
+            />
+            <StatCard
+              label="Max Score"
+              value={formatScore(machine.max_score || 0)}
+            />
           </div>
-          <div>
-            <div className="text-sm text-gray-600">Unique Players</div>
-            <div className="text-2xl font-bold text-green-600">
-              {machine.unique_players || 0}
-            </div>
-          </div>
-          <div>
-            <div className="text-sm text-gray-600">Median Score</div>
-            <div className="text-2xl font-bold text-gray-900">
-              {formatScore(machine.median_score || 0)}
-            </div>
-          </div>
-          <div>
-            <div className="text-sm text-gray-600">Max Score</div>
-            <div className="text-2xl font-bold text-purple-600">
-              {formatScore(machine.max_score || 0)}
-            </div>
-          </div>
-        </div>
-      </div>
+        </Card.Content>
+      </Card>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Filters</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Venue Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Venue
-            </label>
-            <select
-              value={selectedVenue}
-              onChange={(e) => setSelectedVenue(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Venues ({machine.total_scores} scores)</option>
-              {venues.map((venue) => (
-                <option key={venue.venue_key} value={venue.venue_key}>
-                  {venue.venue_name} ({venue.score_count} scores)
-                </option>
-              ))}
-            </select>
-          </div>
+      <Card>
+        <Card.Header>
+          <Card.Title>Filters</Card.Title>
+        </Card.Header>
+        <Card.Content>
+          <div className="space-y-6">
+            {/* Season Filter */}
+            <SeasonMultiSelect
+              value={selectedSeasons}
+              onChange={setSelectedSeasons}
+              availableSeasons={availableSeasons}
+              helpText="Select one or more seasons to filter scores"
+            />
 
-          {/* Team Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Teams (select multiple)
-            </label>
-            <div className="border border-gray-300 rounded-md p-3 max-h-48 overflow-y-auto">
-              {teams.length === 0 ? (
-                <div className="text-sm text-gray-500">No teams available</div>
-              ) : (
-                teams.map((team) => (
-                  <label
-                    key={team.team_key}
-                    className="flex items-center space-x-2 py-1 hover:bg-gray-50 cursor-pointer"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Venue Filter */}
+              <Select
+                label="Venue"
+                value={selectedVenue}
+                onChange={(e) => setSelectedVenue(e.target.value)}
+                options={[
+                  { value: 'all', label: `All Venues (${machine.total_scores} scores)` },
+                  ...venues.map((venue) => ({
+                    value: venue.venue_key,
+                    label: `${venue.venue_name} (${venue.score_count} scores)`,
+                  })),
+                ]}
+              />
+
+              {/* Team Filter */}
+              <div>
+                <MultiSelect
+                  label="Teams (select multiple)"
+                  options={teams.map((team) => ({
+                    value: team.team_key,
+                    label: `${team.team_name} (${team.score_count} scores)`,
+                  }))}
+                  value={selectedTeams}
+                  onChange={setSelectedTeams}
+                />
+                {selectedTeams.length > 0 && (
+                  <button
+                    onClick={() => setSelectedTeams([])}
+                    className="mt-2 text-sm text-blue-600 hover:text-blue-800"
                   >
-                    <input
-                      type="checkbox"
-                      checked={selectedTeams.includes(team.team_key)}
-                      onChange={() => handleTeamToggle(team.team_key)}
-                      className="rounded text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-900">
-                      {team.team_name} ({team.score_count} scores)
-                    </span>
-                  </label>
-                ))
-              )}
+                    Clear all teams
+                  </button>
+                )}
+              </div>
             </div>
-            {selectedTeams.length > 0 && (
-              <button
-                onClick={() => setSelectedTeams([])}
-                className="mt-2 text-sm text-blue-600 hover:text-blue-800"
-              >
-                Clear all teams
-              </button>
-            )}
           </div>
-        </div>
-      </div>
+        </Card.Content>
+      </Card>
 
       {/* Top 5 Scores */}
       {scores.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Top 5 Scores
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Rank
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Player Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Score
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+        <Card>
+          <Card.Header>
+            <Card.Title>Top 5 Scores</Card.Title>
+          </Card.Header>
+          <Card.Content>
+            <Table>
+              <Table.Header>
+                <Table.Row hoverable={false}>
+                  <Table.Head>Rank</Table.Head>
+                  <Table.Head>Player Name</Table.Head>
+                  <Table.Head className="text-right">Score</Table.Head>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
                 {[...scores]
                   .sort((a, b) => b.score - a.score)
                   .slice(0, 5)
                   .map((scoreData, index) => (
-                    <tr key={scoreData.score_id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        #{index + 1}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <Table.Row key={scoreData.score_id}>
+                      <Table.Cell className="font-medium">#{index + 1}</Table.Cell>
+                      <Table.Cell>
                         <Link
                           href={`/players/${scoreData.player_key}`}
-                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                          className="text-blue-600 hover:text-blue-800 font-medium"
                         >
                           {scoreData.player_name || scoreData.player_key}
                         </Link>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      </Table.Cell>
+                      <Table.Cell className="text-right">
                         {scoreData.score.toLocaleString()}
-                      </td>
-                    </tr>
+                      </Table.Cell>
+                    </Table.Row>
                   ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              </Table.Body>
+            </Table>
+          </Card.Content>
+        </Card>
       )}
 
       {/* Top Players */}
       {scores.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Top Players
-          </h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Players with the most scores on this machine (given current filters)
-          </p>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Rank
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Player Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total Scores
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+        <Card>
+          <Card.Header>
+            <Card.Title>Top Players</Card.Title>
+          </Card.Header>
+          <Card.Content>
+            <p className="text-sm text-gray-600 mb-4">
+              Players with the most scores on this machine (given current filters)
+            </p>
+            <Table>
+              <Table.Header>
+                <Table.Row hoverable={false}>
+                  <Table.Head>Rank</Table.Head>
+                  <Table.Head>Player Name</Table.Head>
+                  <Table.Head className="text-right">Total Scores</Table.Head>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
                 {(() => {
                   // Group scores by player and count
                   const playerScoreCounts = scores.reduce((acc, scoreData) => {
@@ -339,109 +341,101 @@ export default function MachineDetailPage() {
                     .sort((a, b) => b.count - a.count)
                     .slice(0, 10)
                     .map((player, index) => (
-                      <tr key={player.player_key}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          #{index + 1}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <Table.Row key={player.player_key}>
+                        <Table.Cell className="font-medium">#{index + 1}</Table.Cell>
+                        <Table.Cell>
                           <Link
                             href={`/players/${player.player_key}`}
-                            className="text-blue-600 hover:text-blue-800 hover:underline"
+                            className="text-blue-600 hover:text-blue-800 font-medium"
                           >
                             {player.player_name}
                           </Link>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        </Table.Cell>
+                        <Table.Cell className="text-right">
                           {player.count}
-                        </td>
-                      </tr>
+                        </Table.Cell>
+                      </Table.Row>
                     ));
                 })()}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              </Table.Body>
+            </Table>
+          </Card.Content>
+        </Card>
       )}
 
       {/* Summary Table */}
       {stats && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Score Distribution Summary
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Percentile
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Score
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Formatted
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                <tr>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    Median (50th)
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+        <Card>
+          <Card.Header>
+            <Card.Title>Score Distribution Summary</Card.Title>
+          </Card.Header>
+          <Card.Content>
+            <Table>
+              <Table.Header>
+                <Table.Row hoverable={false}>
+                  <Table.Head>Percentile</Table.Head>
+                  <Table.Head className="text-right">Score</Table.Head>
+                  <Table.Head className="text-right">Formatted</Table.Head>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                <Table.Row>
+                  <Table.Cell className="font-medium">Median (50th)</Table.Cell>
+                  <Table.Cell className="text-right">
                     {stats.p50.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  </Table.Cell>
+                  <Table.Cell className="text-right text-gray-600">
                     {formatScore(stats.p50)}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    75th
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  </Table.Cell>
+                </Table.Row>
+                <Table.Row>
+                  <Table.Cell className="font-medium">75th</Table.Cell>
+                  <Table.Cell className="text-right">
                     {stats.p75.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  </Table.Cell>
+                  <Table.Cell className="text-right text-gray-600">
                     {formatScore(stats.p75)}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    90th
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  </Table.Cell>
+                </Table.Row>
+                <Table.Row>
+                  <Table.Cell className="font-medium">90th</Table.Cell>
+                  <Table.Cell className="text-right">
                     {stats.p90.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  </Table.Cell>
+                  <Table.Cell className="text-right text-gray-600">
                     {formatScore(stats.p90)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  </Table.Cell>
+                </Table.Row>
+              </Table.Body>
+            </Table>
+          </Card.Content>
+        </Card>
       )}
 
       {/* Scatter Plot */}
       {stats && scores.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Score Distribution Chart
-          </h2>
+        <Card>
+          <Card.Header>
+            <Card.Title>Score Distribution Chart</Card.Title>
+          </Card.Header>
+          <Card.Content>
           <div className="relative w-full" style={{ height: '500px' }}>
             <svg width="100%" height="100%" viewBox="0 0 800 500" className="border border-gray-200 rounded">
               {/* Calculate score range for y-axis */}
               {(() => {
-                const minScore = Math.min(...stats.sortedScores);
-                const maxScore = Math.max(...stats.sortedScores);
-                const scoreRange = maxScore - minScore;
-                const yPadding = scoreRange * 0.1; // 10% padding
+                // Focus on 25th-95th percentile range (most useful data)
+                const p25 = stats.sortedScores[Math.floor(stats.sortedScores.length * 0.25)];
+                const p95 = stats.sortedScores[Math.floor(stats.sortedScores.length * 0.95)];
 
-                // Y-axis labels (scores) - 5 evenly spaced ticks
+                // Ensure minimum is never negative and has some padding
+                const scoreRange = p95 - p25;
+                const yPadding = scoreRange * 0.1; // 10% padding
+                const minScore = Math.max(0, p25 - yPadding); // Never go below 0
+                const maxScore = p95 + yPadding;
+
+                // Y-axis labels (scores) - 6 evenly spaced ticks
                 const yTicks = Array.from({ length: 6 }, (_, i) => {
-                  const score = minScore - yPadding + ((scoreRange + 2 * yPadding) * i / 5);
+                  const score = minScore + ((maxScore - minScore) * i / 5);
                   return score;
                 });
 
@@ -460,8 +454,8 @@ export default function MachineDetailPage() {
                       );
                     })}
 
-                    {/* X-axis labels (percentiles) */}
-                    {[0, 25, 50, 75, 100].map((percentile) => {
+                    {/* X-axis labels (percentiles) - focus on useful range */}
+                    {[0, 25, 50, 75, 90, 100].map((percentile) => {
                       const x = 80 + (percentile / 100) * 700;
                       return (
                         <g key={`x-${percentile}`}>
@@ -474,16 +468,22 @@ export default function MachineDetailPage() {
                     })}
 
                     {/* Percentile reference lines */}
-                    <line x1={80 + (25 / 100) * 700} y1="50" x2={80 + (25 / 100) * 700} y2="450" stroke="#fbbf24" strokeWidth="2" strokeDasharray="5,5" />
                     <line x1={80 + (50 / 100) * 700} y1="50" x2={80 + (50 / 100) * 700} y2="450" stroke="#3b82f6" strokeWidth="2" strokeDasharray="5,5" />
                     <line x1={80 + (75 / 100) * 700} y1="50" x2={80 + (75 / 100) * 700} y2="450" stroke="#10b981" strokeWidth="2" strokeDasharray="5,5" />
+                    <line x1={80 + (90 / 100) * 700} y1="50" x2={80 + (90 / 100) * 700} y2="450" stroke="#f59e0b" strokeWidth="2" strokeDasharray="5,5" />
 
                     {/* Scatter points */}
                     {scores.map((scoreData) => {
                       const percentile = calculatePercentile(scoreData.score, stats.sortedScores);
                       const x = 80 + (percentile / 100) * 700;
-                      const normalizedScore = (scoreData.score - (minScore - yPadding)) / (scoreRange + 2 * yPadding);
+
+                      // Clamp y values to visible range
+                      const clampedScore = Math.max(minScore, Math.min(maxScore, scoreData.score));
+                      const normalizedScore = (clampedScore - minScore) / (maxScore - minScore);
                       const y = 450 - (normalizedScore * 400);
+
+                      // Highlight outliers that are outside the visible range
+                      const isOutlier = scoreData.score < minScore || scoreData.score > maxScore;
 
                       return (
                         <circle
@@ -491,8 +491,8 @@ export default function MachineDetailPage() {
                           cx={x}
                           cy={y}
                           r="3"
-                          fill="#6366f1"
-                          opacity="0.6"
+                          fill={isOutlier ? "#ef4444" : "#6366f1"}
+                          opacity={isOutlier ? "0.4" : "0.6"}
                         >
                           <title>{`${scoreData.player_name || scoreData.player_key}: ${formatScore(scoreData.score)} (${percentile.toFixed(1)}%ile)`}</title>
                         </circle>
@@ -512,31 +512,35 @@ export default function MachineDetailPage() {
                     </text>
 
                     {/* Legend */}
-                    <g transform="translate(600, 20)">
-                      <line x1="0" y1="0" x2="20" y2="0" stroke="#fbbf24" strokeWidth="2" strokeDasharray="5,5" />
-                      <text x="25" y="4" fontSize="11" fill="#374151">25th %ile</text>
+                    <g transform="translate(580, 20)">
+                      <line x1="0" y1="0" x2="20" y2="0" stroke="#3b82f6" strokeWidth="2" strokeDasharray="5,5" />
+                      <text x="25" y="4" fontSize="11" fill="#374151">50th (Median)</text>
 
-                      <line x1="0" y1="15" x2="20" y2="15" stroke="#3b82f6" strokeWidth="2" strokeDasharray="5,5" />
-                      <text x="25" y="19" fontSize="11" fill="#374151">50th (Median)</text>
+                      <line x1="0" y1="15" x2="20" y2="15" stroke="#10b981" strokeWidth="2" strokeDasharray="5,5" />
+                      <text x="25" y="19" fontSize="11" fill="#374151">75th %ile</text>
 
-                      <line x1="0" y1="30" x2="20" y2="30" stroke="#10b981" strokeWidth="2" strokeDasharray="5,5" />
-                      <text x="25" y="34" fontSize="11" fill="#374151">75th %ile</text>
+                      <line x1="0" y1="30" x2="20" y2="30" stroke="#f59e0b" strokeWidth="2" strokeDasharray="5,5" />
+                      <text x="25" y="34" fontSize="11" fill="#374151">90th %ile</text>
+
+                      <circle cx="10" cy="48" r="3" fill="#ef4444" opacity="0.4" />
+                      <text x="25" y="51" fontSize="11" fill="#374151">Outliers</text>
                     </g>
                   </>
                 );
               })()}
             </svg>
           </div>
-          <p className="text-sm text-gray-600 mt-2">
-            Showing {scores.length} score{scores.length !== 1 ? 's' : ''}. Hover over points for player details.
-          </p>
-        </div>
+            <p className="text-sm text-gray-600 mt-2">
+              Showing {scores.length} score{scores.length !== 1 ? 's' : ''} focused on 25th-95th percentile range. Outliers shown in red. Hover over points for player details.
+            </p>
+          </Card.Content>
+        </Card>
       )}
 
       {scores.length === 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
+        <Alert variant="warning" title="No Data">
           No score data available for this machine yet.
-        </div>
+        </Alert>
       )}
     </div>
   );
