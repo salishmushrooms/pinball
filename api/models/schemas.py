@@ -1,7 +1,7 @@
 """
 Pydantic models for API request/response schemas
 """
-from typing import Optional, List
+from typing import Optional, List, Union
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -116,6 +116,42 @@ class PlayerMachineStatsList(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class PlayerMachineScore(BaseModel):
+    """Individual score record for a player on a machine"""
+    score: int
+    season: int
+    week: int
+    date: Optional[str] = None
+    venue_key: str
+    venue_name: str
+    round_number: int
+    player_position: int
+    match_key: str
+
+
+class SeasonStats(BaseModel):
+    """Aggregated statistics for a season (for candlestick charts)"""
+    season: int
+    games_played: int
+    min_score: int
+    max_score: int
+    median_score: int
+    mean_score: int
+    q1_score: int  # 25th percentile
+    q3_score: int  # 75th percentile
+
+
+class PlayerMachineScoreHistoryResponse(BaseModel):
+    """Complete score history for a player on a specific machine"""
+    player_key: str
+    player_name: str
+    machine_key: str
+    machine_name: str
+    total_games: int
+    scores: List[PlayerMachineScore]
+    season_stats: List[SeasonStats]
 
 
 # Team Models
@@ -300,7 +336,7 @@ class MatchupAnalysis(BaseModel):
     away_team_name: str
     venue_key: str
     venue_name: str
-    season: int
+    season: Union[int, str]  # Can be single season (22) or range (21-22)
 
     # Available machines at venue
     available_machines: List[str]

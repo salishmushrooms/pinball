@@ -143,6 +143,37 @@ def read_root():
     }
 
 
+@app.get("/seasons", tags=["root"])
+def get_seasons():
+    """
+    Get all available seasons in the database
+
+    Returns a list of season numbers sorted in ascending order.
+    """
+    from etl.database import db
+    from sqlalchemy import text
+
+    try:
+        if not db.engine:
+            db.connect()
+        with db.engine.connect() as conn:
+            result = conn.execute(text(
+                "SELECT DISTINCT season FROM matches ORDER BY season ASC"
+            ))
+            seasons = [row[0] for row in result]
+
+        return {
+            "seasons": seasons,
+            "count": len(seasons)
+        }
+    except Exception as e:
+        logger.error(f"Failed to fetch seasons: {e}")
+        return {
+            "seasons": [21, 22],  # Fallback to known seasons
+            "count": 2
+        }
+
+
 @app.get("/health", tags=["root"])
 def health_check():
     """

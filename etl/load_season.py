@@ -16,6 +16,7 @@ from etl.config import config
 from etl.database import db
 from etl.parsers.machine_parser import MachineParser
 from etl.parsers.match_parser import MatchParser
+from etl.parsers.ipr_parser import IPRParser
 from etl.loaders.db_loader import DatabaseLoader
 
 # Configure logging
@@ -164,6 +165,25 @@ def load_season_data(season: int):
     except Exception as e:
         logger.error(f"Failed to load players: {e}")
         return False
+
+    logger.info("")
+
+    # Step 5b: Load IPR from IPR.csv (source of truth)
+    logger.info("Step 5b: Loading IPR from IPR.csv...")
+    try:
+        ipr_parser = IPRParser()
+        ipr_path = config.DATA_PATH / "IPR.csv"
+
+        if not ipr_path.exists():
+            logger.warning(f"IPR.csv not found at {ipr_path}, skipping IPR update")
+        else:
+            ipr_updates = ipr_parser.extract_ipr_updates(ipr_path)
+            updated_count = loader.load_ipr(ipr_updates)
+            logger.info(f"✓ Updated IPR for {updated_count} players from IPR.csv")
+    except Exception as e:
+        logger.error(f"Failed to load IPR: {e}")
+        # Don't return False - IPR is optional
+        logger.warning("Continuing without IPR updates...")
 
     logger.info("")
 

@@ -63,7 +63,7 @@ def list_machines(
         params['game_type'] = game_type
 
     if search:
-        where_clauses.append("LOWER(m.machine_name) LIKE LOWER(:search)")
+        where_clauses.append("(LOWER(m.machine_name) LIKE LOWER(:search) OR LOWER(m.machine_key) LIKE LOWER(:search))")
         params['search'] = f"%{search}%"
 
     if has_percentiles is not None:
