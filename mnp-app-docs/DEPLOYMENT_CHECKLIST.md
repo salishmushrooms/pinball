@@ -4,6 +4,9 @@
 
 Use this checklist to track progress through the deployment phases outlined in [DEPLOYMENT_PLAN.md](DEPLOYMENT_PLAN.md).
 
+**Last Updated:** 2025-11-29
+**Current Phase:** Phase 4 - Production Deployment
+
 ---
 
 ## Pre-Deployment Setup
@@ -15,79 +18,58 @@ Use this checklist to track progress through the deployment phases outlined in [
 - [ ] Register domain ($10-15/year)
 - [ ] Point DNS to Cloudflare (free tier)
 - [ ] Create logo/favicon
-- [ ] Define color scheme and basic design system
-- [ ] Write attribution statement
+- [x] Define color scheme and basic design system ✅ (in frontend/DESIGN_SYSTEM.md)
+- [ ] Write attribution statement for footer
 
 ### Hosting Platform Selection
-- [ ] Compare hosting providers (Railway, Render, Fly.io)
+- [ ] Compare hosting providers (Railway vs Render)
 - [ ] Create account on chosen platform
 - [ ] Set up payment method
 - [ ] Review pricing and resource limits
 
 ---
 
-## Phase 1: Static API (Weeks 1-2)
+## ~~Phase 1: Static API~~ (SKIPPED)
 
-**Goal:** Simple static JSON API hosted on CDN
-
-### Export Scripts
-- [ ] Create `scripts/export_static_api.py` to export database to JSON
-- [ ] Export `/api/v1/seasons.json`
-- [ ] Export `/api/v1/seasons/{season}/matches.json` for each season
-- [ ] Export `/api/v1/machines.json`
-- [ ] Export `/api/v1/venues.json`
-- [ ] Export `/api/v1/teams.json`
-- [ ] Export `/api/v1/players.json`
-
-### Hosting Setup
-- [ ] Create Vercel/Netlify/Cloudflare Pages project
-- [ ] Configure custom domain
-- [ ] Set up CORS headers in `_headers` file
-- [ ] Enable HTTPS (automatic with most platforms)
-- [ ] Test API endpoints
-
-### Automation
-- [ ] Create GitHub Action to auto-export on data changes
-- [ ] Set up weekly scheduled export (cron)
-- [ ] Test automated deployment pipeline
-
-### Documentation
-- [ ] Create basic API documentation (markdown)
-- [ ] Add usage examples (curl, Python, JavaScript)
-- [ ] Document rate limits (if any)
-- [ ] Add attribution and links to MNP data source
-
-**Phase 1 Complete:** Static API is live and accessible ✅
+**Reason:** Built dynamic API directly - no need for static JSON intermediate.
 
 ---
 
-## Phase 2: Dynamic API Backend (Weeks 2-6)
+## Phase 2: Dynamic API Backend ✅ COMPLETE (Local)
 
-**Goal:** Deploy FastAPI application with PostgreSQL database
+**Goal:** FastAPI application with PostgreSQL database
 
-### Local Testing
-- [ ] Review existing FastAPI code in `/api`
-- [ ] Ensure all endpoints work locally
-- [ ] Test database migrations
-- [ ] Verify data loading from GitHub repo
-- [ ] Run tests (if they exist)
+### Local Development ✅ Complete
+- [x] FastAPI application created in `/api`
+- [x] All core endpoints implemented
+- [x] Database schema created and tested
+- [x] Data loaded from GitHub repo (Season 21 & 22)
+- [x] Pydantic schemas for validation
+- [x] Local PostgreSQL database working
 
-### Docker Configuration
+### API Routers Implemented ✅
+- [x] `/api/teams` - Team listings and details
+- [x] `/api/players` - Player search and statistics
+- [x] `/api/machines` - Machine data and percentiles
+- [x] `/api/venues` - Venue information
+- [x] `/api/matchups` - Team matchup analysis
+
+### Docker Configuration (For Production)
 - [ ] Create `Dockerfile` for FastAPI app
 - [ ] Create `docker-compose.yml` for local testing
 - [ ] Test Docker build locally
 - [ ] Optimize image size (multi-stage build)
 
-### Database Setup
-- [ ] Choose PostgreSQL provider (Railway, Render, Supabase)
+### Production Database Setup
+- [ ] Choose PostgreSQL provider (Railway recommended)
 - [ ] Create production database
 - [ ] Run schema migrations
-- [ ] Load initial data from GitHub repository
+- [ ] Load data from local database
 - [ ] Set up connection pooling
 - [ ] Configure backup schedule (daily)
 
 ### API Deployment
-- [ ] Create project on chosen platform (Railway/Render/Fly.io)
+- [ ] Create project on Railway/Render
 - [ ] Configure environment variables (DATABASE_URL, etc.)
 - [ ] Deploy FastAPI application
 - [ ] Connect to managed PostgreSQL
@@ -95,156 +77,194 @@ Use this checklist to track progress through the deployment phases outlined in [
 - [ ] Verify database queries work correctly
 
 ### Performance & Caching
-- [ ] Set up Redis instance (optional, for caching)
-- [ ] Implement caching for expensive queries (percentiles)
 - [ ] Add database indexes for common queries
-- [ ] Configure connection pooling (pgbouncer or built-in)
+- [ ] Configure connection pooling
 - [ ] Test response times (<1s for most queries)
+- [ ] Set up Redis instance (optional, for caching)
 
 ### Security & Rate Limiting
-- [ ] Add CORS middleware configuration
+- [ ] Add CORS middleware configuration for production domain
 - [ ] Implement rate limiting (100-1000 requests/hour per IP)
 - [ ] Create read-only database user for API
-- [ ] Configure HTTPS (should be automatic)
+- [ ] Configure HTTPS (automatic with Railway/Render)
 - [ ] Add security headers (HSTS, CSP, etc.)
-- [ ] Set up environment variables properly (no secrets in code)
+- [ ] Verify no secrets in code/git
 
 ### Monitoring & Logging
 - [ ] Set up Sentry account for error tracking
 - [ ] Configure Sentry in FastAPI app
 - [ ] Set up uptime monitoring (Better Uptime, UptimeRobot)
-- [ ] Configure alerts (email/Slack for downtime)
-- [ ] Set up structured logging (JSON format)
+- [ ] Configure alerts (email for downtime)
 - [ ] Review logs in hosting platform dashboard
 
 ### API Documentation
-- [ ] Verify OpenAPI/Swagger docs at `/docs`
+- [x] OpenAPI/Swagger docs at `/docs` (auto-generated)
 - [ ] Add description and examples to endpoints
-- [ ] Document query parameters and filters
-- [ ] Add authentication docs (if applicable)
-- [ ] Create getting-started guide
-- [ ] Add code examples for common queries
+- [ ] Create getting-started guide for external users
 
-### Testing & Validation
-- [ ] Load test API with realistic traffic (Apache Bench, k6)
-- [ ] Verify all query parameters work
-- [ ] Test error handling (404s, 500s, etc.)
-- [ ] Check CORS from different origins
-- [ ] Validate response formats
-- [ ] Test rate limiting behavior
-
-### Data Update Strategy
-- [ ] Create script to sync data from GitHub repo
-- [ ] Set up GitHub Action or cron job for automated sync
-- [ ] Test data update process
-- [ ] Document manual update procedure (if needed)
-
-**Phase 2 Complete:** Dynamic API is live and serving Pin Stats app ✅
+**Phase 2 Production Deployment:** Pending ⏳
 
 ---
 
-## Phase 3: Web Frontend (Weeks 6-12)
+## Phase 3: Web Frontend ✅ COMPLETE (Local)
 
 **Goal:** Public website for browsing MNP data
 
-### Framework Setup
-- [ ] Choose framework (Next.js recommended)
-- [ ] Create new project
-- [ ] Set up Tailwind CSS for styling
-- [ ] Configure TypeScript (optional but recommended)
-- [ ] Set up ESLint and Prettier
+### Framework Setup ✅ Complete
+- [x] Next.js 16 project created
+- [x] Tailwind CSS configured
+- [x] TypeScript configured
+- [x] ESLint configured
 
-### Core Pages
-- [ ] Homepage
-  - [ ] Current season overview
-  - [ ] Recent matches
-  - [ ] Top teams/players
-  - [ ] Navigation to other sections
-- [ ] Team Pages
-  - [ ] Team standings/rankings
-  - [ ] Individual team detail page
-  - [ ] Match history for team
-  - [ ] Team statistics
-- [ ] Player Pages
-  - [ ] Player search/directory
-  - [ ] Individual player profile
-  - [ ] Player statistics and history
-  - [ ] Performance charts
-- [ ] Machine Pages
-  - [ ] Machine directory/list
-  - [ ] Individual machine statistics
-  - [ ] High scores by venue
-  - [ ] Percentile charts
-- [ ] Venue Pages
-  - [ ] Venue list
-  - [ ] Machines at each venue
-  - [ ] Match history at venue
-- [ ] Match Pages
-  - [ ] Match browser/search
-  - [ ] Individual match details
-  - [ ] Scores and results
+### Core Pages ✅ Complete
+- [x] **Homepage** (`/`)
+  - [x] Navigation to all sections
+  - [x] Overview of data available
+- [x] **Team Pages**
+  - [x] Team list page (`/teams`)
+  - [x] Individual team detail page (`/teams/[team_key]`)
+  - [x] Team roster with player stats
+  - [x] Team machine statistics
+- [x] **Player Pages**
+  - [x] Player list/search page (`/players`)
+  - [x] Individual player profile (`/players/[player_key]`)
+  - [x] Player machine statistics
+  - [x] Score history
+- [x] **Machine Pages**
+  - [x] Machine list page (`/machines`)
+  - [x] Individual machine statistics (`/machines/[machine_key]`)
+  - [x] Percentile data
+  - [x] Scores by venue
+- [x] **Venue Pages**
+  - [x] Venue list page (`/venues`)
+  - [x] Individual venue details (`/venues/[venue_key]`)
+  - [x] Machines at venue
+- [x] **Matchups Page** (`/matchups`)
+  - [x] Team vs team analysis
+  - [x] Multi-season support
+
+### Component Library ✅ Complete
+- [x] Button component
+- [x] Card component
+- [x] Badge component
+- [x] Alert component
+- [x] Input component
+- [x] Select component
+- [x] MultiSelect component
+- [x] Table component
+- [x] Tabs component
+- [x] Collapsible component
+- [x] PageHeader component
+- [x] StatCard component
+- [x] LoadingSpinner component
+- [x] EmptyState component
+- [x] SeasonMultiSelect (reusable)
+- [x] RoundMultiSelect (reusable)
+- [x] FilterPanel component
+- [x] Navigation component
 
 ### Data Visualization
-- [ ] Choose charting library (Chart.js, Recharts)
+- [ ] Choose charting library (Recharts recommended)
 - [ ] Create score distribution charts
 - [ ] Create percentile visualizations
-- [ ] Add win/loss charts
-- [ ] Create performance trend lines
+- [ ] Add performance trend charts
 - [ ] Make charts responsive (mobile-friendly)
 
-### Search & Filtering
-- [ ] Add search bar (teams, players, machines)
-- [ ] Implement filters (season, venue, team)
-- [ ] Add sorting options (by date, score, etc.)
-- [ ] Create filter UI components
+### Search & Filtering ✅ Partial
+- [x] Season filtering (multi-select)
+- [x] Round filtering
+- [x] Venue filtering
+- [ ] Add global search bar
+- [ ] Add sorting options
 
-### Responsive Design
-- [ ] Test on mobile devices
-- [ ] Test on tablet devices
-- [ ] Test on desktop
-- [ ] Optimize for different screen sizes
-- [ ] Ensure touch-friendly navigation
+### Responsive Design ✅ Complete
+- [x] Mobile-responsive layouts
+- [x] Tailwind responsive utilities
+- [x] Touch-friendly navigation
 
-### API Integration
-- [ ] Create API client/service layer
-- [ ] Implement data fetching with React Query or SWR
-- [ ] Add loading states
-- [ ] Add error handling
-- [ ] Implement caching strategy
+### API Integration ✅ Complete
+- [x] TypeScript API client (`/lib/api.ts`)
+- [x] Full type definitions (`/lib/types.ts`)
+- [x] Loading states
+- [x] Error handling
+- [x] Multi-season parameter support
 
 ### Footer & Legal
 - [ ] Add attribution statement
 - [ ] Link to official MNP data repository
-- [ ] Add contact/about page
+- [ ] Add about/contact info
 - [ ] Create privacy policy (if collecting analytics)
-- [ ] Add terms of service (basic)
 
-### Deployment
-- [ ] Deploy to Vercel or Netlify
+### Production Deployment
+- [ ] Deploy to Vercel
 - [ ] Configure custom domain
-- [ ] Set up environment variables (API URL)
+- [ ] Set environment variables (API URL)
 - [ ] Test production build
 - [ ] Verify all pages work in production
 
 ### SEO & Analytics
 - [ ] Add meta tags for SEO
 - [ ] Create sitemap.xml
-- [ ] Set up Plausible or Simple Analytics (privacy-friendly)
+- [ ] Set up Plausible or Simple Analytics
 - [ ] Add Open Graph tags for social sharing
-- [ ] Test Google search console
 
 ### Testing
 - [ ] Test all navigation links
-- [ ] Test all search/filter combinations
 - [ ] Verify data accuracy
 - [ ] Test performance (Lighthouse score)
 - [ ] Cross-browser testing (Chrome, Firefox, Safari)
 
-**Phase 3 Complete:** Public website is live ✅
+**Phase 3 Production Deployment:** Pending ⏳
 
 ---
 
-## Phase 4: Advanced Features (Weeks 12+)
+## Phase 4: Production Deployment 🎯 CURRENT PHASE
+
+**Goal:** Deploy existing local application to production
+
+### Step 1: Pre-Deployment Setup (Day 1-2)
+- [ ] Choose and register domain name
+- [ ] Create accounts on hosting platforms (Railway, Vercel)
+- [ ] Set up Cloudflare for DNS
+- [ ] Create Sentry account for monitoring
+
+### Step 2: Backend Deployment (Day 3-5)
+- [ ] Create `Dockerfile` for FastAPI app
+- [ ] Deploy to Railway/Render
+- [ ] Create production PostgreSQL database
+- [ ] Run data migration to production
+- [ ] Configure environment variables
+- [ ] Test all API endpoints in production
+- [ ] Set up rate limiting
+
+### Step 3: Frontend Deployment (Day 6-8)
+- [ ] Configure Vercel project
+- [ ] Set production environment variables
+- [ ] Deploy Next.js application
+- [ ] Configure custom domain
+- [ ] Test all pages in production
+- [ ] Verify API integration
+
+### Step 4: Production Hardening (Day 9-10)
+- [ ] Configure HTTPS (automatic)
+- [ ] Set up Sentry error monitoring
+- [ ] Configure uptime monitoring
+- [ ] Add security headers
+- [ ] Test CORS configuration
+- [ ] Load test API endpoints
+
+### Step 5: Launch (Day 11-14)
+- [ ] Soft launch to beta testers
+- [ ] Monitor for errors
+- [ ] Gather feedback
+- [ ] Fix any critical issues
+- [ ] Public announcement
+
+**Phase 4 Complete:** API and Website deployed ⏳
+
+---
+
+## Phase 5: Advanced Features (Future)
 
 **Goal:** Community features and automation
 
@@ -254,41 +274,28 @@ Use this checklist to track progress through the deployment phases outlined in [
 - [ ] Create user profile pages
 - [ ] Add "favorite teams" feature
 - [ ] Add "favorite players" feature
-- [ ] Store user preferences
 
 ### Notifications (Optional)
 - [ ] Set up email service (SendGrid, Mailgun)
 - [ ] Create notification preferences UI
 - [ ] Implement weekly summary emails
-- [ ] Add new match notifications
-- [ ] Add high score notifications
 
 ### Admin Dashboard
 - [ ] Create admin authentication
 - [ ] Build data management UI
 - [ ] Add manual data correction tools
-- [ ] Create data validation checks
-- [ ] Add audit logging
 
 ### API Enhancements
 - [ ] Add API key system for high-volume users
 - [ ] Create tiered rate limits
 - [ ] Add webhook support (for Pin Stats app)
-- [ ] Implement GraphQL endpoint (optional)
 
-### Automated Reports
-- [ ] Create automated weekly report generator
-- [ ] Generate season summary reports
-- [ ] Create player/team comparison tools
-- [ ] Build custom report builder UI
+### Automated Data Updates
+- [ ] Create script to sync data from GitHub repo
+- [ ] Set up GitHub Action or cron job for automated sync
+- [ ] Document manual update procedure
 
-### Community Features (Optional)
-- [ ] Add comments on matches (moderated)
-- [ ] Create community forum or discussion board
-- [ ] Add "match of the week" voting
-- [ ] Create leaderboards and challenges
-
-**Phase 4 Complete:** Full-featured community platform ✅
+**Phase 5 Complete:** Full-featured community platform ⏳
 
 ---
 
@@ -305,13 +312,11 @@ Use this checklist to track progress through the deployment phases outlined in [
 - [ ] Update dependencies (security patches)
 - [ ] Analyze usage patterns
 - [ ] Optimize slow queries
-- [ ] Review and respond to user feedback
 
 ### Seasonal Tasks
 - [ ] Prepare for new season data
 - [ ] Update season selectors in UI
 - [ ] Generate end-of-season reports
-- [ ] Archive old data (if needed)
 
 ---
 
@@ -323,7 +328,6 @@ Use this checklist to track progress through the deployment phases outlined in [
 3. Check database connection
 4. Verify environment variables
 5. Rollback to previous deployment if needed
-6. Post status update for users
 
 ### If Database Issues Occur
 1. Check database connection limits
@@ -333,34 +337,28 @@ Use this checklist to track progress through the deployment phases outlined in [
 5. Contact hosting provider support
 
 ### If Frontend Issues Occur
-1. Check deployment logs
+1. Check Vercel deployment logs
 2. Test API endpoints separately
 3. Review browser console errors
 4. Rollback to previous deployment
-5. Fix and redeploy
 
 ---
 
 ## Success Metrics
 
-### Phase 1 Success
-- [ ] Static API is accessible publicly
-- [ ] Response time <500ms
-- [ ] Zero downtime during deployment
-
-### Phase 2 Success
-- [ ] Dynamic API is live
+### Phase 4 Success (Production Deployment)
+- [ ] API is accessible publicly
+- [ ] Website is accessible at custom domain
 - [ ] Response time <1s for 95% of requests
-- [ ] 99.5% uptime
-- [ ] Pin Stats iOS app successfully connects
-- [ ] 100+ API requests/day
+- [ ] 99% uptime in first week
+- [ ] Zero critical errors
 
-### Phase 3 Success
-- [ ] Website is live and accessible
-- [ ] Page load time <2s
-- [ ] Mobile-friendly (responsive)
-- [ ] 100+ monthly active users
+### Post-Launch Success (30 days)
+- [ ] 100+ unique visitors
+- [ ] 1000+ API requests
 - [ ] Positive community feedback
+- [ ] <5 bug reports
+- [ ] 99.5% uptime
 
 ---
 
@@ -369,11 +367,13 @@ Use this checklist to track progress through the deployment phases outlined in [
 ### Documentation
 - [DEPLOYMENT_PLAN.md](DEPLOYMENT_PLAN.md) - Full deployment plan
 - [MNP_Data_Structure_Reference.md](../MNP_Data_Structure_Reference.md) - Data structure
-- [README.md](../README.md) - Project overview
+- [RESTART_GUIDE.md](../RESTART_GUIDE.md) - Local development restart guide
+- [frontend/DESIGN_SYSTEM.md](../frontend/DESIGN_SYSTEM.md) - UI design system
 
 ### Tools & Services
 - **Domain Registration:** Namecheap, Google Domains, Cloudflare
-- **Hosting:** Railway, Render, Fly.io
+- **Frontend Hosting:** Vercel (recommended)
+- **Backend Hosting:** Railway (recommended), Render
 - **Database:** PostgreSQL (managed by hosting provider)
 - **CDN:** Cloudflare (free tier)
 - **Monitoring:** Sentry, Better Uptime
@@ -383,9 +383,27 @@ Use this checklist to track progress through the deployment phases outlined in [
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Railway Documentation](https://docs.railway.app/)
-- [Render Documentation](https://render.com/docs)
+- [Vercel Documentation](https://vercel.com/docs)
 
 ---
 
-**Last Updated:** 2025-11-26
+## Summary of Current Progress
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 1: Static API | SKIPPED | Built dynamic API directly |
+| Phase 2: Dynamic API | ✅ Local Complete | Ready for production deployment |
+| Phase 3: Web Frontend | ✅ Local Complete | Ready for production deployment |
+| Phase 4: Production | 🎯 Current | Next step: domain & hosting setup |
+| Phase 5: Advanced | Future | Post-launch enhancements |
+
+**Immediate Next Steps:**
+1. Choose and register domain name
+2. Create Railway account for backend
+3. Create Vercel account for frontend
+4. Begin production deployment
+
+---
+
+**Last Updated:** 2025-11-29
 **Document Owner:** JJC

@@ -14,6 +14,7 @@ import {
   StatCard,
   Table,
   MultiSelect,
+  FilterPanel,
 } from '@/components/ui';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 
@@ -207,59 +208,70 @@ export default function MachineDetailPage() {
       </Card>
 
       {/* Filters */}
-      <Card>
-        <Card.Header>
-          <Card.Title>Filters</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <div className="space-y-6">
-            {/* Season Filter */}
-            <SeasonMultiSelect
-              value={selectedSeasons}
-              onChange={setSelectedSeasons}
-              availableSeasons={availableSeasons}
-              helpText="Select one or more seasons to filter scores"
+      <FilterPanel
+        title="Filters"
+        collapsible={true}
+        defaultOpen={true}
+        activeFilterCount={
+          (selectedSeasons.length > 0 && selectedSeasons.length < availableSeasons.length ? 1 : 0) +
+          (selectedVenue !== 'all' ? 1 : 0) +
+          (selectedTeams.length > 0 ? 1 : 0)
+        }
+        showClearAll={true}
+        onClearAll={() => {
+          setSelectedSeasons([Math.max(...availableSeasons)]);
+          setSelectedVenue('all');
+          setSelectedTeams([]);
+        }}
+      >
+        <div className="space-y-6">
+          {/* Season Filter */}
+          <SeasonMultiSelect
+            value={selectedSeasons}
+            onChange={setSelectedSeasons}
+            availableSeasons={availableSeasons}
+            helpText="Select one or more seasons to filter scores"
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Venue Filter */}
+            <Select
+              label="Venue"
+              value={selectedVenue}
+              onChange={(e) => setSelectedVenue(e.target.value)}
+              options={[
+                { value: 'all', label: `All Venues (${machine.total_scores} scores)` },
+                ...venues.map((venue) => ({
+                  value: venue.venue_key,
+                  label: `${venue.venue_name} (${venue.score_count} scores)`,
+                })),
+              ]}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Venue Filter */}
-              <Select
-                label="Venue"
-                value={selectedVenue}
-                onChange={(e) => setSelectedVenue(e.target.value)}
-                options={[
-                  { value: 'all', label: `All Venues (${machine.total_scores} scores)` },
-                  ...venues.map((venue) => ({
-                    value: venue.venue_key,
-                    label: `${venue.venue_name} (${venue.score_count} scores)`,
-                  })),
-                ]}
+            {/* Team Filter */}
+            <div>
+              <MultiSelect
+                label="Teams (select multiple)"
+                options={teams.map((team) => ({
+                  value: team.team_key,
+                  label: `${team.team_name} (${team.score_count} scores)`,
+                }))}
+                value={selectedTeams}
+                onChange={setSelectedTeams}
+                helpText={selectedTeams.length > 0 ? `${selectedTeams.length} team${selectedTeams.length !== 1 ? 's' : ''} selected` : undefined}
               />
-
-              {/* Team Filter */}
-              <div>
-                <MultiSelect
-                  label="Teams (select multiple)"
-                  options={teams.map((team) => ({
-                    value: team.team_key,
-                    label: `${team.team_name} (${team.score_count} scores)`,
-                  }))}
-                  value={selectedTeams}
-                  onChange={setSelectedTeams}
-                />
-                {selectedTeams.length > 0 && (
-                  <button
-                    onClick={() => setSelectedTeams([])}
-                    className="mt-2 text-sm text-blue-600 hover:text-blue-800"
-                  >
-                    Clear all teams
-                  </button>
-                )}
-              </div>
+              {selectedTeams.length > 0 && (
+                <button
+                  onClick={() => setSelectedTeams([])}
+                  className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+                >
+                  Clear all teams
+                </button>
+              )}
             </div>
           </div>
-        </Card.Content>
-      </Card>
+        </div>
+      </FilterPanel>
 
       {/* Top 5 Scores */}
       {scores.length > 0 && (

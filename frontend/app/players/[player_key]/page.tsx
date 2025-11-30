@@ -299,18 +299,10 @@ export default function PlayerDetailPage() {
           <Card.Title>Player Information</Card.Title>
         </Card.Header>
         <Card.Content>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+          <div className="max-w-xs">
             <StatCard
               label="IPR"
-              value={player.current_ipr ? player.current_ipr.toLocaleString() : 'N/A'}
-            />
-            <StatCard
-              label="First Season"
-              value={player.first_seen_season}
-            />
-            <StatCard
-              label="Last Season"
-              value={player.last_seen_season}
+              value={player.current_ipr ? Math.round(player.current_ipr).toLocaleString() : 'N/A'}
             />
           </div>
         </Card.Content>

@@ -8,6 +8,7 @@ import { Team, TeamMachineStat, TeamPlayer, Venue } from '@/lib/types';
 import { RoundMultiSelect } from '@/components/RoundMultiSelect';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { useDebouncedEffect } from '@/lib/hooks';
+import { Table } from '@/components/ui';
 
 export default function TeamDetailPage() {
   const params = useParams();
@@ -25,6 +26,7 @@ export default function TeamDetailPage() {
 
   // Filters
   const [sortBy, setSortBy] = useState<'games_played' | 'avg_score' | 'best_score' | 'win_percentage' | 'median_score'>('games_played');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [seasonsFilter, setSeasonsFilter] = useState<number[]>(
     initialSeason ? [parseInt(initialSeason)] : [22]
   );
@@ -41,7 +43,7 @@ export default function TeamDetailPage() {
 
     setFetching(true);
     fetchTeamData();
-  }, 500, [teamKey, sortBy, seasonsFilter, venueFilter, roundsFilter]);
+  }, 500, [teamKey, sortBy, sortDirection, seasonsFilter, venueFilter, roundsFilter]);
 
   async function fetchVenues() {
     try {
@@ -70,7 +72,7 @@ export default function TeamDetailPage() {
           rounds: roundsParam,
           min_games: 1,
           sort_by: sortBy,
-          sort_order: 'desc',
+          sort_order: sortDirection,
           limit: 100,
         }),
         api.getTeamPlayers(teamKey, seasonsFilter.length === 1 ? seasonsFilter[0] : undefined, venueFilter),
@@ -84,6 +86,17 @@ export default function TeamDetailPage() {
     } finally {
       setLoading(false);
       setFetching(false);
+    }
+  }
+
+  function handleSort(column: 'games_played' | 'avg_score' | 'best_score' | 'win_percentage' | 'median_score') {
+    if (sortBy === column) {
+      // Toggle direction if clicking the same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column: default to descending (highest first)
+      setSortBy(column);
+      setSortDirection('desc');
     }
   }
 
@@ -146,7 +159,7 @@ export default function TeamDetailPage() {
         </div>
 
         {/* Filters */}
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <SeasonMultiSelect
             value={seasonsFilter}
             onChange={setSeasonsFilter}
@@ -171,23 +184,6 @@ export default function TeamDetailPage() {
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Sort By
-            </label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="games_played">Games Played</option>
-              <option value="win_percentage">Win %</option>
-              <option value="avg_score">Avg Score</option>
-              <option value="median_score">Median Score</option>
-              <option value="best_score">Best Score</option>
-            </select>
-          </div>
-
           <RoundMultiSelect
             value={roundsFilter}
             onChange={setRoundsFilter}
@@ -201,63 +197,71 @@ export default function TeamDetailPage() {
             No machine statistics found for the selected filters.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Machine
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Games
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Win %
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Median Score
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Best Score
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Rounds
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {machineStats.map((stat, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Link
-                        href={`/machines/${stat.machine_key}`}
-                        className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                      >
-                        {stat.machine_name}
-                      </Link>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {stat.games_played}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {stat.win_percentage !== null ? `${stat.win_percentage.toFixed(1)}%` : 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {stat.median_score?.toLocaleString(undefined, {
-                        maximumFractionDigits: 0,
-                      }) || 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {stat.best_score?.toLocaleString() || 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {stat.rounds_played?.join(', ') || 'N/A'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <Table.Header>
+              <Table.Row hoverable={false}>
+                <Table.Head>Machine</Table.Head>
+                <Table.Head
+                  sortable
+                  onSort={() => handleSort('games_played')}
+                  sortDirection={sortBy === 'games_played' ? sortDirection : null}
+                >
+                  Games
+                </Table.Head>
+                <Table.Head
+                  sortable
+                  onSort={() => handleSort('win_percentage')}
+                  sortDirection={sortBy === 'win_percentage' ? sortDirection : null}
+                >
+                  Win %
+                </Table.Head>
+                <Table.Head
+                  sortable
+                  onSort={() => handleSort('median_score')}
+                  sortDirection={sortBy === 'median_score' ? sortDirection : null}
+                >
+                  Median Score
+                </Table.Head>
+                <Table.Head
+                  sortable
+                  onSort={() => handleSort('best_score')}
+                  sortDirection={sortBy === 'best_score' ? sortDirection : null}
+                >
+                  Best Score
+                </Table.Head>
+                <Table.Head>Rounds</Table.Head>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              {machineStats.map((stat, idx) => (
+                <Table.Row key={idx}>
+                  <Table.Cell>
+                    <Link
+                      href={`/machines/${stat.machine_key}`}
+                      className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                    >
+                      {stat.machine_name}
+                    </Link>
+                  </Table.Cell>
+                  <Table.Cell>{stat.games_played}</Table.Cell>
+                  <Table.Cell>
+                    {stat.win_percentage !== null ? `${stat.win_percentage.toFixed(1)}%` : 'N/A'}
+                  </Table.Cell>
+                  <Table.Cell>
+                    {stat.median_score?.toLocaleString(undefined, {
+                      maximumFractionDigits: 0,
+                    }) || 'N/A'}
+                  </Table.Cell>
+                  <Table.Cell>
+                    {stat.best_score?.toLocaleString() || 'N/A'}
+                  </Table.Cell>
+                  <Table.Cell>
+                    {stat.rounds_played?.join(', ') || 'N/A'}
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table>
         )}
 
         <div className="mt-4 text-sm text-gray-600">
@@ -295,9 +299,6 @@ export default function TeamDetailPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Most Played Machine
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Seasons
-                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -331,9 +332,6 @@ export default function TeamDetailPage() {
                       ) : (
                         'N/A'
                       )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {player.seasons_played.join(', ')}
                     </td>
                   </tr>
                 ))}

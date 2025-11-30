@@ -24,7 +24,7 @@ export const SeasonMultiSelect: React.FC<SeasonMultiSelectProps> = ({
 }) => {
   const options = availableSeasons.map((season) => ({
     value: season,
-    label: `Season ${season}`,
+    label: `${season}`,
   }));
 
   return (
