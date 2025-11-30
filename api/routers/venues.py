@@ -27,7 +27,7 @@ def get_current_machines_for_venue(venue_key: str) -> List[str]:
     Returns list of machine keys that are currently at this venue.
     """
     # Path to season 22 matches (most recent season)
-    matches_path = "/Users/JJC/Pinball/MNP/mnp-data-archive/season-22/matches"
+    matches_path = "mnp-data-archive/season-22/matches"
 
     try:
         # Get all match files for this venue

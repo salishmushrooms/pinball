@@ -33,7 +33,7 @@ def get_current_machines_for_venue(venue_key: str, seasons: List[int]) -> List[s
 
     try:
         for season in seasons:
-            matches_path = f"/Users/JJC/Pinball/MNP/mnp-data-archive/season-{season}/matches"
+            matches_path = f"mnp-data-archive/season-{season}/matches"
             match_files = glob.glob(f"{matches_path}/*.json")
 
             for match_file in match_files:
@@ -99,7 +99,7 @@ def get_team_machine_pick_frequency(
 
     try:
         for season in seasons:
-            matches_path = f"/Users/JJC/Pinball/MNP/mnp-data-archive/season-{season}/matches"
+            matches_path = f"mnp-data-archive/season-{season}/matches"
             match_files = glob.glob(f"{matches_path}/*.json")
 
             for match_file in match_files:
