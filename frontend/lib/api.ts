@@ -39,6 +39,7 @@ import {
   MatchupQueryParams,
   SeasonSchedule,
   SeasonMatchesResponse,
+  MachinePredictionResponse,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -307,6 +308,21 @@ export const api = {
   getSeasonMatches: (season: number, week?: number): Promise<SeasonMatchesResponse> => {
     const params = week ? { week } : undefined;
     return fetchAPI<SeasonMatchesResponse>(`/seasons/${season}/matches`, params);
+  },
+
+  // Prediction Endpoints
+
+  /**
+   * Get machine pick predictions for a team in a specific round
+   */
+  getMachinePredictions: (params: {
+    team_key: string;
+    round_num: number;
+    venue_key: string;
+    seasons?: number[];
+    limit?: number;
+  }): Promise<MachinePredictionResponse> => {
+    return fetchAPI<MachinePredictionResponse>('/predictions/machine-picks', params);
   },
 };
 

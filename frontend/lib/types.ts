@@ -492,3 +492,27 @@ export interface SeasonMatchesResponse {
   matches: ScheduleMatch[];
   count: number;
 }
+
+// ============================================================================
+// Prediction Types
+// ============================================================================
+
+export interface MachinePrediction {
+  machine_key: string;
+  machine_name: string;
+  pick_count: number;
+  confidence_pct: number;
+  available_at_venue: boolean;
+}
+
+export interface MachinePredictionResponse {
+  predictions: MachinePrediction[];
+  sample_size: number;
+  total_rounds: number;
+  context: string;
+  team_key: string;
+  venue_key: string;
+  venue_machines: string[];
+  seasons_analyzed: number[];
+  message?: string;
+}
