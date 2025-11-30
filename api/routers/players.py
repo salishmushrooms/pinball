@@ -196,8 +196,9 @@ def calculate_win_percentage_for_player(
             'machine_key': machine_key
         })
 
-        # Determine opponents based on round type
-        # Rounds 1 & 4 are doubles (4 players), rounds 2 & 3 are singles (2 players)
+        # Determine opponents based on round type and position
+        # Rounds 1 & 4 are doubles (4 players): positions 1&3 vs 2&4
+        # Rounds 2 & 3 are singles (2 players): position 1 vs 2
         is_doubles = round_number in [1, 4]
 
         opponent_scores = []
@@ -206,9 +207,19 @@ def calculate_win_percentage_for_player(
             if rs['player_position'] == player_position:
                 continue
 
-            # In doubles, even positions (2, 4) are one team, odd positions (1, 3) are the other
-            # Check if this is an opponent by comparing team_key
-            if rs['team_key'] != player_team:
+            # Determine if this is an opponent based on position
+            if is_doubles:
+                # 4-player rounds: positions 1&3 vs 2&4
+                # Odd positions (1, 3) are teammates, even positions (2, 4) are teammates
+                player_is_odd = player_position % 2 == 1
+                other_is_odd = rs['player_position'] % 2 == 1
+
+                # They're opponents if one is odd and the other is even
+                if player_is_odd != other_is_odd:
+                    opponent_scores.append(rs['score'])
+            else:
+                # 2-player rounds: position 1 vs 2
+                # Anyone in the round who isn't the player is an opponent
                 opponent_scores.append(rs['score'])
 
         # Compare player's score to each opponent
@@ -383,7 +394,7 @@ def get_player_machine_stats(
         for stat in all_stats:
             stat['player_name'] = player_name
     else:
-        # Use pre-aggregated stats
+        # Try to use pre-aggregated stats first
         where_clauses = ["pms.player_key = :player_key", "pms.games_played >= :min_games"]
         params = {'player_key': player_key, 'min_games': min_games}
 
@@ -421,6 +432,39 @@ def get_player_machine_stats(
             WHERE {where_clause}
         """
         all_stats = execute_query(query, params)
+
+        # Check if we need to calculate stats for missing seasons
+        # This handles cases where player_machine_stats table hasn't been populated for certain seasons
+        if seasons is not None and len(seasons) > 0:
+            # Find which seasons have aggregated data
+            seasons_with_data = set(stat['season'] for stat in all_stats)
+            missing_seasons = [s for s in seasons if s not in seasons_with_data]
+
+            if missing_seasons:
+                # Calculate stats from raw scores for missing seasons
+                raw_stats = calculate_stats_from_scores(player_key, missing_seasons, venue_key=None, min_games=min_games)
+
+                # Add player_name to raw stats
+                player_name_query = "SELECT name FROM players WHERE player_key = :player_key"
+                player_name_result = execute_query(player_name_query, {'player_key': player_key})
+                player_name = player_name_result[0]['name'] if player_name_result else None
+
+                for stat in raw_stats:
+                    stat['player_name'] = player_name
+
+                # Combine aggregated and raw stats
+                all_stats.extend(raw_stats)
+        elif not all_stats:
+            # No season filter and no aggregated data - calculate from all raw scores
+            all_stats = calculate_stats_from_scores(player_key, seasons, venue_key=None, min_games=min_games)
+
+            # Add player_name to each stat
+            player_name_query = "SELECT name FROM players WHERE player_key = :player_key"
+            player_name_result = execute_query(player_name_query, {'player_key': player_key})
+            player_name = player_name_result[0]['name'] if player_name_result else None
+
+            for stat in all_stats:
+                stat['player_name'] = player_name
 
     # Add win_percentage to each stat
     for stat in all_stats:

@@ -97,6 +97,7 @@ export default function PlayerDetailPage() {
       setLoading(true);
     }
     setError(null);
+
     try {
       const [playerData, statsData] = await Promise.all([
         api.getPlayer(playerKey),
@@ -105,7 +106,7 @@ export default function PlayerDetailPage() {
           venue_key: venueFilter,
           min_games: 1,
           sort_by: sortBy,
-          sort_order: 'desc',
+          sort_order: sortDirection,
           limit: 100,
         }),
       ]);

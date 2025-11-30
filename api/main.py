@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
-from api.routers import players, machines, venues, teams, matchups
+from api.routers import players, machines, venues, teams, matchups, seasons
 
 # Configure logging
 logging.basicConfig(
@@ -73,6 +73,7 @@ app.include_router(machines.router)
 app.include_router(venues.router)
 app.include_router(teams.router)
 app.include_router(matchups.router)
+app.include_router(seasons.router)
 
 
 @app.get("/", tags=["root"])
