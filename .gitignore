@@ -78,3 +78,8 @@ plots/
 reports/output
 
 reports/charts/
+
+# SQLite databases (generated locally)
+*.db
+*.sqlite
+*.sqlite3
