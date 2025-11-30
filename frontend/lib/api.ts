@@ -37,6 +37,8 @@ import {
   TeamPlayerList,
   MatchupAnalysis,
   MatchupQueryParams,
+  SeasonSchedule,
+  SeasonMatchesResponse,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -288,6 +290,23 @@ export const api = {
    */
   getMatchupAnalysis: (params: MatchupQueryParams): Promise<MatchupAnalysis> => {
     return fetchAPI<MatchupAnalysis>('/matchups', params);
+  },
+
+  // Season Schedule Endpoints
+
+  /**
+   * Get complete season schedule from season.json
+   */
+  getSeasonSchedule: (season: number): Promise<SeasonSchedule> => {
+    return fetchAPI<SeasonSchedule>(`/seasons/${season}/schedule`);
+  },
+
+  /**
+   * Get all matches for a season, optionally filtered by week
+   */
+  getSeasonMatches: (season: number, week?: number): Promise<SeasonMatchesResponse> => {
+    const params = week ? { week } : undefined;
+    return fetchAPI<SeasonMatchesResponse>(`/seasons/${season}/matches`, params);
   },
 };
 

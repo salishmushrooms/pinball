@@ -430,3 +430,65 @@ export interface MatchupQueryParams {
   venue: string;
   seasons?: number[];
 }
+
+// Season Schedule Types
+export interface ScheduleMatch {
+  match_key: string;
+  away_key: string;
+  away_name: string;
+  away_linked: boolean;
+  home_key: string;
+  home_name: string;
+  home_linked: boolean;
+  venue: {
+    key: string;
+    name: string;
+  };
+  week?: string;
+  week_label?: string;
+  date?: string;
+  is_playoffs?: boolean;
+}
+
+export interface SeasonWeek {
+  n: string;
+  label: string;
+  code: string;
+  isPlayoffs: boolean;
+  isSpecial: boolean;
+  date: string;
+  matches: ScheduleMatch[];
+}
+
+export interface TeamScheduleMatch {
+  match_key: string;
+  week: string;
+  date: string;
+  side: '@' | 'vs';  // @ = away, vs = home
+  opp: {
+    key: string;
+    name: string;
+  };
+}
+
+export interface SeasonTeamData {
+  key: string;
+  venue: string;
+  name: string;
+  roster: { name: string }[];
+  schedule: TeamScheduleMatch[];
+}
+
+export interface SeasonSchedule {
+  key: string;
+  teams: { [teamKey: string]: SeasonTeamData };
+  weeks: SeasonWeek[];
+  groups: any;
+}
+
+export interface SeasonMatchesResponse {
+  season: number;
+  week: number | null;
+  matches: ScheduleMatch[];
+  count: number;
+}

@@ -3,12 +3,11 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import {
-  Team,
-  Venue,
   MatchupAnalysis,
   TeamMachineConfidence,
   PlayerMachineConfidence,
   MachinePickFrequency,
+  ScheduleMatch,
 } from '@/lib/types';
 import {
   Card,
@@ -23,18 +22,15 @@ import {
   EmptyState,
   LoadingSpinner,
 } from '@/components/ui';
-import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 
 export default function MatchupsPage() {
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [venues, setVenues] = useState<Venue[]>([]);
   const [availableSeasons, setAvailableSeasons] = useState<number[]>([21, 22]);
-  const [homeTeam, setHomeTeam] = useState<string>('');
-  const [awayTeam, setAwayTeam] = useState<string>('');
-  const [venue, setVenue] = useState<string>('');
-  const [seasons, setSeasons] = useState<number[]>([22]);
+  const [selectedSeason, setSelectedSeason] = useState<number>(22);
+  const [matches, setMatches] = useState<ScheduleMatch[]>([]);
+  const [selectedMatch, setSelectedMatch] = useState<string>('');
   const [matchup, setMatchup] = useState<MatchupAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMatches, setLoadingMatches] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Load available seasons on mount
@@ -45,7 +41,7 @@ export default function MatchupsPage() {
         setAvailableSeasons(data.seasons);
         // Default to most recent season
         if (data.seasons.length > 0) {
-          setSeasons([Math.max(...data.seasons)]);
+          setSelectedSeason(Math.max(...data.seasons));
         }
       } catch (err) {
         console.error('Failed to load seasons:', err);
@@ -54,36 +50,37 @@ export default function MatchupsPage() {
     loadSeasons();
   }, []);
 
-  // Load teams and venues when seasons change
+  // Load matches when season changes
   useEffect(() => {
-    async function loadData() {
+    async function loadMatches() {
+      setLoadingMatches(true);
+      setSelectedMatch('');
+      setMatchup(null);
       try {
-        // Use the most recent selected season for fetching teams
-        const latestSeason = seasons.length > 0 ? Math.max(...seasons) : 22;
-        const [teamsData, venuesData] = await Promise.all([
-          api.getTeams({ season: latestSeason, limit: 100 }),
-          api.getVenues({ limit: 100 }),
-        ]);
-        setTeams(teamsData.teams);
-        setVenues(venuesData.venues);
+        const data = await api.getSeasonMatches(selectedSeason);
+        setMatches(data.matches);
       } catch (err) {
-        console.error('Failed to load teams/venues:', err);
+        console.error('Failed to load matches:', err);
+        setError('Failed to load season schedule');
+      } finally {
+        setLoadingMatches(false);
       }
     }
-    if (seasons.length > 0) {
-      loadData();
+    if (selectedSeason) {
+      loadMatches();
     }
-  }, [seasons]);
+  }, [selectedSeason]);
 
   // Load matchup analysis
   const handleAnalyzeMatchup = async () => {
-    if (!homeTeam || !awayTeam || !venue) {
-      setError('Please select home team, away team, and venue');
+    if (!selectedMatch) {
+      setError('Please select a match');
       return;
     }
 
-    if (seasons.length === 0) {
-      setError('Please select at least one season');
+    const match = matches.find((m) => m.match_key === selectedMatch);
+    if (!match) {
+      setError('Selected match not found');
       return;
     }
 
@@ -93,10 +90,10 @@ export default function MatchupsPage() {
 
     try {
       const data = await api.getMatchupAnalysis({
-        home_team: homeTeam,
-        away_team: awayTeam,
-        venue: venue,
-        seasons: seasons,
+        home_team: match.home_key,
+        away_team: match.away_key,
+        venue: match.venue.key,
+        seasons: [selectedSeason],
       });
       setMatchup(data);
     } catch (err) {
@@ -117,73 +114,69 @@ export default function MatchupsPage() {
     return score.toString();
   };
 
+  // Group matches by week for easier selection
+  const matchesByWeek = matches.reduce((acc, match) => {
+    const week = match.week || 'Unknown';
+    if (!acc[week]) {
+      acc[week] = [];
+    }
+    acc[week].push(match);
+    return acc;
+  }, {} as Record<string, ScheduleMatch[]>);
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Matchup Analysis"
-        description="Analyze team vs team matchups at specific venues with score predictions and machine preferences"
+        description="Select a scheduled match to analyze team vs team performance at the venue"
       />
 
       {/* Selection Form */}
       <Card>
         <Card.Header>
-          <Card.Title>Select Matchup</Card.Title>
+          <Card.Title>Select Match</Card.Title>
+          <p className="text-sm text-gray-500 mt-1">
+            Choose from the official league schedule
+          </p>
         </Card.Header>
         <Card.Content>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select
-              label="Home Team"
-              value={homeTeam}
-              onChange={(e) => setHomeTeam(e.target.value)}
-              options={[
-                { value: '', label: 'Select Home Team' },
-                ...teams.map((team) => ({
-                  value: team.team_key,
-                  label: team.team_name,
-                })),
-              ]}
+              label="Season"
+              value={selectedSeason.toString()}
+              onChange={(e) => setSelectedSeason(parseInt(e.target.value))}
+              options={availableSeasons.map((season) => ({
+                value: season.toString(),
+                label: `Season ${season}`,
+              }))}
             />
 
             <Select
-              label="Away Team"
-              value={awayTeam}
-              onChange={(e) => setAwayTeam(e.target.value)}
+              label="Match"
+              value={selectedMatch}
+              onChange={(e) => setSelectedMatch(e.target.value)}
+              disabled={loadingMatches || matches.length === 0}
               options={[
-                { value: '', label: 'Select Away Team' },
-                ...teams.map((team) => ({
-                  value: team.team_key,
-                  label: team.team_name,
-                })),
+                { value: '', label: loadingMatches ? 'Loading matches...' : 'Select a match' },
+                ...Object.entries(matchesByWeek).flatMap(([week, weekMatches]) => [
+                  {
+                    value: `week-${week}`,
+                    label: `─── Week ${week} ───`,
+                    disabled: true,
+                  },
+                  ...weekMatches.map((match) => ({
+                    value: match.match_key,
+                    label: `${match.away_name} @ ${match.home_name} (${match.venue.name})`,
+                  })),
+                ]),
               ]}
-            />
-
-            <Select
-              label="Venue"
-              value={venue}
-              onChange={(e) => setVenue(e.target.value)}
-              options={[
-                { value: '', label: 'Select Venue' },
-                ...venues.map((v) => ({
-                  value: v.venue_key,
-                  label: v.venue_name,
-                })),
-              ]}
-            />
-          </div>
-
-          <div className="mt-4">
-            <SeasonMultiSelect
-              value={seasons}
-              onChange={setSeasons}
-              availableSeasons={availableSeasons}
-              helpText="Select one or more seasons to aggregate statistics"
             />
           </div>
 
           <div className="mt-6">
             <Button
               onClick={handleAnalyzeMatchup}
-              disabled={loading || !homeTeam || !awayTeam || !venue || seasons.length === 0}
+              disabled={loading || !selectedMatch}
               variant="primary"
             >
               {loading ? (
