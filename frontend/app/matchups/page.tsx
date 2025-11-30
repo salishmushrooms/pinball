@@ -22,6 +22,7 @@ import {
   EmptyState,
   LoadingSpinner,
 } from '@/components/ui';
+import { MachinePredictionCard } from '@/components/MachinePredictionCard';
 
 export default function MatchupsPage() {
   const [availableSeasons, setAvailableSeasons] = useState<number[]>([21, 22]);
@@ -233,6 +234,24 @@ export default function MatchupsPage() {
               </div>
             </Card.Content>
           </Card>
+
+          {/* Machine Pick Predictions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <MachinePredictionCard
+              teamKey={matches.find((m) => m.match_key === selectedMatch)?.away_key || matchup.away_team_key || ''}
+              teamName={matchup.away_team_name}
+              roundNum={1}
+              venueKey={matchup.venue_key}
+              seasons={Array.isArray(matchup.season) ? matchup.season.split('-').map(Number) : [parseInt(matchup.season)]}
+            />
+            <MachinePredictionCard
+              teamKey={matches.find((m) => m.match_key === selectedMatch)?.home_key || matchup.home_team_key || ''}
+              teamName={matchup.home_team_name}
+              roundNum={4}
+              venueKey={matchup.venue_key}
+              seasons={Array.isArray(matchup.season) ? matchup.season.split('-').map(Number) : [parseInt(matchup.season)]}
+            />
+          </div>
 
           {/* Tab Navigation for Teams */}
           <Tabs defaultValue="home">
