@@ -6,7 +6,6 @@ import { Team } from '@/lib/types';
 import {
   Card,
   PageHeader,
-  Select,
   Alert,
   LoadingSpinner,
   EmptyState,
@@ -14,45 +13,29 @@ import {
 
 export default function TeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
-  const [allTeams, setAllTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [seasonFilter, setSeasonFilter] = useState<number | undefined>(22);
-  const [availableSeasons, setAvailableSeasons] = useState<number[]>([]);
+  const CURRENT_SEASON = 22;
 
   useEffect(() => {
-    fetchAllTeams();
+    fetchTeams();
   }, []);
 
-  useEffect(() => {
-    filterTeamsBySeason();
-  }, [seasonFilter, allTeams]);
-
-  async function fetchAllTeams() {
+  async function fetchTeams() {
     setLoading(true);
     setError(null);
     try {
       const data = await api.getTeams({
         limit: 500, // API maximum limit
       });
-      setAllTeams(data.teams);
 
-      // Extract unique seasons and sort them in descending order
-      const seasons = [...new Set(data.teams.map(team => team.season))]
-        .sort((a, b) => b - a);
-      setAvailableSeasons(seasons);
+      // Filter to current season only
+      const currentSeasonTeams = data.teams.filter(team => team.season === CURRENT_SEASON);
+      setTeams(currentSeasonTeams);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch teams');
     } finally {
       setLoading(false);
-    }
-  }
-
-  function filterTeamsBySeason() {
-    if (seasonFilter) {
-      setTeams(allTeams.filter(team => team.season === seasonFilter));
-    } else {
-      setTeams(allTeams);
     }
   }
 
@@ -71,30 +54,12 @@ export default function TeamsPage() {
         description="Browse all teams and view their machine statistics"
       />
 
-      <Card>
-        <Card.Content>
-          <Select
-            label="Season"
-            value={seasonFilter || ''}
-            onChange={(e) => setSeasonFilter(e.target.value ? parseInt(e.target.value) : undefined)}
-            className="md:w-64"
-            options={[
-              { value: '', label: 'All Seasons' },
-              ...availableSeasons.map(season => ({
-                value: season,
-                label: `Season ${season}`
-              }))
-            ]}
-          />
-        </Card.Content>
-      </Card>
-
       {teams.length === 0 ? (
         <Card>
           <Card.Content>
             <EmptyState
               title="No teams found"
-              description="No teams found for the selected season."
+              description="No teams found for the current season."
             />
           </Card.Content>
         </Card>
@@ -111,29 +76,18 @@ export default function TeamsPage() {
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
                     {team.team_name}
                   </h3>
-                  <dl className="space-y-1 text-sm text-gray-600">
-                    <div>
-                      <dt className="inline font-medium">Team Key:</dt>{' '}
-                      <dd className="inline">{team.team_key}</dd>
-                    </div>
-                    <div>
-                      <dt className="inline font-medium">Season:</dt>{' '}
-                      <dd className="inline">{team.season}</dd>
-                    </div>
-                    {team.home_venue_key && (
-                      <div>
-                        <dt className="inline font-medium">Home Venue:</dt>{' '}
-                        <dd className="inline">{team.home_venue_key}</dd>
-                      </div>
-                    )}
-                  </dl>
+                  {team.home_venue_key && (
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Venue:</span> {team.home_venue_key}
+                    </p>
+                  )}
                 </Card.Content>
               </Card>
             ))}
           </div>
 
           <div className="text-center text-sm text-gray-600">
-            Showing {teams.length} team{teams.length !== 1 ? 's' : ''}
+            Showing {teams.length} team{teams.length !== 1 ? 's' : ''} (Season {CURRENT_SEASON})
           </div>
         </>
       )}

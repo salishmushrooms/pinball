@@ -18,7 +18,6 @@ export default function PlayersPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [minIpr, setMinIpr] = useState('');
 
   // Live search - fetch as user types
   useEffect(() => {
@@ -27,7 +26,7 @@ export default function PlayersPage() {
     }, 300); // 300ms debounce
 
     return () => clearTimeout(timer);
-  }, [searchTerm, minIpr]);
+  }, [searchTerm]);
 
   async function fetchPlayers() {
     setLoading(true);
@@ -38,12 +37,6 @@ export default function PlayersPage() {
       };
 
       if (searchTerm) params.search = searchTerm;
-      if (minIpr) {
-        const iprValue = parseInt(minIpr);
-        if (iprValue >= 1 && iprValue <= 6) {
-          params.min_ipr = iprValue;
-        }
-      }
 
       const response = await api.getPlayers(params);
       setPlayers(response.players);
@@ -65,23 +58,13 @@ export default function PlayersPage() {
       {/* Search Filters */}
       <Card>
         <Card.Content>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="max-w-md">
             <Input
               label="Search Name"
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Type to search players..."
-            />
-
-            <Input
-              label="Min IPR (1-6)"
-              type="number"
-              value={minIpr}
-              onChange={(e) => setMinIpr(e.target.value)}
-              placeholder="e.g., 3"
-              min={1}
-              max={6}
             />
           </div>
 
@@ -101,7 +84,7 @@ export default function PlayersPage() {
       )}
 
       {/* Empty State */}
-      {!loading && !error && players.length === 0 && (searchTerm || minIpr) && (
+      {!loading && !error && players.length === 0 && searchTerm && (
         <Card>
           <Card.Content>
             <EmptyState
@@ -120,7 +103,6 @@ export default function PlayersPage() {
               <Table.Row hoverable={false}>
                 <Table.Head>Player Name</Table.Head>
                 <Table.Head>IPR</Table.Head>
-                <Table.Head>Seasons</Table.Head>
               </Table.Row>
             </Table.Header>
             <Table.Body>
@@ -135,10 +117,7 @@ export default function PlayersPage() {
                     </Link>
                   </Table.Cell>
                   <Table.Cell>
-                    {player.current_ipr ? player.current_ipr.toFixed(2) : 'N/A'}
-                  </Table.Cell>
-                  <Table.Cell className="text-gray-500">
-                    {player.first_seen_season} - {player.last_seen_season}
+                    {player.current_ipr ? Math.round(player.current_ipr) : 'N/A'}
                   </Table.Cell>
                 </Table.Row>
               ))}

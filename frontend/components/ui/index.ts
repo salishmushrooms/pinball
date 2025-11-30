@@ -20,3 +20,4 @@ export { MultiSelect, MultiSelectButtons } from './MultiSelect';
 export type { MultiSelectOption, MultiSelectProps, MultiSelectButtonsProps } from './MultiSelect';
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs';
 export { Collapsible } from './Collapsible';
+export { FilterPanel } from './FilterPanel';
