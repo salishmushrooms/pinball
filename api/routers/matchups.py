@@ -86,14 +86,21 @@ def get_team_machine_pick_frequency(
     team_key: str,
     team_home_venue: str,
     available_machines: List[str],
-    seasons: List[int]
+    seasons: List[int],
+    is_home_team_at_venue: bool = True
 ) -> List[MachinePickFrequency]:
     """
     Calculate how often a team picks each machine across multiple seasons.
     Counts with 2x multiplier for doubles rounds (1 & 4).
-    Filtering logic:
-    - At HOME venue: Team picks rounds 2 & 4
-    - At AWAY venues: Team picks rounds 1 & 3
+
+    Strategy:
+    - Counts ALL of the team's doubles picks (Round 1 when away + Round 4 when home)
+      across ALL venues to get comprehensive historical data
+    - Filters results to only show machines in available_machines (at target venue)
+    - This provides better predictions by using more data while keeping results relevant
+
+    The is_home_team_at_venue parameter is kept for compatibility but both home
+    and away teams now use the same logic.
     """
     machine_picks = defaultdict(int)
 
@@ -114,37 +121,44 @@ def get_team_machine_pick_frequency(
                         continue
 
                     venue_key = match_data.get('venue', {}).get('key')
-                    is_home_venue = (venue_key == team_home_venue)
+                    is_team_home_in_match = (team_key == home_team)
+                    is_at_team_home_venue = (venue_key == team_home_venue)
 
-                    # Determine which rounds this team picked
-                    if is_home_venue:
-                        team_pick_rounds = [2, 4]  # Home team picks rounds 2 & 4 at their venue
+                    # Determine which DOUBLES rounds (1 & 4 only) this team picked
+                    # When team is home in match: picks rounds 2 & 4
+                    # When team is away in match: picks rounds 1 & 3
+                    if is_team_home_in_match:
+                        # Team is home - they pick round 4 (doubles)
+                        team_doubles_pick_rounds = [4]
                     else:
-                        # Away - need to check if this team is home or away in match
-                        if team_key == home_team:
-                            team_pick_rounds = [2, 4]  # Home in match picks 2 & 4
-                        else:
-                            team_pick_rounds = [1, 3]  # Away in match picks 1 & 3
+                        # Team is away - they pick round 1 (doubles)
+                        team_doubles_pick_rounds = [1]
 
-                    # Process rounds
+                    # Process rounds - only doubles rounds (1 & 4)
                     for round_data in match_data.get('rounds', []):
                         round_num = round_data.get('n')
+
+                        # Only process doubles rounds
+                        if round_num not in [1, 4]:
+                            continue
 
                         for game in round_data.get('games', []):
                             machine = game.get('machine')
 
-                            # Only count machines available at target venue
-                            if machine not in available_machines:
-                                continue
-
-                            # Count picks (2x for doubles rounds 1 & 4)
-                            if round_num in team_pick_rounds:
-                                pick_multiplier = 2 if round_num in [1, 4] else 1
-                                machine_picks[machine] += pick_multiplier
+                            # Count picks only if this team picked this doubles round
+                            if round_num in team_doubles_pick_rounds:
+                                # Count ALL picks (2x multiplier for doubles rounds)
+                                # Filtering to venue machines happens when building results
+                                machine_picks[machine] += 2
 
         # Build result
         result = []
-        for machine_key in available_machines:
+
+        # Always filter to only show machines available at the venue
+        # This gives relevant predictions based on comprehensive historical data
+        machines_to_show = available_machines
+
+        for machine_key in machines_to_show:
             times_picked = machine_picks.get(machine_key, 0)
 
             if times_picked > 0:
@@ -460,8 +474,14 @@ def get_matchup_analysis(
         )
 
     # Get team machine pick frequencies
-    home_pick_freq = get_team_machine_pick_frequency(home_team, home_team_home_venue, available_machines, seasons)
-    away_pick_freq = get_team_machine_pick_frequency(away_team, away_team_home_venue, available_machines, seasons)
+    # Home team picks Round 4 - show only machines at this venue
+    home_pick_freq = get_team_machine_pick_frequency(
+        home_team, home_team_home_venue, available_machines, seasons, is_home_team_at_venue=True
+    )
+    # Away team picks Round 1 - show all their doubles picks across all venues
+    away_pick_freq = get_team_machine_pick_frequency(
+        away_team, away_team_home_venue, available_machines, seasons, is_home_team_at_venue=False
+    )
 
     # Get player machine preferences
     home_player_prefs = get_player_machine_preferences(home_team, available_machines, seasons)

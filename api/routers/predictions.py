@@ -65,7 +65,7 @@ def predict_machine_picks(
         default=[21, 22],
         description="Seasons to analyze for prediction (default: [21, 22])"
     ),
-    limit: int = Query(default=5, ge=1, le=10, description="Number of predictions to return")
+    limit: int = Query(default=10, ge=1, le=20, description="Number of predictions to return")
 ):
     """
     Predict which machines a team is likely to pick for a given round.
@@ -74,16 +74,19 @@ def predict_machine_picks(
     - Home team picks machines in rounds 2 & 4
     - Away team picks machines in rounds 1 & 3
 
-    ## Prediction Method
-    Analyzes historical picks by the team in the specified context (home/away, round)
-    and returns the most frequently picked machines with confidence percentages.
+    ## Prediction Method (UPDATED for Doubles Rounds Only)
+    For doubles rounds (1 & 4), analyzes ALL of the team's historical doubles picks:
+    - Round 1 predictions (away team): Counts Round 1 picks (when away) + Round 4 picks (when home)
+    - Round 4 predictions (home team): Counts Round 4 picks (when home) + Round 1 picks (when away)
+
+    For singles rounds (2 & 3), uses the original logic matching the specific round context.
 
     ## Parameters
     - **team_key**: 3-letter team abbreviation (e.g., "SKP", "TRL", "ADB")
     - **round_num**: Round number (1, 2, 3, or 4)
     - **venue_key**: Venue code where match is played (e.g., "T4B", "KRA")
     - **seasons**: List of seasons to analyze (default: [21, 22])
-    - **limit**: Number of top predictions to return (default: 5)
+    - **limit**: Number of top predictions to return (default: 10)
 
     ## Returns
     - **predictions**: List of machines with pick frequency and confidence
@@ -92,15 +95,6 @@ def predict_machine_picks(
     - **venue_machines**: Machines available at the venue (for filtering)
     """
     try:
-        # Determine pick context
-        # Home team picks rounds 2 & 4, Away team picks rounds 1 & 3
-        if round_num in [2, 4]:
-            context = "home"
-        elif round_num in [1, 3]:
-            context = "away"
-        else:
-            raise HTTPException(status_code=400, detail="Round must be 1, 2, 3, or 4")
-
         # Convert seasons to list of integers
         if not isinstance(seasons, list):
             seasons = [seasons]
@@ -110,46 +104,100 @@ def predict_machine_picks(
         venue_machines = get_venue_machines(venue_key, max(season_list))
 
         # Track machine picks across all seasons
-        # Key insight: Only count the machine ONCE per round, not per game
         machine_picks = Counter()
         total_rounds = 0  # Track total number of rounds analyzed
 
-        for season in season_list:
-            matches_path = f"mnp-data-archive/season-{season}/matches"
-            match_files = glob.glob(f"{matches_path}/*.json")
+        # Determine prediction strategy based on round
+        is_doubles_round = round_num in [1, 4]
 
-            for match_file in match_files:
-                try:
-                    with open(match_file, 'r') as f:
-                        match_data = json.load(f)
+        if is_doubles_round:
+            # NEW LOGIC: For doubles rounds, count ALL doubles picks
+            context = "doubles (all home and away)"
 
-                    away_team = match_data.get('away', {}).get('key')
-                    home_team = match_data.get('home', {}).get('key')
+            for season in season_list:
+                matches_path = f"mnp-data-archive/season-{season}/matches"
+                match_files = glob.glob(f"{matches_path}/*.json")
 
-                    # Check if this team is playing in the right context
-                    if context == "home" and home_team != team_key:
+                for match_file in match_files:
+                    try:
+                        with open(match_file, 'r') as f:
+                            match_data = json.load(f)
+
+                        away_team = match_data.get('away', {}).get('key')
+                        home_team = match_data.get('home', {}).get('key')
+
+                        # Skip if team not in this match
+                        if team_key not in [home_team, away_team]:
+                            continue
+
+                        is_team_home = (team_key == home_team)
+
+                        # Process BOTH doubles rounds (1 & 4)
+                        for round_data in match_data.get('rounds', []):
+                            round_n = round_data.get('n')
+
+                            # Only process doubles rounds
+                            if round_n not in [1, 4]:
+                                continue
+
+                            # Determine if team picked this round
+                            # Home team picks rounds 2 & 4, Away team picks rounds 1 & 3
+                            team_picked_this_round = (
+                                (is_team_home and round_n == 4) or
+                                (not is_team_home and round_n == 1)
+                            )
+
+                            if team_picked_this_round:
+                                total_rounds += 1
+                                games = round_data.get('games', [])
+                                if games:
+                                    machine_key = games[0].get('machine')
+                                    if machine_key:
+                                        # Count ALL picks - filtering happens in frontend
+                                        machine_picks[machine_key] += 1
+
+                    except Exception as e:
+                        logger.warning(f"Error processing match file {match_file}: {e}")
                         continue
-                    if context == "away" and away_team != team_key:
+        else:
+            # SINGLES ROUNDS (2 & 3): Use original logic
+            if round_num == 2:
+                context = "home round 2"
+            else:
+                context = "away round 3"
+
+            for season in season_list:
+                matches_path = f"mnp-data-archive/season-{season}/matches"
+                match_files = glob.glob(f"{matches_path}/*.json")
+
+                for match_file in match_files:
+                    try:
+                        with open(match_file, 'r') as f:
+                            match_data = json.load(f)
+
+                        away_team = match_data.get('away', {}).get('key')
+                        home_team = match_data.get('home', {}).get('key')
+
+                        # Check if this team is playing in the right context
+                        if round_num == 2 and home_team != team_key:
+                            continue
+                        if round_num == 3 and away_team != team_key:
+                            continue
+
+                        # Get machines from the specific round
+                        for round_data in match_data.get('rounds', []):
+                            if round_data.get('n') == round_num:
+                                total_rounds += 1
+                                games = round_data.get('games', [])
+                                if games:
+                                    machine_key = games[0].get('machine')
+                                    if machine_key:
+                                        machine_picks[machine_key] += 1
+                                break
+
+                    except Exception as e:
+                        logger.warning(f"Error processing match file {match_file}: {e}")
                         continue
-
-                    # Get machines from the specific round
-                    for round_data in match_data.get('rounds', []):
-                        if round_data.get('n') == round_num:
-                            # Count this round
-                            total_rounds += 1
-
-                            # Get the machine picked for this round (should be same across all games)
-                            # Just take the first game's machine
-                            games = round_data.get('games', [])
-                            if games:
-                                machine_key = games[0].get('machine')
-                                if machine_key:
-                                    machine_picks[machine_key] += 1
-                            break  # Found the round, no need to continue
-
-                except Exception as e:
-                    logger.warning(f"Error processing match file {match_file}: {e}")
-                    continue
 
         # Calculate total picks (should equal total_rounds)
         total_picks = sum(machine_picks.values())

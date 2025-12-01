@@ -334,9 +334,10 @@ export interface TeamMachineStatsList {
 }
 
 export interface TeamMachineStatsParams {
-  season?: number;
+  seasons?: number[] | string; // array of seasons or comma-separated string
   venue_key?: string;
   rounds?: string; // comma-separated rounds like "1,2,3,4"
+  exclude_subs?: boolean; // exclude substitute players (default: true)
   min_games?: number;
   sort_by?: 'games_played' | 'avg_score' | 'best_score' | 'win_percentage' | 'median_score';
   sort_order?: 'asc' | 'desc';
