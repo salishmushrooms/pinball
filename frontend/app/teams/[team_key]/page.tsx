@@ -20,6 +20,7 @@ export default function TeamDetailPage() {
   const [machineStats, setMachineStats] = useState<TeamMachineStat[]>([]);
   const [players, setPlayers] = useState<TeamPlayer[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
+  const [availableSeasons, setAvailableSeasons] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,10 +33,23 @@ export default function TeamDetailPage() {
   );
   const [venueFilter, setVenueFilter] = useState<string | undefined>(undefined);
   const [roundsFilter, setRoundsFilter] = useState<number[]>([1, 2, 3, 4]);
+  const [excludeSubs, setExcludeSubs] = useState<boolean>(true);
 
   useEffect(() => {
     fetchVenues();
+    fetchSeasons();
   }, []);
+
+  async function fetchSeasons() {
+    try {
+      const seasonsData = await api.getSeasons();
+      setAvailableSeasons(seasonsData.seasons);
+    } catch (err) {
+      console.error('Failed to fetch seasons:', err);
+      // Fallback to hardcoded seasons if API fails
+      setAvailableSeasons([18, 19, 20, 21, 22]);
+    }
+  }
 
   // Debounced effect for filter changes (waits 500ms after last change)
   useDebouncedEffect(() => {
@@ -43,7 +57,7 @@ export default function TeamDetailPage() {
 
     setFetching(true);
     fetchTeamData();
-  }, 500, [teamKey, sortBy, sortDirection, seasonsFilter, venueFilter, roundsFilter]);
+  }, 500, [teamKey, sortBy, sortDirection, seasonsFilter, venueFilter, roundsFilter, excludeSubs]);
 
   async function fetchVenues() {
     try {
@@ -62,20 +76,20 @@ export default function TeamDetailPage() {
     setError(null);
     try {
       const roundsParam = roundsFilter.length > 0 ? roundsFilter.join(',') : undefined;
-      const seasonsParam = seasonsFilter.length > 0 ? seasonsFilter.join(',') : undefined;
 
       const [teamData, statsData, playersData] = await Promise.all([
         api.getTeam(teamKey, seasonsFilter.length === 1 ? seasonsFilter[0] : undefined),
         api.getTeamMachineStats(teamKey, {
-          seasons: seasonsParam,
+          seasons: seasonsFilter,
           venue_key: venueFilter,
           rounds: roundsParam,
+          exclude_subs: excludeSubs,
           min_games: 1,
           sort_by: sortBy,
           sort_order: sortDirection,
           limit: 100,
         }),
-        api.getTeamPlayers(teamKey, seasonsFilter.length === 1 ? seasonsFilter[0] : undefined, venueFilter),
+        api.getTeamPlayers(teamKey, seasonsFilter.length === 1 ? seasonsFilter[0] : undefined, venueFilter, excludeSubs),
       ]);
 
       setTeam(teamData);
@@ -159,36 +173,51 @@ export default function TeamDetailPage() {
         </div>
 
         {/* Filters */}
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <SeasonMultiSelect
-            value={seasonsFilter}
-            onChange={setSeasonsFilter}
-            availableSeasons={[21, 22]}
-          />
+        <div className="mb-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <SeasonMultiSelect
+              value={seasonsFilter}
+              onChange={setSeasonsFilter}
+              availableSeasons={availableSeasons}
+            />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Venue
-            </label>
-            <select
-              value={venueFilter || ''}
-              onChange={(e) => setVenueFilter(e.target.value || undefined)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Venues</option>
-              {venues.map((venue) => (
-                <option key={venue.venue_key} value={venue.venue_key}>
-                  {venue.venue_name}
-                </option>
-              ))}
-            </select>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Venue
+              </label>
+              <select
+                value={venueFilter || ''}
+                onChange={(e) => setVenueFilter(e.target.value || undefined)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All Venues</option>
+                {venues.map((venue) => (
+                  <option key={venue.venue_key} value={venue.venue_key}>
+                    {venue.venue_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <RoundMultiSelect
+              value={roundsFilter}
+              onChange={setRoundsFilter}
+              helpText="Doubles: 1 & 4 | Singles: 2 & 3"
+            />
           </div>
 
-          <RoundMultiSelect
-            value={roundsFilter}
-            onChange={setRoundsFilter}
-            helpText="Doubles: 1 & 4 | Singles: 2 & 3"
-          />
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="exclude-subs"
+              checked={excludeSubs}
+              onChange={(e) => setExcludeSubs(e.target.checked)}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label htmlFor="exclude-subs" className="ml-2 text-sm text-gray-700">
+              Exclude substitute players (roster only)
+            </label>
+          </div>
         </div>
 
         {/* Machine Stats Table */}
@@ -245,7 +274,7 @@ export default function TeamDetailPage() {
                   </Table.Cell>
                   <Table.Cell>{stat.games_played}</Table.Cell>
                   <Table.Cell>
-                    {stat.win_percentage !== null ? `${stat.win_percentage.toFixed(1)}%` : 'N/A'}
+                    {typeof stat.win_percentage === 'number' ? `${stat.win_percentage.toFixed(1)}%` : 'N/A'}
                   </Table.Cell>
                   <Table.Cell>
                     {stat.median_score?.toLocaleString(undefined, {

@@ -7,6 +7,7 @@ Provides REST endpoints for accessing player stats, machine data, and score perc
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 import logging
 
 from api.routers import players, machines, venues, teams, matchups, seasons, predictions
@@ -17,6 +18,27 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+# Caching middleware
+class CacheControlMiddleware(BaseHTTPMiddleware):
+    """
+    Add Cache-Control headers to API responses.
+    Data changes once per week, so we can cache aggressively.
+    """
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+
+        # Only add caching headers for GET requests
+        if request.method == "GET":
+            # Cache for 1 week (604800 seconds)
+            # Use stale-while-revalidate to serve stale content while fetching fresh data
+            response.headers["Cache-Control"] = "public, max-age=604800, stale-while-revalidate=86400"
+            # Add ETag support hint
+            response.headers["Vary"] = "Accept-Encoding"
+
+        return response
+
 
 # Create FastAPI app
 app = FastAPI(
@@ -66,6 +88,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add caching middleware
+app.add_middleware(CacheControlMiddleware)
 
 # Include routers
 app.include_router(players.router)

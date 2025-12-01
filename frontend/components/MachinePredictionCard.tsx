@@ -90,11 +90,12 @@ export function MachinePredictionCard({
         )}
 
         {!loading && !error && data && (() => {
-          const availablePredictions = data.predictions.filter(p => p.available_at_venue);
+          // Always filter to only show machines available at the venue
+          const displayPredictions = data.predictions.filter(p => p.available_at_venue);
 
           return (
             <>
-              {availablePredictions.length === 0 ? (
+              {displayPredictions.length === 0 ? (
                 <EmptyState
                   title="No predictions available"
                   description={
@@ -105,7 +106,7 @@ export function MachinePredictionCard({
                 />
               ) : (
                 <div className="space-y-3">
-                  {availablePredictions.map((prediction, index) => (
+                  {displayPredictions.map((prediction, index) => (
                   <div
                     key={prediction.machine_key}
                     className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
