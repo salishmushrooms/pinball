@@ -276,11 +276,13 @@ export const api = {
   getTeamPlayers: (
     teamKey: string,
     season?: number,
-    venue_key?: string
+    venue_key?: string,
+    exclude_subs?: boolean
   ): Promise<TeamPlayerList> => {
     const params: any = {};
     if (season) params.season = season;
     if (venue_key) params.venue_key = venue_key;
+    if (exclude_subs !== undefined) params.exclude_subs = exclude_subs;
     return fetchAPI<TeamPlayerList>(`/teams/${teamKey}/players`, params);
   },
 

@@ -199,7 +199,8 @@ class MatchParser:
                     'team_key': team['key'],
                     'team_name': team['name'],
                     'is_home': team_type == 'home',
-                    'ipr': player.get('IPR')
+                    'ipr': player.get('IPR'),
+                    'is_substitute': player.get('sub', False)
                 }
 
         # Extract scores from each round
@@ -236,6 +237,7 @@ class MatchParser:
                         'team_key': player_info['team_key'],
                         'is_home_team': player_info['is_home'],
                         'player_ipr': player_info['ipr'],
+                        'is_substitute': player_info['is_substitute'],
                         # Denormalized context
                         'match_key': match['key'],
                         'venue_key': match['venue']['key'],
