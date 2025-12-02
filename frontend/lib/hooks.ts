@@ -36,7 +36,7 @@ export function useDebouncedEffect(
   deps: DependencyList = []
 ) {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const cleanupRef = useRef<(() => void) | void>();
+  const cleanupRef = useRef<(() => void) | void>(undefined);
 
   useEffect(() => {
     // Clear any existing timer

@@ -16,6 +16,7 @@ import {
 } from '@/components/ui';
 import PlayerMachineProgressionChart from '@/components/PlayerMachineProgressionChart';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
+import { MatchplaySection } from '@/components/MatchplaySection';
 import { useDebouncedEffect } from '@/lib/hooks';
 
 export default function PlayerDetailPage() {
@@ -81,13 +82,12 @@ export default function PlayerDetailPage() {
         if (p.last_seen_season) seasons.add(p.last_seen_season);
       });
 
-      // Sort in descending order (newest first)
-      const sortedSeasons = Array.from(seasons).sort((a, b) => b - a);
-      setAvailableSeasons(sortedSeasons);
+      // SeasonMultiSelect component handles sorting internally
+      setAvailableSeasons(Array.from(seasons));
     } catch (err) {
       console.error('Failed to fetch seasons:', err);
-      // Fallback to hardcoded seasons if fetch fails
-      setAvailableSeasons([22, 21, 20, 19, 18]);
+      // Fallback to hardcoded seasons if fetch fails (SeasonMultiSelect sorts internally)
+      setAvailableSeasons([21, 22]);
     }
   }
 
@@ -308,6 +308,9 @@ export default function PlayerDetailPage() {
           </div>
         </Card.Content>
       </Card>
+
+      {/* Matchplay.events Integration */}
+      <MatchplaySection playerKey={playerKey} playerName={player.name} />
 
       <Card>
         <Card.Header>

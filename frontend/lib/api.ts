@@ -40,6 +40,11 @@ import {
   SeasonSchedule,
   SeasonMatchesResponse,
   MachinePredictionResponse,
+  MatchplayStatus,
+  MatchplayLookupResult,
+  MatchplayPlayerStats,
+  MatchplayLinkResponse,
+  MatchplayRatingsResponse,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -275,12 +280,12 @@ export const api = {
    */
   getTeamPlayers: (
     teamKey: string,
-    season?: number,
+    seasons?: number[],
     venue_key?: string,
     exclude_subs?: boolean
   ): Promise<TeamPlayerList> => {
     const params: any = {};
-    if (season) params.season = season;
+    if (seasons && seasons.length > 0) params.seasons = seasons.join(',');
     if (venue_key) params.venue_key = venue_key;
     if (exclude_subs !== undefined) params.exclude_subs = exclude_subs;
     return fetchAPI<TeamPlayerList>(`/teams/${teamKey}/players`, params);
@@ -325,6 +330,67 @@ export const api = {
     limit?: number;
   }): Promise<MachinePredictionResponse> => {
     return fetchAPI<MachinePredictionResponse>('/predictions/machine-picks', params);
+  },
+
+  // Matchplay.events Integration Endpoints
+
+  /**
+   * Get Matchplay API integration status
+   */
+  getMatchplayStatus: (): Promise<MatchplayStatus> => {
+    return fetchAPI<MatchplayStatus>('/matchplay/status');
+  },
+
+  /**
+   * Look up potential Matchplay matches for an MNP player
+   */
+  lookupMatchplayPlayer: (playerKey: string): Promise<MatchplayLookupResult> => {
+    return fetchAPI<MatchplayLookupResult>(`/matchplay/player/${playerKey}/lookup`);
+  },
+
+  /**
+   * Link an MNP player to a Matchplay user
+   */
+  linkMatchplayPlayer: (
+    playerKey: string,
+    matchplayUserId: number
+  ): Promise<MatchplayLinkResponse> => {
+    return fetch(`${API_BASE_URL}/matchplay/player/${playerKey}/link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ matchplay_user_id: matchplayUserId }),
+    }).then((res) => {
+      if (!res.ok) throw new Error(`Link failed: ${res.status}`);
+      return res.json();
+    });
+  },
+
+  /**
+   * Unlink an MNP player from their Matchplay account
+   */
+  unlinkMatchplayPlayer: (playerKey: string): Promise<{ status: string }> => {
+    return fetch(`${API_BASE_URL}/matchplay/player/${playerKey}/link`, {
+      method: 'DELETE',
+    }).then((res) => {
+      if (!res.ok) throw new Error(`Unlink failed: ${res.status}`);
+      return res.json();
+    });
+  },
+
+  /**
+   * Get Matchplay stats for a linked player
+   */
+  getMatchplayPlayerStats: (playerKey: string): Promise<MatchplayPlayerStats> => {
+    return fetchAPI<MatchplayPlayerStats>(`/matchplay/player/${playerKey}/stats`);
+  },
+
+  /**
+   * Get Matchplay ratings for multiple players (batch lookup)
+   */
+  getMatchplayRatings: (playerKeys: string[]): Promise<MatchplayRatingsResponse> => {
+    return fetchAPI<MatchplayRatingsResponse>('/matchplay/players/ratings', {
+      player_keys: playerKeys.join(','),
+    });
   },
 };
 

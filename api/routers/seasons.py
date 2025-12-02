@@ -26,7 +26,7 @@ def get_season_schedule(season: int):
     Returns all weeks and matches for the season, including team schedules.
     """
     try:
-        season_file = f"/Users/test_1/Pinball/MNP/pinball/mnp-data-archive/season-{season}/season.json"
+        season_file = f"mnp-data-archive/season-{season}/season.json"
 
         if not os.path.exists(season_file):
             raise HTTPException(
@@ -68,7 +68,7 @@ def get_season_matches(
     Returns a flat list of matches with home/away teams and venue information.
     """
     try:
-        season_file = f"/Users/test_1/Pinball/MNP/pinball/mnp-data-archive/season-{season}/season.json"
+        season_file = f"mnp-data-archive/season-{season}/season.json"
 
         if not os.path.exists(season_file):
             raise HTTPException(
@@ -131,7 +131,7 @@ def get_team_schedule(season: int, team_key: str):
     Returns the team's complete schedule including home and away games.
     """
     try:
-        season_file = f"/Users/test_1/Pinball/MNP/pinball/mnp-data-archive/season-{season}/season.json"
+        season_file = f"mnp-data-archive/season-{season}/season.json"
 
         if not os.path.exists(season_file):
             raise HTTPException(
