@@ -27,10 +27,10 @@ export const RoundMultiSelect: React.FC<RoundMultiSelectProps> = ({
   className,
 }) => {
   const options = [
-    { value: 1, label: 'Round 1' },
-    { value: 2, label: 'Round 2' },
-    { value: 3, label: 'Round 3' },
-    { value: 4, label: 'Round 4' },
+    { value: 1, label: '1' },
+    { value: 2, label: '2' },
+    { value: 3, label: '3' },
+    { value: 4, label: '4' },
   ];
 
   return (

@@ -1,7 +1,7 @@
 """
 Pydantic models for API request/response schemas
 """
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Dict
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -41,6 +41,8 @@ class MachineBase(BaseModel):
     manufacturer: Optional[str] = None
     year: Optional[int] = None
     game_type: Optional[str] = None
+    game_count: Optional[int] = Field(None, description="Number of games played on this machine")
+    median_score: Optional[int] = Field(None, description="Median score for this machine")
 
 
 class MachineDetail(MachineBase):
@@ -417,3 +419,100 @@ class ErrorResponse(BaseModel):
     """Standard error response"""
     detail: str
     error_code: Optional[str] = None
+
+
+# Matchplay Integration Models
+class MatchplayUser(BaseModel):
+    """User data from Matchplay.events"""
+    userId: int
+    name: str
+    ifpaId: Optional[int] = None
+    location: Optional[str] = None
+    avatar: Optional[str] = None
+
+
+class MatchplayMatch(BaseModel):
+    """A potential match between MNP player and Matchplay user"""
+    user: MatchplayUser
+    confidence: float = Field(..., ge=0, le=1, description="Match confidence (1.0 = exact match)")
+    auto_link_eligible: bool = Field(..., description="True if 100% name match, can auto-link")
+
+
+class MatchplayLookupResult(BaseModel):
+    """Result of looking up an MNP player on Matchplay"""
+    mnp_player: Dict[str, str] = Field(..., description="MNP player info (key, name)")
+    matches: List[MatchplayMatch] = Field(default_factory=list, description="Potential Matchplay matches")
+    status: str = Field(..., description="Status: found, not_found, already_linked")
+    mapping: Optional["MatchplayPlayerMapping"] = Field(None, description="Existing mapping if already linked")
+
+
+class MatchplayPlayerMapping(BaseModel):
+    """Mapping between MNP player and Matchplay user"""
+    id: int
+    mnp_player_key: str
+    matchplay_user_id: int
+    matchplay_name: Optional[str] = None
+    ifpa_id: Optional[int] = None
+    match_method: str = Field(..., description="How match was made: auto or manual")
+    created_at: Optional[datetime] = None
+    last_synced: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class MatchplayRating(BaseModel):
+    """Matchplay rating data from the API"""
+    rating: Optional[int] = Field(None, description="Current Matchplay rating")
+    rd: Optional[int] = Field(None, description="Rating deviation (uncertainty)")
+    game_count: Optional[int] = Field(None, description="Total games played on Matchplay")
+    win_count: Optional[int] = Field(None, description="Total wins")
+    loss_count: Optional[int] = Field(None, description="Total losses")
+    efficiency_percent: Optional[float] = Field(None, description="Win percentage (0-1)")
+    lower_bound: Optional[int] = Field(None, description="Conservative rating estimate")
+    fetched_at: Optional[datetime] = None
+
+
+class MatchplayIFPA(BaseModel):
+    """IFPA data from Matchplay"""
+    ifpa_id: Optional[int] = None
+    rank: Optional[int] = Field(None, description="IFPA world rank")
+    rating: Optional[float] = Field(None, description="IFPA rating")
+    womens_rank: Optional[int] = Field(None, description="IFPA women's rank")
+
+
+class MatchplayMachineStat(BaseModel):
+    """Machine statistics from Matchplay"""
+    machine_key: Optional[str] = Field(None, description="MNP machine key if mapped")
+    matchplay_arena_name: str = Field(..., description="Arena name from Matchplay")
+    games_played: int = 0
+    wins: int = 0
+    win_percentage: Optional[float] = Field(None, ge=0, le=100)
+
+
+class MatchplayPlayerStats(BaseModel):
+    """Complete Matchplay stats for a player"""
+    matchplay_user_id: int
+    matchplay_name: str
+    location: Optional[str] = None
+    avatar: Optional[str] = None
+    rating: Optional[MatchplayRating] = None
+    ifpa: Optional[MatchplayIFPA] = None
+    tournament_count: Optional[int] = Field(None, description="Number of tournaments played")
+    machine_stats: List[MatchplayMachineStat] = Field(default_factory=list)
+    profile_url: str = Field(..., description="URL to Matchplay profile")
+
+
+class MatchplayLinkRequest(BaseModel):
+    """Request to link an MNP player to a Matchplay user"""
+    matchplay_user_id: int = Field(..., description="Matchplay userId to link")
+
+
+class MatchplayLinkResponse(BaseModel):
+    """Response after linking a player"""
+    status: str
+    mapping: MatchplayPlayerMapping
+
+
+# Update forward references
+MatchplayLookupResult.model_rebuild()
