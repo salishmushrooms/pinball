@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Team, TeamMachineStat, TeamPlayer, Venue } from '@/lib/types';
+import { Team, TeamMachineStat, TeamPlayer, Venue, MatchplayRatingInfo } from '@/lib/types';
 import { RoundMultiSelect } from '@/components/RoundMultiSelect';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { useDebouncedEffect } from '@/lib/hooks';
@@ -21,12 +21,13 @@ export default function TeamDetailPage() {
   const [players, setPlayers] = useState<TeamPlayer[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [availableSeasons, setAvailableSeasons] = useState<number[]>([]);
+  const [matchplayRatings, setMatchplayRatings] = useState<Record<string, MatchplayRatingInfo>>({});
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters
-  const [sortBy, setSortBy] = useState<'games_played' | 'avg_score' | 'best_score' | 'win_percentage' | 'median_score'>('games_played');
+  // Filters for Machine Stats
+  const [sortBy, setSortBy] = useState<'games_played' | 'avg_score' | 'best_score' | 'win_percentage' | 'median_score' | 'machine_name'>('games_played');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [seasonsFilter, setSeasonsFilter] = useState<number[]>(
     initialSeason ? [parseInt(initialSeason)] : [22]
@@ -34,6 +35,10 @@ export default function TeamDetailPage() {
   const [venueFilter, setVenueFilter] = useState<string | undefined>(undefined);
   const [roundsFilter, setRoundsFilter] = useState<number[]>([1, 2, 3, 4]);
   const [excludeSubs, setExcludeSubs] = useState<boolean>(true);
+
+  // Sorting for Team Roster (client-side)
+  const [rosterSortBy, setRosterSortBy] = useState<'player_name' | 'current_ipr' | 'games_played' | 'win_percentage'>('games_played');
+  const [rosterSortDirection, setRosterSortDirection] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     fetchVenues();
@@ -46,8 +51,8 @@ export default function TeamDetailPage() {
       setAvailableSeasons(seasonsData.seasons);
     } catch (err) {
       console.error('Failed to fetch seasons:', err);
-      // Fallback to hardcoded seasons if API fails
-      setAvailableSeasons([18, 19, 20, 21, 22]);
+      // Fallback to hardcoded seasons if API fails (SeasonMultiSelect sorts internally)
+      setAvailableSeasons([21, 22]);
     }
   }
 
@@ -89,12 +94,24 @@ export default function TeamDetailPage() {
           sort_order: sortDirection,
           limit: 100,
         }),
-        api.getTeamPlayers(teamKey, seasonsFilter.length === 1 ? seasonsFilter[0] : undefined, venueFilter, excludeSubs),
+        api.getTeamPlayers(teamKey, seasonsFilter, venueFilter, excludeSubs),
       ]);
 
       setTeam(teamData);
       setMachineStats(statsData.stats);
       setPlayers(playersData.players);
+
+      // Fetch Matchplay ratings for all players in roster
+      if (playersData.players.length > 0) {
+        try {
+          const playerKeys = playersData.players.map((p) => p.player_key);
+          const ratingsResponse = await api.getMatchplayRatings(playerKeys);
+          setMatchplayRatings(ratingsResponse.ratings || {});
+        } catch (ratingsErr) {
+          // Non-fatal - just log and continue without ratings
+          console.warn('Failed to fetch Matchplay ratings:', ratingsErr);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch team data');
     } finally {
@@ -103,17 +120,59 @@ export default function TeamDetailPage() {
     }
   }
 
-  function handleSort(column: 'games_played' | 'avg_score' | 'best_score' | 'win_percentage' | 'median_score') {
+  function handleSort(column: 'games_played' | 'avg_score' | 'best_score' | 'win_percentage' | 'median_score' | 'machine_name') {
     if (sortBy === column) {
       // Toggle direction if clicking the same column
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      // New column: default to descending (highest first)
+      // New column: default to ascending for machine_name (A-Z), descending for others
       setSortBy(column);
-      setSortDirection('desc');
+      setSortDirection(column === 'machine_name' ? 'asc' : 'desc');
     }
   }
 
+  function handleRosterSort(column: 'player_name' | 'current_ipr' | 'games_played' | 'win_percentage') {
+    if (rosterSortBy === column) {
+      setRosterSortDirection(rosterSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Default: descending for numeric columns, ascending for name
+      setRosterSortBy(column);
+      setRosterSortDirection(column === 'player_name' ? 'asc' : 'desc');
+    }
+  }
+
+  // Client-side sorted players
+  const sortedPlayers = useMemo(() => {
+    return [...players].sort((a, b) => {
+      let aVal: string | number | null;
+      let bVal: string | number | null;
+
+      switch (rosterSortBy) {
+        case 'player_name':
+          aVal = a.player_name.toLowerCase();
+          bVal = b.player_name.toLowerCase();
+          break;
+        case 'current_ipr':
+          aVal = a.current_ipr ?? 0;
+          bVal = b.current_ipr ?? 0;
+          break;
+        case 'games_played':
+          aVal = a.games_played;
+          bVal = b.games_played;
+          break;
+        case 'win_percentage':
+          aVal = a.win_percentage ?? -1;
+          bVal = b.win_percentage ?? -1;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aVal < bVal) return rosterSortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return rosterSortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [players, rosterSortBy, rosterSortDirection]);
 
   if (loading) {
     return (
@@ -202,7 +261,6 @@ export default function TeamDetailPage() {
             <RoundMultiSelect
               value={roundsFilter}
               onChange={setRoundsFilter}
-              helpText="Doubles: 1 & 4 | Singles: 2 & 3"
             />
           </div>
 
@@ -229,7 +287,13 @@ export default function TeamDetailPage() {
           <Table>
             <Table.Header>
               <Table.Row hoverable={false}>
-                <Table.Head>Machine</Table.Head>
+                <Table.Head
+                  sortable
+                  onSort={() => handleSort('machine_name')}
+                  sortDirection={sortBy === 'machine_name' ? sortDirection : null}
+                >
+                  Machine
+                </Table.Head>
                 <Table.Head
                   sortable
                   onSort={() => handleSort('games_played')}
@@ -258,7 +322,6 @@ export default function TeamDetailPage() {
                 >
                   Best Score
                 </Table.Head>
-                <Table.Head>Rounds</Table.Head>
               </Table.Row>
             </Table.Header>
             <Table.Body>
@@ -284,9 +347,6 @@ export default function TeamDetailPage() {
                   <Table.Cell>
                     {stat.best_score?.toLocaleString() || 'N/A'}
                   </Table.Cell>
-                  <Table.Cell>
-                    {stat.rounds_played?.join(', ') || 'N/A'}
-                  </Table.Cell>
                 </Table.Row>
               ))}
             </Table.Body>
@@ -309,48 +369,75 @@ export default function TeamDetailPage() {
             No players found for the selected filters.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Player
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    IPR
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Games
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Win %
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Most Played Machine
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {players.map((player) => (
-                  <tr key={player.player_key} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+          <Table>
+            <Table.Header>
+              <Table.Row hoverable={false}>
+                <Table.Head
+                  sortable
+                  onSort={() => handleRosterSort('player_name')}
+                  sortDirection={rosterSortBy === 'player_name' ? rosterSortDirection : null}
+                >
+                  Player
+                </Table.Head>
+                <Table.Head
+                  sortable
+                  onSort={() => handleRosterSort('current_ipr')}
+                  sortDirection={rosterSortBy === 'current_ipr' ? rosterSortDirection : null}
+                >
+                  IPR
+                </Table.Head>
+                <Table.Head>MP Rating</Table.Head>
+                <Table.Head
+                  sortable
+                  onSort={() => handleRosterSort('games_played')}
+                  sortDirection={rosterSortBy === 'games_played' ? rosterSortDirection : null}
+                >
+                  Games
+                </Table.Head>
+                <Table.Head
+                  sortable
+                  onSort={() => handleRosterSort('win_percentage')}
+                  sortDirection={rosterSortBy === 'win_percentage' ? rosterSortDirection : null}
+                >
+                  Win %
+                </Table.Head>
+                <Table.Head>Most Played Machine</Table.Head>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              {sortedPlayers.map((player) => {
+                const mpRating = matchplayRatings[player.player_key];
+                return (
+                  <Table.Row key={player.player_key}>
+                    <Table.Cell>
                       <Link
                         href={`/players/${player.player_key}`}
                         className="text-sm font-medium text-blue-600 hover:text-blue-800"
                       >
                         {player.player_name}
                       </Link>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {player.current_ipr || 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {player.games_played}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    </Table.Cell>
+                    <Table.Cell>{player.current_ipr || 'N/A'}</Table.Cell>
+                    <Table.Cell>
+                      {mpRating ? (
+                        <a
+                          href={mpRating.profile_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800"
+                          title={`Matchplay: ${mpRating.matchplay_name}`}
+                        >
+                          {mpRating.rating ?? '—'}
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </Table.Cell>
+                    <Table.Cell>{player.games_played}</Table.Cell>
+                    <Table.Cell>
                       {player.win_percentage !== null ? `${player.win_percentage.toFixed(1)}%` : 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    </Table.Cell>
+                    <Table.Cell>
                       {player.most_played_machine_name ? (
                         <Link
                           href={`/machines/${player.most_played_machine_key}`}
@@ -361,12 +448,12 @@ export default function TeamDetailPage() {
                       ) : (
                         'N/A'
                       )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </Table.Cell>
+                  </Table.Row>
+                );
+              })}
+            </Table.Body>
+          </Table>
         )}
 
         <div className="mt-4 text-sm text-gray-600">

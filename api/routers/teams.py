@@ -23,6 +23,34 @@ from etl.database import db
 router = APIRouter(prefix="/teams", tags=["teams"])
 
 
+def get_team_keys_with_aliases(team_key: str) -> List[str]:
+    """
+    Get all team keys that should be included when querying for a team.
+    This includes the team itself and any aliases (historical team keys).
+
+    For example, TRL (Trolls!) includes CDC (Contras) data from earlier seasons.
+
+    Args:
+        team_key: The canonical team key
+
+    Returns:
+        List of team keys to include in queries
+    """
+    # Start with the requested team
+    team_keys = [team_key]
+
+    # Look up any aliases that point to this team
+    alias_query = """
+        SELECT alias_key FROM team_aliases WHERE team_key = :team_key
+    """
+    aliases = execute_query(alias_query, {'team_key': team_key})
+
+    for alias in aliases:
+        team_keys.append(alias['alias_key'])
+
+    return team_keys
+
+
 @router.get(
     "",
     response_model=TeamList,
@@ -125,6 +153,7 @@ def get_team(
 
 def calculate_team_win_percentage(
     team_key: str,
+    all_team_keys: List[str],
     seasons: Optional[List[int]] = None,
     venue_key: Optional[str] = None,
     rounds: Optional[List[int]] = None,
@@ -137,6 +166,7 @@ def calculate_team_win_percentage(
 
     Args:
         team_key: Team's unique key
+        all_team_keys: List of team keys including aliases (e.g., [TRL, CDC])
         seasons: Optional list of seasons to filter
         venue_key: Optional venue filter
         rounds: Optional list of rounds to filter (1-4)
@@ -145,9 +175,16 @@ def calculate_team_win_percentage(
     Returns:
         Dict mapping machine_key to win percentage (0-100)
     """
-    # Build WHERE clause for filtering
-    where_clauses = ["team_scores.team_key = :team_key"]
-    params = {'team_key': team_key}
+    # Build WHERE clause for filtering - include all aliased team keys
+    params = {}
+    if len(all_team_keys) == 1:
+        where_clauses = ["team_scores.team_key = :team_key"]
+        params['team_key'] = team_key
+    else:
+        team_key_placeholders = ', '.join([f':team_key_{i}' for i in range(len(all_team_keys))])
+        where_clauses = [f"team_scores.team_key IN ({team_key_placeholders})"]
+        for i, tk in enumerate(all_team_keys):
+            params[f'team_key_{i}'] = tk
 
     if seasons is not None and len(seasons) > 0:
         season_placeholders = ', '.join([f':season_{i}' for i in range(len(seasons))])
@@ -236,7 +273,7 @@ def get_team_machine_stats(
     - `/teams/SKP/machines?exclude_subs=false` - Include substitute players
     """
     # Validate sort parameters
-    valid_sort_fields = ["games_played", "avg_score", "best_score", "win_percentage", "median_score"]
+    valid_sort_fields = ["games_played", "avg_score", "best_score", "win_percentage", "median_score", "machine_name"]
     if sort_by not in valid_sort_fields:
         raise HTTPException(status_code=400, detail=f"Invalid sort_by field. Must be one of: {valid_sort_fields}")
 
@@ -261,9 +298,19 @@ def get_team_machine_stats(
     if not team_check:
         raise HTTPException(status_code=404, detail=f"Team '{team_key}' not found")
 
-    # Build WHERE clause for filtering
-    where_clauses = ["s.team_key = :team_key"]
-    params = {'team_key': team_key}
+    # Get team keys including any historical aliases (e.g., TRL includes CDC/Contras)
+    all_team_keys = get_team_keys_with_aliases(team_key)
+
+    # Build WHERE clause for filtering - include all aliased team keys
+    params = {}
+    if len(all_team_keys) == 1:
+        where_clauses = ["s.team_key = :team_key"]
+        params['team_key'] = team_key
+    else:
+        team_key_placeholders = ', '.join([f':team_key_{i}' for i in range(len(all_team_keys))])
+        where_clauses = [f"s.team_key IN ({team_key_placeholders})"]
+        for i, tk in enumerate(all_team_keys):
+            params[f'team_key_{i}'] = tk
 
     if seasons is not None and len(seasons) > 0:
         season_placeholders = ', '.join([f':season_{i}' for i in range(len(seasons))])
@@ -323,7 +370,7 @@ def get_team_machine_stats(
             }
 
     # Calculate win percentages for this team
-    win_percentages = calculate_team_win_percentage(team_key, seasons, venue_key, rounds_list, exclude_subs)
+    win_percentages = calculate_team_win_percentage(team_key, all_team_keys, seasons, venue_key, rounds_list, exclude_subs)
 
     # Calculate stats for each machine
     all_stats = []
@@ -356,7 +403,13 @@ def get_team_machine_stats(
         all_stats.append(stat)
 
     # Sort results
-    if sort_by == 'win_percentage':
+    if sort_by == 'machine_name':
+        # Sort alphabetically by machine name
+        all_stats.sort(
+            key=lambda x: x['machine_name'].lower() if x['machine_name'] else '',
+            reverse=(sort_order.lower() == 'desc')
+        )
+    elif sort_by == 'win_percentage':
         # Handle None values by putting them at the end
         all_stats.sort(
             key=lambda x: (x['win_percentage'] is None, x['win_percentage'] if x['win_percentage'] is not None else 0),
@@ -389,7 +442,7 @@ def get_team_machine_stats(
 )
 def get_team_players(
     team_key: str,
-    season: Optional[int] = Query(None, description="Filter by season"),
+    seasons: Optional[str] = Query(None, description="Filter by seasons (comma-separated, e.g., '21,22')"),
     venue_key: Optional[str] = Query(None, description="Filter by venue for statistics"),
     exclude_subs: bool = Query(True, description="Exclude substitute players (default: true)"),
 ):
@@ -398,7 +451,8 @@ def get_team_players(
 
     Example queries:
     - `/teams/SKP/players` - All players who have played for SKP
-    - `/teams/SKP/players?season=22` - Players who played for SKP in season 22
+    - `/teams/SKP/players?seasons=22` - Players who played for SKP in season 22
+    - `/teams/SKP/players?seasons=21,22` - Players who played for SKP in seasons 21 or 22
     - `/teams/SKP/players?venue_key=T4B` - Players with stats filtered to T4B venue
     """
     # First verify team exists
@@ -409,25 +463,47 @@ def get_team_players(
     if not team_check:
         raise HTTPException(status_code=404, detail=f"Team '{team_key}' not found")
 
-    # Build WHERE clause for player selection
-    where_clauses = ["team_scores.team_key = :team_key"]
-    params = {'team_key': team_key}
+    # Get team keys including any historical aliases (e.g., TRL includes CDC/Contras)
+    all_team_keys = get_team_keys_with_aliases(team_key)
 
-    if season is not None:
-        where_clauses.append("team_scores.season = :season")
-        params['season'] = season
+    # Parse seasons parameter
+    seasons_list = None
+    if seasons:
+        try:
+            seasons_list = [int(s.strip()) for s in seasons.split(',') if s.strip()]
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid seasons format. Use comma-separated integers.")
 
+    # Build WHERE clause for player selection - include all aliased team keys
+    params = {}
+    if len(all_team_keys) == 1:
+        team_filter = "s.team_key = :team_key"
+        params['team_key'] = team_key
+    else:
+        team_key_placeholders = ', '.join([f':team_key_{i}' for i in range(len(all_team_keys))])
+        team_filter = f"s.team_key IN ({team_key_placeholders})"
+        for i, tk in enumerate(all_team_keys):
+            params[f'team_key_{i}'] = tk
+
+    # Build season filter clause
+    season_filter = ""
+    if seasons_list:
+        if len(seasons_list) == 1:
+            season_filter = "AND s.season = :season"
+            params['season'] = seasons_list[0]
+        else:
+            season_filter = f"AND s.season IN ({','.join(str(s) for s in seasons_list)})"
+
+    venue_filter = ""
     if venue_key is not None:
-        where_clauses.append("team_scores.venue_key = :venue_key")
+        venue_filter = "AND s.venue_key = :venue_key"
         params['venue_key'] = venue_key
 
+    subs_filter = ""
     if exclude_subs:
-        where_clauses.append("(team_scores.is_substitute IS NULL OR team_scores.is_substitute = false)")
-
-    where_clause = " AND ".join(where_clauses)
+        subs_filter = "AND (s.is_substitute IS NULL OR s.is_substitute = false)"
 
     # Get player basic stats (games played, seasons)
-    # Note: Using STRING_AGG for PostgreSQL (GROUP_CONCAT equivalent in MySQL)
     player_stats_query = f"""
         SELECT
             s.player_key,
@@ -437,19 +513,35 @@ def get_team_players(
             STRING_AGG(DISTINCT s.season::text, ',') as seasons
         FROM scores s
         JOIN players p ON s.player_key = p.player_key
-        WHERE s.team_key = :team_key
-            {f"AND s.season = :season" if season is not None else ""}
-            {f"AND s.venue_key = :venue_key" if venue_key is not None else ""}
-            {f"AND (s.is_substitute IS NULL OR s.is_substitute = false)" if exclude_subs else ""}
+        WHERE {team_filter}
+            {season_filter}
+            {venue_filter}
+            {subs_filter}
         GROUP BY s.player_key, p.name, p.current_ipr
     """
 
     player_stats = execute_query(player_stats_query, params)
 
-    # Get win percentages using optimized batch query
-    win_stats_where = where_clause.replace("team_scores.", "ts.")
+    # Build WHERE clause for win stats (uses ts/os aliases) - include all aliased team keys
+    if len(all_team_keys) == 1:
+        win_team_filter = "ts.team_key = :team_key"
+    else:
+        team_key_placeholders = ', '.join([f':team_key_{i}' for i in range(len(all_team_keys))])
+        win_team_filter = f"ts.team_key IN ({team_key_placeholders})"
+
+    win_where_parts = [win_team_filter]
+    if seasons_list:
+        if len(seasons_list) == 1:
+            win_where_parts.append("ts.season = :season")
+        else:
+            win_where_parts.append(f"ts.season IN ({','.join(str(s) for s in seasons_list)})")
+    if venue_key:
+        win_where_parts.append("ts.venue_key = :venue_key")
     if exclude_subs:
-        win_stats_where += " AND (os.is_substitute IS NULL OR os.is_substitute = false)"
+        win_where_parts.append("(ts.is_substitute IS NULL OR ts.is_substitute = false)")
+        win_where_parts.append("(os.is_substitute IS NULL OR os.is_substitute = false)")
+
+    win_stats_where = " AND ".join(win_where_parts)
 
     win_stats_query = f"""
         SELECT
@@ -479,10 +571,10 @@ def get_team_players(
             ROW_NUMBER() OVER (PARTITION BY s.player_key ORDER BY COUNT(*) DESC) as rn
         FROM scores s
         JOIN machines m ON s.machine_key = m.machine_key
-        WHERE s.team_key = :team_key
-            {f"AND s.season = :season" if season is not None else ""}
-            {f"AND s.venue_key = :venue_key" if venue_key is not None else ""}
-            {f"AND (s.is_substitute IS NULL OR s.is_substitute = false)" if exclude_subs else ""}
+        WHERE {team_filter}
+            {season_filter}
+            {venue_filter}
+            {subs_filter}
         GROUP BY s.player_key, s.machine_key, m.machine_name
     """
 

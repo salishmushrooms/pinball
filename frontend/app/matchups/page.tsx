@@ -8,6 +8,7 @@ import {
   PlayerMachineConfidence,
   MachinePickFrequency,
   ScheduleMatch,
+  MatchplayRatingInfo,
 } from '@/lib/types';
 import {
   Card,
@@ -25,41 +26,28 @@ import {
 import { MachinePredictionCard } from '@/components/MachinePredictionCard';
 
 export default function MatchupsPage() {
-  const [availableSeasons, setAvailableSeasons] = useState<number[]>([21, 22]);
-  const [selectedSeason, setSelectedSeason] = useState<number>(22);
+  const [currentSeason, setCurrentSeason] = useState<number | null>(null);
   const [matches, setMatches] = useState<ScheduleMatch[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<string>('');
   const [matchup, setMatchup] = useState<MatchupAnalysis | null>(null);
+  const [matchplayRatings, setMatchplayRatings] = useState<Record<string, MatchplayRatingInfo>>({});
   const [loading, setLoading] = useState(false);
-  const [loadingMatches, setLoadingMatches] = useState(false);
+  const [loadingMatches, setLoadingMatches] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load available seasons on mount
+  // Load current season and matches on mount
   useEffect(() => {
-    async function loadSeasons() {
-      try {
-        const data = await api.getSeasons();
-        setAvailableSeasons(data.seasons);
-        // Default to most recent season
-        if (data.seasons.length > 0) {
-          setSelectedSeason(Math.max(...data.seasons));
-        }
-      } catch (err) {
-        console.error('Failed to load seasons:', err);
-      }
-    }
-    loadSeasons();
-  }, []);
-
-  // Load matches when season changes
-  useEffect(() => {
-    async function loadMatches() {
+    async function loadCurrentSeasonMatches() {
       setLoadingMatches(true);
-      setSelectedMatch('');
-      setMatchup(null);
       try {
-        const data = await api.getSeasonMatches(selectedSeason);
-        setMatches(data.matches);
+        // Get available seasons and use the latest one
+        const seasonsData = await api.getSeasons();
+        const latestSeason = Math.max(...seasonsData.seasons);
+        setCurrentSeason(latestSeason);
+
+        // Load matches for the current season
+        const matchesData = await api.getSeasonMatches(latestSeason);
+        setMatches(matchesData.matches);
       } catch (err) {
         console.error('Failed to load matches:', err);
         setError('Failed to load season schedule');
@@ -67,10 +55,8 @@ export default function MatchupsPage() {
         setLoadingMatches(false);
       }
     }
-    if (selectedSeason) {
-      loadMatches();
-    }
-  }, [selectedSeason]);
+    loadCurrentSeasonMatches();
+  }, []);
 
   // Load matchup analysis
   const handleAnalyzeMatchup = async () => {
@@ -94,9 +80,25 @@ export default function MatchupsPage() {
         home_team: match.home_key,
         away_team: match.away_key,
         venue: match.venue.key,
-        seasons: [selectedSeason],
+        seasons: currentSeason ? [currentSeason] : [22],
       });
       setMatchup(data);
+
+      // Fetch Matchplay ratings for all players in both teams
+      const allPlayerKeys = new Set<string>();
+      data.home_team_player_preferences?.forEach((p) => allPlayerKeys.add(p.player_key));
+      data.away_team_player_preferences?.forEach((p) => allPlayerKeys.add(p.player_key));
+      data.home_team_player_confidence?.forEach((p) => allPlayerKeys.add(p.player_key));
+      data.away_team_player_confidence?.forEach((p) => allPlayerKeys.add(p.player_key));
+
+      if (allPlayerKeys.size > 0) {
+        try {
+          const ratingsResponse = await api.getMatchplayRatings(Array.from(allPlayerKeys));
+          setMatchplayRatings(ratingsResponse.ratings || {});
+        } catch (ratingsErr) {
+          console.warn('Failed to fetch Matchplay ratings:', ratingsErr);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to analyze matchup');
     } finally {
@@ -141,38 +143,26 @@ export default function MatchupsPage() {
           </p>
         </Card.Header>
         <Card.Content>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Select
-              label="Season"
-              value={selectedSeason.toString()}
-              onChange={(e) => setSelectedSeason(parseInt(e.target.value))}
-              options={availableSeasons.map((season) => ({
-                value: season.toString(),
-                label: `Season ${season}`,
-              }))}
-            />
-
-            <Select
-              label="Match"
-              value={selectedMatch}
-              onChange={(e) => setSelectedMatch(e.target.value)}
-              disabled={loadingMatches || matches.length === 0}
-              options={[
-                { value: '', label: loadingMatches ? 'Loading matches...' : 'Select a match' },
-                ...Object.entries(matchesByWeek).flatMap(([week, weekMatches]) => [
-                  {
-                    value: `week-${week}`,
-                    label: `─── Week ${week} ───`,
-                    disabled: true,
-                  },
-                  ...weekMatches.map((match) => ({
-                    value: match.match_key,
-                    label: `${match.away_name} @ ${match.home_name} (${match.venue.name})`,
-                  })),
-                ]),
-              ]}
-            />
-          </div>
+          <Select
+            label={currentSeason ? `Season ${currentSeason} Matches` : 'Match'}
+            value={selectedMatch}
+            onChange={(e) => setSelectedMatch(e.target.value)}
+            disabled={loadingMatches || matches.length === 0}
+            options={[
+              { value: '', label: loadingMatches ? 'Loading matches...' : 'Select a match' },
+              ...Object.entries(matchesByWeek).flatMap(([week, weekMatches]) => [
+                {
+                  value: `week-${week}`,
+                  label: `─── Week ${week} ───`,
+                  disabled: true,
+                },
+                ...weekMatches.map((match) => ({
+                  value: match.match_key,
+                  label: `${match.away_name} @ ${match.home_name} (${match.venue.name})`,
+                })),
+              ]),
+            ]}
+          />
 
           <div className="mt-6">
             <Button
@@ -242,14 +232,14 @@ export default function MatchupsPage() {
               teamName={matchup.away_team_name}
               roundNum={1}
               venueKey={matchup.venue_key}
-              seasons={Array.isArray(matchup.season) ? matchup.season.split('-').map(Number) : [parseInt(matchup.season)]}
+              seasons={typeof matchup.season === 'string' && matchup.season.includes('-') ? matchup.season.split('-').map(Number) : [typeof matchup.season === 'string' ? parseInt(matchup.season) : matchup.season]}
             />
             <MachinePredictionCard
               teamKey={matches.find((m) => m.match_key === selectedMatch)?.home_key || matchup.home_team_key || ''}
               teamName={matchup.home_team_name}
               roundNum={4}
               venueKey={matchup.venue_key}
-              seasons={Array.isArray(matchup.season) ? matchup.season.split('-').map(Number) : [parseInt(matchup.season)]}
+              seasons={typeof matchup.season === 'string' && matchup.season.includes('-') ? matchup.season.split('-').map(Number) : [typeof matchup.season === 'string' ? parseInt(matchup.season) : matchup.season]}
             />
           </div>
 
@@ -302,6 +292,7 @@ export default function MatchupsPage() {
                 >
                   <PlayerPreferencesGrid
                     preferences={matchup.home_team_player_preferences}
+                    matchplayRatings={matchplayRatings}
                   />
                 </Collapsible>
 
@@ -319,6 +310,7 @@ export default function MatchupsPage() {
                   <PlayerConfidenceGrid
                     confidences={matchup.home_team_player_confidence}
                     formatScore={formatScore}
+                    matchplayRatings={matchplayRatings}
                   />
                 </Collapsible>
               </div>
@@ -366,6 +358,7 @@ export default function MatchupsPage() {
                 >
                   <PlayerPreferencesGrid
                     preferences={matchup.away_team_player_preferences}
+                    matchplayRatings={matchplayRatings}
                   />
                 </Collapsible>
 
@@ -383,6 +376,7 @@ export default function MatchupsPage() {
                   <PlayerConfidenceGrid
                     confidences={matchup.away_team_player_confidence}
                     formatScore={formatScore}
+                    matchplayRatings={matchplayRatings}
                   />
                 </Collapsible>
               </div>
@@ -473,8 +467,10 @@ function TeamConfidenceTable({
 // Component for player preferences grid
 function PlayerPreferencesGrid({
   preferences,
+  matchplayRatings,
 }: {
   preferences: { player_key: string; player_name: string; top_machines: MachinePickFrequency[] }[];
+  matchplayRatings: Record<string, MatchplayRatingInfo>;
 }) {
   if (preferences.length === 0) {
     return <EmptyState title="No preference data available" />;
@@ -482,29 +478,45 @@ function PlayerPreferencesGrid({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {preferences.map((pref) => (
-        <div
-          key={pref.player_key}
-          className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
-        >
-          <p className="font-semibold text-gray-900 mb-3">{pref.player_name}</p>
-          <div className="space-y-2">
-            {pref.top_machines.slice(0, 5).map((machine, idx) => (
-              <div
-                key={machine.machine_key}
-                className="flex items-center justify-between text-sm"
-              >
-                <span className="text-gray-700">
-                  {idx + 1}. {machine.machine_name}
-                </span>
-                <Badge variant="default" className="text-xs">
-                  {machine.times_picked}
-                </Badge>
-              </div>
-            ))}
+      {preferences.map((pref) => {
+        const mpRating = matchplayRatings[pref.player_key];
+        return (
+          <div
+            key={pref.player_key}
+            className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="font-semibold text-gray-900">{pref.player_name}</p>
+              {mpRating && (
+                <a
+                  href={mpRating.profile_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                  title={`Matchplay: ${mpRating.matchplay_name}`}
+                >
+                  MP: {mpRating.rating ?? '—'}
+                </a>
+              )}
+            </div>
+            <div className="space-y-2">
+              {pref.top_machines.slice(0, 5).map((machine, idx) => (
+                <div
+                  key={machine.machine_key}
+                  className="flex items-center justify-between text-sm"
+                >
+                  <span className="text-gray-700">
+                    {idx + 1}. {machine.machine_name}
+                  </span>
+                  <Badge variant="default" className="text-xs">
+                    {machine.times_picked}
+                  </Badge>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -513,9 +525,11 @@ function PlayerPreferencesGrid({
 function PlayerConfidenceGrid({
   confidences,
   formatScore,
+  matchplayRatings,
 }: {
   confidences: PlayerMachineConfidence[];
   formatScore: (score: number) => string;
+  matchplayRatings: Record<string, MatchplayRatingInfo>;
 }) {
   const withData = confidences.filter((c) => !c.insufficient_data);
 
@@ -536,48 +550,64 @@ function PlayerConfidenceGrid({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {Object.entries(byPlayer).map(([playerKey, confs]) => (
-        <Card key={playerKey} className="shadow-sm">
-          <Card.Header>
-            <Card.Title className="text-base">
-              {confs[0].player_name}
-              <Badge variant="info" className="ml-2">
-                {confs.length} machines
-              </Badge>
-            </Card.Title>
-          </Card.Header>
-          <Card.Content>
-            <Table>
-              <Table.Header>
-                <Table.Row>
-                  <Table.Head className="text-xs">Machine</Table.Head>
-                  <Table.Head className="text-xs text-right">Expected</Table.Head>
-                  <Table.Head className="text-xs text-right">Range</Table.Head>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {confs.map((conf) => (
-                  <Table.Row key={conf.machine_key}>
-                    <Table.Cell className="text-xs py-2">
-                      {conf.machine_name}
-                    </Table.Cell>
-                    <Table.Cell className="text-xs text-right font-semibold text-blue-600 py-2">
-                      {conf.confidence_interval
-                        ? formatScore(conf.confidence_interval.mean)
-                        : 'N/A'}
-                    </Table.Cell>
-                    <Table.Cell className="text-xs text-right text-gray-600 py-2">
-                      {conf.confidence_interval
-                        ? `${formatScore(conf.confidence_interval.lower_bound)}-${formatScore(conf.confidence_interval.upper_bound)}`
-                        : 'N/A'}
-                    </Table.Cell>
+      {Object.entries(byPlayer).map(([playerKey, confs]) => {
+        const mpRating = matchplayRatings[playerKey];
+        return (
+          <Card key={playerKey} className="shadow-sm">
+            <Card.Header>
+              <div className="flex items-center justify-between">
+                <Card.Title className="text-base">
+                  {confs[0].player_name}
+                  <Badge variant="info" className="ml-2">
+                    {confs.length} machines
+                  </Badge>
+                </Card.Title>
+                {mpRating && (
+                  <a
+                    href={mpRating.profile_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-600 hover:text-blue-800"
+                    title={`Matchplay: ${mpRating.matchplay_name}`}
+                  >
+                    MP: {mpRating.rating ?? '—'}
+                  </a>
+                )}
+              </div>
+            </Card.Header>
+            <Card.Content>
+              <Table>
+                <Table.Header>
+                  <Table.Row>
+                    <Table.Head className="text-xs">Machine</Table.Head>
+                    <Table.Head className="text-xs text-right">Expected</Table.Head>
+                    <Table.Head className="text-xs text-right">Range</Table.Head>
                   </Table.Row>
-                ))}
-              </Table.Body>
-            </Table>
-          </Card.Content>
-        </Card>
-      ))}
+                </Table.Header>
+                <Table.Body>
+                  {confs.map((conf) => (
+                    <Table.Row key={conf.machine_key}>
+                      <Table.Cell className="text-xs py-2">
+                        {conf.machine_name}
+                      </Table.Cell>
+                      <Table.Cell className="text-xs text-right font-semibold text-blue-600 py-2">
+                        {conf.confidence_interval
+                          ? formatScore(conf.confidence_interval.mean)
+                          : 'N/A'}
+                      </Table.Cell>
+                      <Table.Cell className="text-xs text-right text-gray-600 py-2">
+                        {conf.confidence_interval
+                          ? `${formatScore(conf.confidence_interval.lower_bound)}-${formatScore(conf.confidence_interval.upper_bound)}`
+                          : 'N/A'}
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table>
+            </Card.Content>
+          </Card>
+        );
+      })}
     </div>
   );
 }

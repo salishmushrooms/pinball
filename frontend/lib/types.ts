@@ -123,6 +123,7 @@ export interface Machine {
   unique_players?: number;
   median_score?: number | null;
   max_score?: number | null;
+  game_count?: number | null;
 }
 
 export interface MachineListResponse {
@@ -177,6 +178,8 @@ export interface MachineQueryParams {
   game_type?: string;
   search?: string;
   has_percentiles?: boolean;
+  season?: number;
+  venue_key?: string;
   limit?: number;
   offset?: number;
 }
@@ -516,4 +519,109 @@ export interface MachinePredictionResponse {
   venue_machines: string[];
   seasons_analyzed: number[];
   message?: string;
+}
+
+// ============================================================================
+// Matchplay.events Integration Types
+// ============================================================================
+
+export interface MatchplayUser {
+  userId: number;
+  name: string;
+  ifpaId?: number;
+  location?: string;
+  avatar?: string;
+}
+
+export interface MatchplayMatch {
+  user: MatchplayUser;
+  confidence: number;
+  auto_link_eligible: boolean;
+}
+
+export interface MatchplayPlayerMapping {
+  id: number;
+  mnp_player_key: string;
+  matchplay_user_id: number;
+  matchplay_name?: string;
+  ifpa_id?: number;
+  match_method: 'auto' | 'manual';
+  created_at?: string;
+  last_synced?: string;
+}
+
+export interface MatchplayLookupResult {
+  mnp_player: { key: string; name: string };
+  matches: MatchplayMatch[];
+  status: 'found' | 'not_found' | 'already_linked';
+  mapping?: MatchplayPlayerMapping;
+}
+
+export interface MatchplayRating {
+  rating: number | null;
+  rd: number | null;
+  game_count: number | null;
+  win_count: number | null;
+  loss_count: number | null;
+  efficiency_percent: number | null;
+  lower_bound: number | null;
+  fetched_at?: string;
+}
+
+export interface MatchplayIFPA {
+  ifpa_id: number | null;
+  rank: number | null;
+  rating: number | null;
+  womens_rank: number | null;
+}
+
+export interface MatchplayMachineStat {
+  machine_key?: string;
+  matchplay_arena_name: string;
+  games_played: number;
+  wins: number;
+  win_percentage: number | null;
+}
+
+export interface MatchplayPlayerStats {
+  matchplay_user_id: number;
+  matchplay_name: string;
+  location?: string;
+  avatar?: string;
+  rating?: MatchplayRating;
+  ifpa?: MatchplayIFPA;
+  tournament_count?: number;
+  machine_stats: MatchplayMachineStat[];
+  profile_url: string;
+}
+
+export interface MatchplayLinkRequest {
+  matchplay_user_id: number;
+}
+
+export interface MatchplayLinkResponse {
+  status: string;
+  mapping: MatchplayPlayerMapping;
+}
+
+export interface MatchplayStatus {
+  configured: boolean;
+  message: string;
+  api_accessible?: boolean;
+  rate_limit_remaining?: number;
+  rate_limit_total?: number;
+  error?: string;
+}
+
+export interface MatchplayRatingInfo {
+  matchplay_user_id: number;
+  matchplay_name: string;
+  rating: number | null;
+  rd?: number | null;
+  game_count?: number | null;
+  profile_url: string;
+}
+
+export interface MatchplayRatingsResponse {
+  ratings: Record<string, MatchplayRatingInfo>;
 }

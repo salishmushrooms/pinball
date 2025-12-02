@@ -375,13 +375,13 @@ class DatabaseLoader:
                     conn.execute(text("""
                         INSERT INTO scores (
                             game_id, player_key, player_position, score,
-                            team_key, is_home_team, player_ipr,
+                            team_key, is_home_team, player_ipr, is_substitute,
                             match_key, venue_key, machine_key,
                             round_number, season, week, date
                         )
                         VALUES (
                             :game_id, :player_key, :player_position, :score,
-                            :team_key, :is_home_team, :player_ipr,
+                            :team_key, :is_home_team, :player_ipr, :is_substitute,
                             :match_key, :venue_key, :machine_key,
                             :round_number, :season, :week, :date
                         )
@@ -394,6 +394,7 @@ class DatabaseLoader:
                         'team_key': score['team_key'],
                         'is_home_team': score['is_home_team'],
                         'player_ipr': ipr,
+                        'is_substitute': score.get('is_substitute', False),
                         'match_key': score['match_key'],
                         'venue_key': score['venue_key'],
                         'machine_key': score['machine_key'],

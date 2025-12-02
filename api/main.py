@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 import logging
 
-from api.routers import players, machines, venues, teams, matchups, seasons, predictions
+from api.routers import players, machines, venues, teams, matchups, seasons, predictions, matchplay
 
 # Configure logging
 logging.basicConfig(
@@ -100,6 +100,7 @@ app.include_router(teams.router)
 app.include_router(matchups.router)
 app.include_router(seasons.router)
 app.include_router(predictions.router)
+app.include_router(matchplay.router)
 
 
 @app.get("/", tags=["root"])
@@ -164,7 +165,8 @@ def read_root():
             "machines": "/machines",
             "venues": "/venues",
             "teams": "/teams",
-            "matchups": "/matchups"
+            "matchups": "/matchups",
+            "matchplay": "/matchplay"
         },
         "data_summary": data_summary
     }
