@@ -6,3 +6,17 @@ reports/
 mnp-data-archive/
 mnp-app-docs/
 schema/
+etl/
+docs/
+
+# Ignore Python files at root
+*.py
+
+# Ignore other root-level files
+*.md
+*.json
+*.sh
+*.db
+.env*
+.tasks/
+.claude/
