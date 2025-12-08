@@ -1,8 +1,8 @@
 # Monday Night Pinball - Public Deployment Plan
 
-**Document Version**: 2.0
+**Document Version**: 3.0
 **Created**: 2025-11-26
-**Last Updated**: 2025-11-29
+**Last Updated**: 2025-12-07
 **Status**: Phase 3 Complete (Local Development) - Ready for Production Deployment
 
 ---
@@ -18,8 +18,9 @@ This document outlines the strategy for deploying the Monday Night Pinball (MNP)
 - ✅ Next.js frontend framework selected
 - ✅ FastAPI backend framework selected
 - ✅ PostgreSQL database implemented
-- 🔜 Domain name to be chosen
-- 🔜 Hosting platform selection for production
+- ✅ Using existing domain (subdomain)
+- ✅ Cloudflare for DNS/CDN (existing account)
+- ✅ Simplified deployment (no Docker, Sentry, rate limiting initially)
 
 ---
 
@@ -86,26 +87,24 @@ This document outlines the strategy for deploying the Monday Night Pinball (MNP)
 
 ---
 
-## Revised Deployment Architecture
+## Deployment Architecture (Simplified)
 
-### Recommended: Option D - Platform-as-a-Service
-
-Given the existing codebase and need for rapid deployment:
+### Platform-as-a-Service (Minimal Cost)
 
 **Components:**
-- **Frontend**: Vercel (free tier sufficient)
-- **Backend**: Railway or Render ($5-25/month)
-- **Database**: Managed PostgreSQL from hosting provider ($10-25/month)
-- **CDN**: Cloudflare (free tier)
+- **Frontend**: Vercel (free tier)
+- **Backend + Database**: Railway Hobby ($5/month)
+- **DNS/CDN/SSL**: Cloudflare (existing account)
+- **Domain**: Existing domain (subdomain)
 
-**Total Estimated Cost:** $15-50/month
+**Total Estimated Cost: $5/month**
 
 **Why This Approach:**
-- Fastest time to deployment with existing code
-- Minimal DevOps required
+- Minimal cost with existing Cloudflare setup
+- No Docker configuration needed (Railway deploys from GitHub)
+- No complex DevOps
 - Built-in CI/CD from GitHub
-- Auto-scaling capabilities
-- Good developer experience
+- Can add monitoring/caching/rate limiting later if needed
 
 ---
 
@@ -133,13 +132,10 @@ Given the existing codebase and need for rapid deployment:
   - `/api/matchups` - Team matchup analysis
 
 **What Remains for Production:**
-- [ ] Create Dockerfile for API
-- [ ] Deploy to Railway/Render
-- [ ] Set up production PostgreSQL
+- [ ] Deploy to Railway (direct from GitHub, no Docker needed)
+- [ ] Set up production PostgreSQL on Railway
 - [ ] Configure environment variables
 - [ ] Enable CORS for production domain
-- [ ] Add rate limiting
-- [ ] Set up Sentry monitoring
 
 ---
 
@@ -165,10 +161,7 @@ Given the existing codebase and need for rapid deployment:
 **What Remains for Production:**
 - [ ] Deploy to Vercel
 - [ ] Configure production API URL
-- [ ] Set up custom domain
-- [ ] Add SEO meta tags
-- [ ] Create sitemap.xml
-- [ ] Add analytics (Plausible)
+- [ ] Set up custom domain (subdomain via Cloudflare)
 
 ---
 
@@ -176,46 +169,35 @@ Given the existing codebase and need for rapid deployment:
 
 **Goal:** Deploy existing local application to production
 
-**Timeline:** 1-2 weeks
+#### Step 1: Account Setup
+- [ ] Create Railway account (railway.app)
+- [ ] Create Vercel account (vercel.com)
+- [ ] Choose subdomain for your existing domain
 
-#### Step 1: Pre-Deployment Setup (Day 1-2)
-- [ ] Choose and register domain name
-- [ ] Create accounts on hosting platforms
-- [ ] Set up Cloudflare for DNS
-- [ ] Create Sentry account for monitoring
+#### Step 2: Backend Deployment (Railway)
+- [ ] Connect Railway to GitHub repo
+- [ ] Create PostgreSQL database on Railway
+- [ ] Configure environment variables (DATABASE_URL)
+- [ ] Deploy FastAPI app (Railway auto-detects Python)
+- [ ] Run data migration to production database
+- [ ] Test API endpoints
 
-#### Step 2: Backend Deployment (Day 3-5)
-- [ ] Create `Dockerfile` for FastAPI app
-- [ ] Create `docker-compose.yml` for local testing
-- [ ] Deploy to Railway/Render
-- [ ] Create production PostgreSQL database
-- [ ] Run data migration to production
-- [ ] Configure environment variables
-- [ ] Test all API endpoints in production
-- [ ] Set up rate limiting
-
-#### Step 3: Frontend Deployment (Day 6-8)
-- [ ] Configure Vercel project
-- [ ] Set production environment variables
+#### Step 3: Frontend Deployment (Vercel)
+- [ ] Connect Vercel to GitHub repo
+- [ ] Set environment variable: `NEXT_PUBLIC_API_URL`
 - [ ] Deploy Next.js application
-- [ ] Configure custom domain
-- [ ] Test all pages in production
-- [ ] Verify API integration
+- [ ] Test all pages
 
-#### Step 4: Production Hardening (Day 9-10)
-- [ ] Configure HTTPS (automatic with Vercel/Railway)
-- [ ] Set up Sentry error monitoring
-- [ ] Configure uptime monitoring (Better Uptime)
-- [ ] Add security headers
-- [ ] Test CORS configuration
-- [ ] Load test API endpoints
+#### Step 4: Domain Setup (Cloudflare)
+- [ ] Add CNAME record for frontend subdomain → Vercel
+- [ ] Add CNAME record for API subdomain → Railway (or proxy through Cloudflare)
+- [ ] Verify HTTPS works (automatic)
+- [ ] Update CORS settings in API for production domain
 
-#### Step 5: Launch (Day 11-14)
-- [ ] Soft launch to beta testers
-- [ ] Monitor for errors
-- [ ] Gather feedback
-- [ ] Fix any critical issues
-- [ ] Public announcement
+#### Step 5: Launch
+- [ ] Test end-to-end functionality
+- [ ] Share with beta testers
+- [ ] Monitor Railway/Vercel dashboards for errors
 
 ---
 
@@ -252,19 +234,21 @@ Given the existing codebase and need for rapid deployment:
 - **Charts:** Ready for Recharts integration
 
 ### Infrastructure 🔜 To Configure
-- **Frontend Hosting:** Vercel
-- **Backend Hosting:** Railway or Render
-- **Database:** Managed PostgreSQL
-- **CDN:** Cloudflare (free tier)
-- **DNS:** Cloudflare
-- **Monitoring:** Sentry
-- **Analytics:** Plausible Analytics
+- **Frontend Hosting:** Vercel (free tier)
+- **Backend Hosting:** Railway Hobby ($5/month)
+- **Database:** Railway PostgreSQL (included)
+- **DNS/CDN/SSL:** Cloudflare (existing account)
 
-### DevOps 🔜 To Configure
-- **CI/CD:** GitHub Actions
-- **Containers:** Docker
-- **Secrets:** GitHub Secrets + hosting provider vault
-- **Backups:** Automated daily database backups
+### DevOps (Simplified)
+- **CI/CD:** Automatic via Vercel + Railway GitHub integration
+- **Secrets:** Hosting provider environment variables
+- **Backups:** Railway automatic daily backups
+
+### Future Additions (if needed)
+- **Error Monitoring:** Sentry
+- **Rate Limiting:** FastAPI middleware or Cloudflare rules
+- **Caching:** Redis on Railway
+- **Analytics:** Plausible or Cloudflare Analytics
 
 ---
 
@@ -285,51 +269,44 @@ Given the existing codebase and need for rapid deployment:
 
 ## Security Considerations
 
-### API Security (To Implement)
-- [ ] Rate limiting (100-1000 requests/hour per IP)
-- [ ] HTTPS only (automatic with hosting platforms)
+### Already Handled
+- ✅ HTTPS (automatic via Vercel + Railway)
+- ✅ Input validation (Pydantic)
+- ✅ SQL injection prevention (SQLAlchemy ORM)
+- ✅ DDoS protection (Cloudflare)
+- ✅ Daily backups (Railway automatic)
+- ✅ Environment variables for secrets
+
+### To Configure
 - [ ] CORS configuration (allow production domain)
-- [ ] Input validation (already implemented via Pydantic)
-- [ ] SQL injection prevention (using SQLAlchemy ORM)
+- [ ] No secrets in code/git (verify before deploy)
 
-### Database Security (To Implement)
-- [ ] Read-only database user for public API
-- [ ] Regular backups (daily automated)
-- [ ] Encrypted connections
-- [ ] No direct database access from internet
-
-### Infrastructure Security (To Implement)
-- [ ] Environment variables for secrets
-- [ ] No secrets in code/git
-- [ ] Security headers (CSP, HSTS)
-- [ ] DDoS protection (Cloudflare)
+### Future Additions (if needed)
+- Rate limiting (Cloudflare rules or FastAPI middleware)
+- Security headers (CSP, HSTS)
 
 ---
 
-## Cost Analysis (Updated)
+## Cost Analysis (Simplified)
 
-### Production Deployment - Month 1
+### Monthly Costs
 | Item | Cost |
 |------|------|
-| Domain registration | $15/year (~$1.25/mo) |
+| Domain | $0 (using existing) |
 | Frontend (Vercel free tier) | $0 |
-| Backend (Railway Hobby) | $5-20/month |
-| Database (Railway PostgreSQL) | $5-15/month |
-| Monitoring (Sentry free tier) | $0 |
-| CDN (Cloudflare free tier) | $0 |
-| **Total** | **$10-35/month** |
-
-### Steady State - Ongoing
-| Item | Cost |
-|------|------|
-| Domain renewal | $15/year |
-| Hosting (Backend + DB) | $15-35/month |
-| Monitoring upgrades (if needed) | $0-20/month |
-| **Total** | **$15-55/month** |
+| Backend + Database (Railway Hobby) | $5 |
+| DNS/CDN/SSL (Cloudflare) | $0 (existing account) |
+| **Total** | **$5/month** |
 
 ### Annual Estimate
-- **Year 1:** $200-500 (includes setup)
-- **Year 2+:** $200-700 (steady state)
+- **Year 1:** ~$60
+- **Year 2+:** ~$60
+
+### Scaling Costs (if needed later)
+- Railway Pro: $20/month (more resources)
+- Vercel Pro: $20/month (more bandwidth)
+- Sentry: $0-26/month (error monitoring)
+- Analytics: $0-9/month (Plausible)
 
 ---
 
@@ -337,14 +314,11 @@ Given the existing codebase and need for rapid deployment:
 
 ### Site Name
 **Recommendation:** "MNP Stats"
-- Short, memorable
-- Clearly affiliated but independent
-- Searchable
 
-### Domain Options (Check Availability)
-1. `mnpstats.com` - First choice
-2. `mnpdata.io` - Tech-focused alternative
-3. `mondaynightpinball.app` - Descriptive
+### Domain Setup
+Using subdomain on existing domain, e.g.:
+- `mnp.yourdomain.com`
+- `pinball.yourdomain.com`
 
 ### Attribution Statement
 Include on every page:
@@ -352,25 +326,17 @@ Include on every page:
 
 ---
 
-## Monitoring & Observability
+## Monitoring (Simplified)
 
-### Metrics to Track
-- API request volume and latency
-- Error rates (4xx, 5xx)
-- Database query performance
-- Page load times
-- User geography (basic analytics)
+### Initial Setup (Free)
+- **Logs:** Railway dashboard (built-in)
+- **Deployment status:** Vercel dashboard (built-in)
+- **Basic analytics:** Cloudflare Analytics (free, already available)
 
-### Tools
-- **Application Monitoring:** Sentry
+### Future Additions (if needed)
+- **Error Monitoring:** Sentry
 - **Uptime Monitoring:** Better Uptime or UptimeRobot
 - **Analytics:** Plausible Analytics
-- **Logs:** Hosting provider dashboards
-
-### Alerts
-- API downtime (>5 minutes)
-- Error rate spike (>5% of requests)
-- Database connection issues
 
 ---
 
@@ -400,22 +366,23 @@ Include on every page:
 
 ## Immediate Next Steps
 
-### Pre-Deployment ✅ Simplified
+### Pre-Deployment ✅ Complete
 1. ~~Get approval from MNP league organizers~~ (Data already public)
 2. ~~Review player privacy considerations~~ (Players already consented)
 3. ~~Build API~~ (Complete)
 4. ~~Build Frontend~~ (Complete)
-5. **Choose domain name and register it** 🔜
-6. **Decide on hosting provider** 🔜
+5. ~~Domain~~ (Using existing domain)
+6. ~~Hosting provider~~ (Railway + Vercel)
 
 ### Deployment Tasks
-1. **Create Docker configuration** for API
-2. **Set up Railway/Render project**
-3. **Deploy backend and database**
-4. **Configure Vercel for frontend**
-5. **Set up monitoring and alerts**
-6. **Test in production**
-7. **Soft launch to beta testers**
+1. **Create Railway account** and connect GitHub repo
+2. **Create Vercel account** and connect GitHub repo
+3. **Deploy backend + PostgreSQL** on Railway
+4. **Migrate data** to production database
+5. **Deploy frontend** on Vercel
+6. **Configure Cloudflare DNS** for subdomains
+7. **Test end-to-end**
+8. **Soft launch to beta testers**
 
 ---
 
@@ -427,25 +394,26 @@ Include on every page:
 3. ~~Branding~~ - Independent project with references to MNP
 4. ~~Frontend Framework~~ - Next.js selected and implemented
 5. ~~Backend Framework~~ - FastAPI selected and implemented
+6. ~~Domain Name~~ - Using existing domain (subdomain)
+7. ~~Hosting Provider~~ - Railway for backend, Vercel for frontend
 
 ### Outstanding 🔜
-1. **Domain Name:** What domain should we use?
-2. **Hosting Provider:** Railway vs Render for backend?
-3. **Data Freshness:** How quickly should new match data appear?
-4. **Admin Access:** Who has admin rights to update data?
+1. **Subdomain choice:** What subdomain to use? (e.g., `mnp`, `pinball`, `stats`)
+2. **Data Freshness:** How quickly should new match data appear?
+3. **Admin Access:** Who has admin rights to update data?
 
 ---
 
 ## Appendix A: Hosting Provider Comparison
 
-| Provider | Pros | Cons | Cost (Starter) |
-|----------|------|------|----------------|
-| **Railway** | Great DX, simple deployment, PostgreSQL included | Newer platform | $5-20/month |
-| **Render** | Free tier, good docs | Can be slow on free tier | $7-25/month |
-| **Fly.io** | Global edge deployment | Steeper learning curve | $0-30/month |
-| **Vercel** | Excellent for Next.js | Backend via serverless only | $0-20/month |
+| Provider | Pros | Cons | Cost |
+|----------|------|------|------|
+| **Railway** ✅ Selected | Great DX, PostgreSQL included, GitHub deploy | Newer platform | $5/month (Hobby) |
+| **Render** | Free tier available | Cold starts on free tier | $7-25/month |
+| **Fly.io** | Global edge, free tier | Steeper learning curve | $0-30/month |
+| **Vercel** ✅ Selected | Excellent for Next.js, free tier | Backend via serverless only | $0 (free tier) |
 
-**Recommendation:** Railway for backend + Vercel for frontend
+**Decision:** Railway for backend + Vercel for frontend = **$5/month total**
 
 ---
 
@@ -493,6 +461,7 @@ Include on every page:
 | 1.0 | 2025-11-26 | JJC | Initial deployment plan created |
 | 1.1 | 2025-11-26 | JJC | Updated based on clarifications |
 | 2.0 | 2025-11-29 | JJC | Major update reflecting completed local development. Frontend and API fully built. Updated to Phase 4 (Production Deployment). |
+| 3.0 | 2025-12-07 | JJC | Simplified deployment plan. Removed Docker, Sentry, rate limiting, caching. Using existing domain + Cloudflare. Cost reduced to $5/month. |
 
 ---
 

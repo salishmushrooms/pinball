@@ -28,6 +28,7 @@ export default function TeamDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Filters for Machine Stats
+  // Note: 'machine_name' is client-side only; API supports: games_played, avg_score, best_score, win_percentage, median_score
   const [sortBy, setSortBy] = useState<'games_played' | 'avg_score' | 'best_score' | 'win_percentage' | 'median_score' | 'machine_name'>('games_played');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [seasonsFilter, setSeasonsFilter] = useState<number[]>(
@@ -83,6 +84,9 @@ export default function TeamDetailPage() {
     try {
       const roundsParam = roundsFilter.length > 0 ? roundsFilter.join(',') : undefined;
 
+      // API doesn't support machine_name sorting - handle client-side
+      const apiSortBy = sortBy === 'machine_name' ? 'games_played' : sortBy;
+
       const [teamData, statsData, playersData] = await Promise.all([
         api.getTeam(teamKey, seasonsFilter.length === 1 ? seasonsFilter[0] : undefined),
         api.getTeamMachineStats(teamKey, {
@@ -91,15 +95,26 @@ export default function TeamDetailPage() {
           rounds: roundsParam,
           exclude_subs: excludeSubs,
           min_games: 1,
-          sort_by: sortBy,
-          sort_order: sortDirection,
+          sort_by: apiSortBy,
+          sort_order: sortBy === 'machine_name' ? sortDirection : sortDirection,
           limit: 100,
         }),
         api.getTeamPlayers(teamKey, seasonsFilter, venueFilter, excludeSubs),
       ]);
 
       setTeam(teamData);
-      setMachineStats(statsData.stats);
+
+      // Client-side sorting for machine_name
+      let sortedStats = statsData.stats;
+      if (sortBy === 'machine_name') {
+        sortedStats = [...statsData.stats].sort((a, b) => {
+          const nameA = a.machine_name || '';
+          const nameB = b.machine_name || '';
+          const comparison = nameA.localeCompare(nameB);
+          return sortDirection === 'asc' ? comparison : -comparison;
+        });
+      }
+      setMachineStats(sortedStats);
       setPlayers(playersData.players);
 
       // Fetch Matchplay ratings for all players in roster

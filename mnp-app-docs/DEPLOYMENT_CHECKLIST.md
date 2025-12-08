@@ -1,31 +1,30 @@
-# MNP Deployment Checklist
+# MNP Deployment Checklist (Simplified)
 
 **Quick Reference Guide for Deployment Tasks**
 
 Use this checklist to track progress through the deployment phases outlined in [DEPLOYMENT_PLAN.md](DEPLOYMENT_PLAN.md).
 
-**Last Updated:** 2025-11-29
+**Last Updated:** 2025-12-07
 **Current Phase:** Phase 4 - Production Deployment
+**Estimated Cost:** $5/month
 
 ---
 
 ## Pre-Deployment Setup
 
 ### Domain & Branding
-- [ ] Choose final domain name
-  - Options: `mnpstats.com`, `mnpdata.io`, `mondaynightpinball.app`
-  - Check availability at Namecheap, Google Domains, or Cloudflare
-- [ ] Register domain ($10-15/year)
-- [ ] Point DNS to Cloudflare (free tier)
-- [ ] Create logo/favicon
+- [x] Domain: Using existing domain (subdomain)
+- [x] DNS/CDN: Cloudflare (existing account)
 - [x] Define color scheme and basic design system ✅ (in frontend/DESIGN_SYSTEM.md)
+- [ ] Choose subdomain (e.g., `mnp.yourdomain.com`)
+- [ ] Create logo/favicon (optional)
 - [ ] Write attribution statement for footer
 
-### Hosting Platform Selection
-- [ ] Compare hosting providers (Railway vs Render)
-- [ ] Create account on chosen platform
-- [ ] Set up payment method
-- [ ] Review pricing and resource limits
+### Hosting Platform Selection ✅ Complete
+- [x] Backend: Railway Hobby ($5/month)
+- [x] Frontend: Vercel (free tier)
+- [ ] Create Railway account
+- [ ] Create Vercel account
 
 ---
 
@@ -54,53 +53,24 @@ Use this checklist to track progress through the deployment phases outlined in [
 - [x] `/api/venues` - Venue information
 - [x] `/api/matchups` - Team matchup analysis
 
-### Docker Configuration (For Production)
-- [ ] Create `Dockerfile` for FastAPI app
-- [ ] Create `docker-compose.yml` for local testing
-- [ ] Test Docker build locally
-- [ ] Optimize image size (multi-stage build)
-
-### Production Database Setup
-- [ ] Choose PostgreSQL provider (Railway recommended)
-- [ ] Create production database
+### Production Database Setup (Railway)
+- [ ] Create PostgreSQL database on Railway
 - [ ] Run schema migrations
 - [ ] Load data from local database
-- [ ] Set up connection pooling
-- [ ] Configure backup schedule (daily)
 
-### API Deployment
-- [ ] Create project on Railway/Render
-- [ ] Configure environment variables (DATABASE_URL, etc.)
-- [ ] Deploy FastAPI application
-- [ ] Connect to managed PostgreSQL
+### API Deployment (Railway)
+- [ ] Connect Railway to GitHub repo
+- [ ] Configure environment variables (DATABASE_URL)
+- [ ] Deploy FastAPI application (auto-detected)
 - [ ] Test all API endpoints in production
-- [ ] Verify database queries work correctly
 
-### Performance & Caching
-- [ ] Add database indexes for common queries
-- [ ] Configure connection pooling
-- [ ] Test response times (<1s for most queries)
-- [ ] Set up Redis instance (optional, for caching)
-
-### Security & Rate Limiting
-- [ ] Add CORS middleware configuration for production domain
-- [ ] Implement rate limiting (100-1000 requests/hour per IP)
-- [ ] Create read-only database user for API
-- [ ] Configure HTTPS (automatic with Railway/Render)
-- [ ] Add security headers (HSTS, CSP, etc.)
+### Security (Minimal)
+- [ ] Configure CORS for production domain
 - [ ] Verify no secrets in code/git
-
-### Monitoring & Logging
-- [ ] Set up Sentry account for error tracking
-- [ ] Configure Sentry in FastAPI app
-- [ ] Set up uptime monitoring (Better Uptime, UptimeRobot)
-- [ ] Configure alerts (email for downtime)
-- [ ] Review logs in hosting platform dashboard
+- [ ] HTTPS: Automatic via Railway ✅
 
 ### API Documentation
 - [x] OpenAPI/Swagger docs at `/docs` (auto-generated)
-- [ ] Add description and examples to endpoints
-- [ ] Create getting-started guide for external users
 
 **Phase 2 Production Deployment:** Pending ⏳
 
@@ -163,19 +133,10 @@ Use this checklist to track progress through the deployment phases outlined in [
 - [x] FilterPanel component
 - [x] Navigation component
 
-### Data Visualization
-- [ ] Choose charting library (Recharts recommended)
-- [ ] Create score distribution charts
-- [ ] Create percentile visualizations
-- [ ] Add performance trend charts
-- [ ] Make charts responsive (mobile-friendly)
-
 ### Search & Filtering ✅ Partial
 - [x] Season filtering (multi-select)
 - [x] Round filtering
 - [x] Venue filtering
-- [ ] Add global search bar
-- [ ] Add sorting options
 
 ### Responsive Design ✅ Complete
 - [x] Mobile-responsive layouts
@@ -192,27 +153,17 @@ Use this checklist to track progress through the deployment phases outlined in [
 ### Footer & Legal
 - [ ] Add attribution statement
 - [ ] Link to official MNP data repository
-- [ ] Add about/contact info
-- [ ] Create privacy policy (if collecting analytics)
 
-### Production Deployment
-- [ ] Deploy to Vercel
-- [ ] Configure custom domain
-- [ ] Set environment variables (API URL)
-- [ ] Test production build
-- [ ] Verify all pages work in production
+### Production Deployment (Vercel)
+- [ ] Connect Vercel to GitHub repo
+- [ ] Set environment variable: `NEXT_PUBLIC_API_URL`
+- [ ] Deploy Next.js application
+- [ ] Test all pages work in production
 
-### SEO & Analytics
-- [ ] Add meta tags for SEO
-- [ ] Create sitemap.xml
-- [ ] Set up Plausible or Simple Analytics
-- [ ] Add Open Graph tags for social sharing
-
-### Testing
-- [ ] Test all navigation links
-- [ ] Verify data accuracy
-- [ ] Test performance (Lighthouse score)
-- [ ] Cross-browser testing (Chrome, Firefox, Safari)
+### Domain Setup (Cloudflare)
+- [ ] Add CNAME record for frontend subdomain → Vercel
+- [ ] Add CNAME record for API subdomain → Railway
+- [ ] Verify HTTPS works
 
 **Phase 3 Production Deployment:** Pending ⏳
 
@@ -221,126 +172,81 @@ Use this checklist to track progress through the deployment phases outlined in [
 ## Phase 4: Production Deployment 🎯 CURRENT PHASE
 
 **Goal:** Deploy existing local application to production
+**Estimated Cost:** $5/month
 
-### Step 1: Pre-Deployment Setup (Day 1-2)
-- [ ] Choose and register domain name
-- [ ] Create accounts on hosting platforms (Railway, Vercel)
-- [ ] Set up Cloudflare for DNS
-- [ ] Create Sentry account for monitoring
+### Step 1: Account Setup
+- [ ] Create Railway account (railway.app)
+- [ ] Create Vercel account (vercel.com)
+- [ ] Choose subdomain for existing domain
 
-### Step 2: Backend Deployment (Day 3-5)
-- [ ] Create `Dockerfile` for FastAPI app
-- [ ] Deploy to Railway/Render
-- [ ] Create production PostgreSQL database
-- [ ] Run data migration to production
-- [ ] Configure environment variables
-- [ ] Test all API endpoints in production
-- [ ] Set up rate limiting
+### Step 2: Backend Deployment (Railway)
+- [ ] Connect Railway to GitHub repo
+- [ ] Create PostgreSQL database on Railway
+- [ ] Configure environment variables (DATABASE_URL)
+- [ ] Deploy FastAPI app (auto-detected from repo)
+- [ ] Run data migration to production database
+- [ ] Test API endpoints
 
-### Step 3: Frontend Deployment (Day 6-8)
-- [ ] Configure Vercel project
-- [ ] Set production environment variables
+### Step 3: Frontend Deployment (Vercel)
+- [ ] Connect Vercel to GitHub repo
+- [ ] Set environment variable: `NEXT_PUBLIC_API_URL`
 - [ ] Deploy Next.js application
-- [ ] Configure custom domain
-- [ ] Test all pages in production
-- [ ] Verify API integration
+- [ ] Test all pages
 
-### Step 4: Production Hardening (Day 9-10)
-- [ ] Configure HTTPS (automatic)
-- [ ] Set up Sentry error monitoring
-- [ ] Configure uptime monitoring
-- [ ] Add security headers
-- [ ] Test CORS configuration
-- [ ] Load test API endpoints
+### Step 4: Domain Setup (Cloudflare)
+- [ ] Add CNAME for frontend subdomain → Vercel
+- [ ] Add CNAME for API subdomain → Railway
+- [ ] Update CORS settings in API
+- [ ] Verify HTTPS works (automatic)
 
-### Step 5: Launch (Day 11-14)
-- [ ] Soft launch to beta testers
-- [ ] Monitor for errors
-- [ ] Gather feedback
-- [ ] Fix any critical issues
-- [ ] Public announcement
+### Step 5: Launch
+- [ ] Test end-to-end functionality
+- [ ] Share with beta testers
+- [ ] Monitor dashboards for errors
 
 **Phase 4 Complete:** API and Website deployed ⏳
 
 ---
 
-## Phase 5: Advanced Features (Future)
+## Phase 5: Future Enhancements (Optional)
 
-**Goal:** Community features and automation
+**Add these later if needed:**
 
-### User Accounts (Optional)
-- [ ] Choose auth provider (Supabase Auth, Auth0, Clerk)
-- [ ] Implement sign up/login
-- [ ] Create user profile pages
-- [ ] Add "favorite teams" feature
-- [ ] Add "favorite players" feature
+### Monitoring & Analytics
+- [ ] Sentry for error tracking
+- [ ] Plausible for privacy-friendly analytics
+- [ ] Uptime monitoring (UptimeRobot)
 
-### Notifications (Optional)
-- [ ] Set up email service (SendGrid, Mailgun)
-- [ ] Create notification preferences UI
-- [ ] Implement weekly summary emails
+### Performance
+- [ ] Rate limiting (Cloudflare rules or FastAPI middleware)
+- [ ] Redis caching on Railway
+- [ ] Database indexes for slow queries
 
-### Admin Dashboard
-- [ ] Create admin authentication
-- [ ] Build data management UI
-- [ ] Add manual data correction tools
+### Features
+- [ ] Data visualization (Recharts)
+- [ ] Global search
+- [ ] SEO meta tags / sitemap
+- [ ] Automated data sync from GitHub
 
-### API Enhancements
-- [ ] Add API key system for high-volume users
-- [ ] Create tiered rate limits
-- [ ] Add webhook support (for Pin Stats app)
-
-### Automated Data Updates
-- [ ] Create script to sync data from GitHub repo
-- [ ] Set up GitHub Action or cron job for automated sync
-- [ ] Document manual update procedure
-
-**Phase 5 Complete:** Full-featured community platform ⏳
+**Phase 5 Complete:** Enhanced platform ⏳
 
 ---
 
 ## Ongoing Maintenance
 
-### Weekly Tasks
-- [ ] Monitor API uptime and performance
-- [ ] Check error logs in Sentry
-- [ ] Review traffic analytics
-- [ ] Verify data sync is working
-
-### Monthly Tasks
-- [ ] Review hosting costs
+### As Needed
+- [ ] Check Railway/Vercel dashboards for errors
 - [ ] Update dependencies (security patches)
-- [ ] Analyze usage patterns
-- [ ] Optimize slow queries
-
-### Seasonal Tasks
-- [ ] Prepare for new season data
-- [ ] Update season selectors in UI
-- [ ] Generate end-of-season reports
+- [ ] Add new season data when available
 
 ---
 
 ## Rollback Procedures
 
-### If API Goes Down
-1. Check hosting platform status page
-2. Review error logs in Sentry
-3. Check database connection
-4. Verify environment variables
-5. Rollback to previous deployment if needed
-
-### If Database Issues Occur
-1. Check database connection limits
-2. Review slow query log
-3. Verify backups are recent
-4. Restore from backup if needed
-5. Contact hosting provider support
-
-### If Frontend Issues Occur
-1. Check Vercel deployment logs
-2. Test API endpoints separately
-3. Review browser console errors
-4. Rollback to previous deployment
+### If Something Breaks
+1. Check Railway/Vercel dashboards for error logs
+2. Both platforms support instant rollback to previous deployment
+3. Railway has automatic daily backups for PostgreSQL
 
 ---
 
@@ -348,62 +254,43 @@ Use this checklist to track progress through the deployment phases outlined in [
 
 ### Phase 4 Success (Production Deployment)
 - [ ] API is accessible publicly
-- [ ] Website is accessible at custom domain
-- [ ] Response time <1s for 95% of requests
-- [ ] 99% uptime in first week
-- [ ] Zero critical errors
-
-### Post-Launch Success (30 days)
-- [ ] 100+ unique visitors
-- [ ] 1000+ API requests
-- [ ] Positive community feedback
-- [ ] <5 bug reports
-- [ ] 99.5% uptime
+- [ ] Website is accessible at subdomain
+- [ ] Pages load without errors
 
 ---
 
 ## Resources & Links
 
+### Hosting Platforms
+- [Railway](https://railway.app) - Backend + PostgreSQL
+- [Vercel](https://vercel.com) - Frontend
+- [Cloudflare](https://cloudflare.com) - DNS (existing account)
+
 ### Documentation
 - [DEPLOYMENT_PLAN.md](DEPLOYMENT_PLAN.md) - Full deployment plan
-- [MNP_Data_Structure_Reference.md](../MNP_Data_Structure_Reference.md) - Data structure
-- [RESTART_GUIDE.md](../RESTART_GUIDE.md) - Local development restart guide
-- [frontend/DESIGN_SYSTEM.md](../frontend/DESIGN_SYSTEM.md) - UI design system
-
-### Tools & Services
-- **Domain Registration:** Namecheap, Google Domains, Cloudflare
-- **Frontend Hosting:** Vercel (recommended)
-- **Backend Hosting:** Railway (recommended), Render
-- **Database:** PostgreSQL (managed by hosting provider)
-- **CDN:** Cloudflare (free tier)
-- **Monitoring:** Sentry, Better Uptime
-- **Analytics:** Plausible, Simple Analytics
-
-### External Links
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Railway Documentation](https://docs.railway.app/)
-- [Vercel Documentation](https://vercel.com/docs)
+- [FastAPI Docs](https://fastapi.tiangolo.com/)
+- [Next.js Docs](https://nextjs.org/docs)
+- [Railway Docs](https://docs.railway.app/)
+- [Vercel Docs](https://vercel.com/docs)
 
 ---
 
-## Summary of Current Progress
+## Summary
 
 | Phase | Status | Notes |
 |-------|--------|-------|
 | Phase 1: Static API | SKIPPED | Built dynamic API directly |
-| Phase 2: Dynamic API | ✅ Local Complete | Ready for production deployment |
-| Phase 3: Web Frontend | ✅ Local Complete | Ready for production deployment |
-| Phase 4: Production | 🎯 Current | Next step: domain & hosting setup |
-| Phase 5: Advanced | Future | Post-launch enhancements |
+| Phase 2: Dynamic API | ✅ Local Complete | Ready for Railway deployment |
+| Phase 3: Web Frontend | ✅ Local Complete | Ready for Vercel deployment |
+| Phase 4: Production | 🎯 Current | $5/month total |
+| Phase 5: Enhancements | Future | Add if needed |
 
-**Immediate Next Steps:**
-1. Choose and register domain name
-2. Create Railway account for backend
-3. Create Vercel account for frontend
-4. Begin production deployment
+**Next Steps:**
+1. Create Railway account
+2. Create Vercel account
+3. Deploy and configure DNS
 
 ---
 
-**Last Updated:** 2025-11-29
-**Document Owner:** JJC
+**Last Updated:** 2025-12-07
+**Estimated Cost:** $5/month
