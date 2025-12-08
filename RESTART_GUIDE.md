@@ -12,8 +12,8 @@ If you've made changes to frontend components or pages:
 # Stop all services
 # Press Ctrl+C in each terminal window running services
 
-# Restart frontend (from /Users/JJC/Pinball/MNP/frontend)
-cd /Users/JJC/Pinball/MNP/frontend
+# Restart frontend (from /Users/test_1/Pinball/MNP/pinball/frontend)
+cd /Users/test_1/Pinball/MNP/pinball/frontend
 npm run dev
 ```
 
@@ -51,7 +51,7 @@ lsof -ti:8000 | xargs kill -9
 ### 3. **Restart Frontend**
 
 ```bash
-cd /Users/JJC/Pinball/MNP/frontend
+cd /Users/test_1/Pinball/MNP/pinball/frontend
 npm run dev
 ```
 
@@ -73,10 +73,10 @@ Ready in Xms
 ### 4. **Restart API** (If needed)
 
 ```bash
-cd /Users/JJC/Pinball/MNP
+cd /Users/test_1/Pinball/MNP/pinball
 
 # Activate conda environment
-conda activate mnp
+source /Users/test_1/opt/anaconda3/bin/activate mnp
 
 # Start API
 uvicorn api.main:app --reload --port 8000
@@ -124,7 +124,7 @@ npm run dev
 lsof -ti:8000 | xargs kill -9
 
 # Try starting again
-conda activate mnp
+source /Users/test_1/opt/anaconda3/bin/activate mnp
 uvicorn api.main:app --reload --port 8000
 ```
 
@@ -135,7 +135,7 @@ conda env list
 
 # If 'mnp' is not listed, create it
 conda create -n mnp python=3.11
-conda activate mnp
+source /Users/test_1/opt/anaconda3/bin/activate mnp
 pip install -r requirements.txt
 ```
 
@@ -180,7 +180,7 @@ psql -U mnp_user -d mnp_db -c "SELECT 1;"
 ```bash
 # 1. Stop frontend (Ctrl+C in terminal)
 # 2. Restart
-cd /Users/JJC/Pinball/MNP/frontend
+cd /Users/test_1/Pinball/MNP/pinball/frontend
 npm run dev
 
 # 3. Open browser and hard refresh
@@ -198,7 +198,7 @@ npm run dev
 
 # 1. Stop frontend (Ctrl+C)
 # 2. Clear Next.js cache
-cd /Users/JJC/Pinball/MNP/frontend
+cd /Users/test_1/Pinball/MNP/pinball/frontend
 rm -rf .next
 
 # 3. Restart
@@ -210,7 +210,7 @@ npm run dev
 ### After Installing New npm Package
 
 ```bash
-cd /Users/JJC/Pinball/MNP/frontend
+cd /Users/test_1/Pinball/MNP/pinball/frontend
 
 # 1. Install package
 npm install <package-name>
@@ -230,14 +230,14 @@ If something is really broken:
 lsof -ti:3000,8000 | xargs kill -9
 
 # 2. Clean frontend
-cd /Users/JJC/Pinball/MNP/frontend
+cd /Users/test_1/Pinball/MNP/pinball/frontend
 rm -rf .next node_modules
 npm install
 npm run dev
 
 # 3. In new terminal, restart API
-cd /Users/JJC/Pinball/MNP
-conda activate mnp
+cd /Users/test_1/Pinball/MNP/pinball
+source /Users/test_1/opt/anaconda3/bin/activate mnp
 uvicorn api.main:app --reload --port 8000
 ```
 
