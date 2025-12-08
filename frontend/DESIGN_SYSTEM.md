@@ -49,7 +49,12 @@ MNP is a data-heavy application. Design should enhance readability and comprehen
 All components must work across devices:
 - **Mobile-first approach** with progressive enhancement
 - **Breakpoints:** sm (640px), md (768px), lg (1024px)
-- Tables should scroll horizontally on mobile when necessary
+- **Tables must be mobile-optimized:**
+  - Use compact padding on mobile (`px-3 py-2`), slightly larger on desktop (`px-4 py-3`)
+  - Avoid excessive whitespace - keep data visually close together
+  - Tables extend edge-to-edge on mobile (negative margins `-mx-4`)
+  - Horizontal scrolling is a last resort, not the default solution
+  - Consider hiding non-essential columns on mobile or using responsive text sizes
 
 ### 3. Performance-Conscious
 Fast page loads are critical:
@@ -278,32 +283,38 @@ className="grid grid-cols-1 md:grid-cols-3 gap-4"
 #### 2. Table
 
 **Purpose:** Display tabular data with sorting
-**Features:** Sortable columns, hover states, responsive
+**Features:** Sortable columns, hover states, responsive, mobile-optimized
 
 ```tsx
 <Table>
-  <TableHeader>
-    <TableRow>
-      <TableHead sortable onSort={handleSort}>Name</TableHead>
-      <TableHead>IPR</TableHead>
-    </TableRow>
-  </TableHeader>
-  <TableBody>
-    <TableRow>
-      <TableCell>John Doe</TableCell>
-      <TableCell>4.52</TableCell>
-    </TableRow>
-  </TableBody>
+  <Table.Header>
+    <Table.Row hoverable={false}>
+      <Table.Head sortable onSort={handleSort} sortDirection={sortDir}>Name</Table.Head>
+      <Table.Head>IPR</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell>John Doe</Table.Cell>
+      <Table.Cell>4.52</Table.Cell>
+    </Table.Row>
+  </Table.Body>
 </Table>
 ```
 
 **Styling:**
-- Container: `overflow-x-auto`
-- Table: `min-w-full divide-y divide-gray-200`
+- Container: `overflow-x-auto -mx-4 sm:mx-0` (edge-to-edge on mobile)
+- Table: `w-full divide-y divide-gray-200`
 - Header: `bg-gray-50 text-xs font-medium text-gray-500 uppercase`
 - Body: `bg-white divide-y divide-gray-200`
 - Row hover: `hover:bg-gray-50`
-- Cell padding: `px-6 py-4`
+- Cell padding: `px-3 py-2 sm:px-4 sm:py-3` (compact on mobile, slightly larger on desktop)
+
+**Mobile Guidelines:**
+- Keep padding tight to maximize data density
+- Avoid excessive whitespace between columns
+- Use `text-right` for numeric columns to improve alignment
+- Tables scroll horizontally only when absolutely necessary
 
 ---
 
