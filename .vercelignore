@@ -14,7 +14,6 @@ docs/
 
 # Ignore other root-level files
 *.md
-*.json
 *.sh
 *.db
 .env*
