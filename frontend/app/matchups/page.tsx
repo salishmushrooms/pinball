@@ -24,6 +24,7 @@ import {
   LoadingSpinner,
 } from '@/components/ui';
 import { MachinePredictionCard } from '@/components/MachinePredictionCard';
+import { filterSupportedSeasons } from '@/lib/utils';
 
 export default function MatchupsPage() {
   const [currentSeason, setCurrentSeason] = useState<number | null>(null);
@@ -40,9 +41,10 @@ export default function MatchupsPage() {
     async function loadCurrentSeasonMatches() {
       setLoadingMatches(true);
       try {
-        // Get available seasons and use the latest one
+        // Get available seasons (filtered to supported) and use the latest one
         const seasonsData = await api.getSeasons();
-        const latestSeason = Math.max(...seasonsData.seasons);
+        const supportedSeasons = filterSupportedSeasons(seasonsData.seasons);
+        const latestSeason = supportedSeasons.length > 0 ? Math.max(...supportedSeasons) : 22;
         setCurrentSeason(latestSeason);
 
         // Load matches for the current season

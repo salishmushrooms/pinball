@@ -16,6 +16,7 @@ import {
   FilterPanel,
 } from '@/components/ui';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
+import { SUPPORTED_SEASONS, filterSupportedSeasons } from '@/lib/utils';
 
 // Format large scores for display (e.g., 1.2M, 500K)
 function formatScore(score: number | null | undefined): string {
@@ -33,7 +34,7 @@ export default function MachinesPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   // Filter state
-  const [availableSeasons, setAvailableSeasons] = useState<number[]>([21, 22]);
+  const [availableSeasons, setAvailableSeasons] = useState<number[]>([...SUPPORTED_SEASONS]);
   const [selectedSeasons, setSelectedSeasons] = useState<number[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [selectedVenue, setSelectedVenue] = useState<string>('');
@@ -46,7 +47,7 @@ export default function MachinesPage() {
           api.getSeasons(),
           api.getVenues({ limit: 100 }),
         ]);
-        setAvailableSeasons(seasonsRes.seasons);
+        setAvailableSeasons(filterSupportedSeasons(seasonsRes.seasons));
         setVenues(venuesRes.venues);
       } catch (err) {
         console.error('Failed to load filter options:', err);

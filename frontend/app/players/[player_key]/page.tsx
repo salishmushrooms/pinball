@@ -18,6 +18,7 @@ import PlayerMachineProgressionChart from '@/components/PlayerMachineProgression
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { MatchplaySection } from '@/components/MatchplaySection';
 import { useDebouncedEffect } from '@/lib/hooks';
+import { SUPPORTED_SEASONS, filterSupportedSeasons } from '@/lib/utils';
 
 export default function PlayerDetailPage() {
   const params = useParams();
@@ -82,12 +83,12 @@ export default function PlayerDetailPage() {
         if (p.last_seen_season) seasons.add(p.last_seen_season);
       });
 
-      // SeasonMultiSelect component handles sorting internally
-      setAvailableSeasons(Array.from(seasons));
+      // Filter to only supported seasons (SeasonMultiSelect component handles sorting internally)
+      setAvailableSeasons(filterSupportedSeasons(Array.from(seasons)));
     } catch (err) {
       console.error('Failed to fetch seasons:', err);
-      // Fallback to hardcoded seasons if fetch fails (SeasonMultiSelect sorts internally)
-      setAvailableSeasons([21, 22]);
+      // Fallback to supported seasons if fetch fails (SeasonMultiSelect sorts internally)
+      setAvailableSeasons([...SUPPORTED_SEASONS]);
     }
   }
 

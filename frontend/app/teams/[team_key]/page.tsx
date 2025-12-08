@@ -9,6 +9,7 @@ import { RoundMultiSelect } from '@/components/RoundMultiSelect';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { useDebouncedEffect } from '@/lib/hooks';
 import { Table } from '@/components/ui';
+import { SUPPORTED_SEASONS, filterSupportedSeasons } from '@/lib/utils';
 
 export default function TeamDetailPage() {
   const params = useParams();
@@ -48,11 +49,11 @@ export default function TeamDetailPage() {
   async function fetchSeasons() {
     try {
       const seasonsData = await api.getSeasons();
-      setAvailableSeasons(seasonsData.seasons);
+      setAvailableSeasons(filterSupportedSeasons(seasonsData.seasons));
     } catch (err) {
       console.error('Failed to fetch seasons:', err);
-      // Fallback to hardcoded seasons if API fails (SeasonMultiSelect sorts internally)
-      setAvailableSeasons([21, 22]);
+      // Fallback to supported seasons if API fails (SeasonMultiSelect sorts internally)
+      setAvailableSeasons([...SUPPORTED_SEASONS]);
     }
   }
 

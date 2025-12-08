@@ -1,6 +1,7 @@
 import React from 'react';
 import { MultiSelectButtons } from './ui/MultiSelect';
 import { Select } from './ui';
+import { SUPPORTED_SEASONS } from '@/lib/utils';
 
 interface SeasonMultiSelectProps {
   value: number[];
@@ -27,7 +28,7 @@ interface SeasonSelectProps {
 export const SeasonMultiSelect: React.FC<SeasonMultiSelectProps> = ({
   value,
   onChange,
-  availableSeasons = [21, 22],
+  availableSeasons = [...SUPPORTED_SEASONS],
   label = 'Seasons',
   helpText = 'Select one or more seasons',
   className,
@@ -59,7 +60,7 @@ export const SeasonMultiSelect: React.FC<SeasonMultiSelectProps> = ({
 export const SeasonSelect: React.FC<SeasonSelectProps> = ({
   value,
   onChange,
-  availableSeasons = [21, 22],
+  availableSeasons = [...SUPPORTED_SEASONS],
   label = 'Season',
   className,
 }) => {

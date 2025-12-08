@@ -198,8 +198,8 @@ def get_seasons():
     except Exception as e:
         logger.error(f"Failed to fetch seasons: {e}")
         return {
-            "seasons": [21, 22],  # Fallback to known seasons
-            "count": 2
+            "seasons": [20, 21, 22],  # Fallback to known seasons
+            "count": 3
         }
 
 

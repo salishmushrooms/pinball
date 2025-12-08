@@ -17,6 +17,7 @@ import {
   StatCard,
 } from '@/components/ui';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
+import { SUPPORTED_SEASONS, filterSupportedSeasons } from '@/lib/utils';
 
 export default function VenueDetailPage() {
   const params = useParams();
@@ -25,7 +26,7 @@ export default function VenueDetailPage() {
   const [venue, setVenue] = useState<VenueDetail | null>(null);
   const [machines, setMachines] = useState<VenueMachineStats[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
-  const [availableSeasons, setAvailableSeasons] = useState<number[]>([21, 22]);
+  const [availableSeasons, setAvailableSeasons] = useState<number[]>([...SUPPORTED_SEASONS]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,10 +46,11 @@ export default function VenueDetailPage() {
           api.getSeasons(),
           api.getTeams({ limit: 500 }),
         ]);
-        setAvailableSeasons(seasonsData.seasons);
+        const supported = filterSupportedSeasons(seasonsData.seasons);
+        setAvailableSeasons(supported);
         setTeams(teamsData.teams);
-        // Default to all available seasons
-        setSeasons(seasonsData.seasons);
+        // Default to all supported seasons
+        setSeasons(supported);
       } catch (err) {
         console.error('Failed to fetch initial data:', err);
       }
