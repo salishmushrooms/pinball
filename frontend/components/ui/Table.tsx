@@ -6,12 +6,17 @@ import { cn } from '@/lib/utils';
 interface TableProps {
   children: React.ReactNode;
   className?: string;
+  compact?: boolean;
 }
 
-export function Table({ children, className }: TableProps) {
+export function Table({ children, className, compact = false }: TableProps) {
   return (
-    <div className="overflow-x-auto">
-      <table className={cn('min-w-full divide-y divide-gray-200', className)}>
+    <div className="overflow-x-auto -mx-4 sm:mx-0">
+      <table className={cn(
+        'w-full divide-y divide-gray-200',
+        compact && 'text-sm',
+        className
+      )}>
         {children}
       </table>
     </div>
@@ -84,7 +89,7 @@ export function TableHead({
   return (
     <th
       className={cn(
-        'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
+        'px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
         sortable && 'cursor-pointer select-none hover:text-gray-700',
         className
       )}
@@ -111,7 +116,7 @@ interface TableCellProps {
 
 export function TableCell({ children, className }: TableCellProps) {
   return (
-    <td className={cn('px-6 py-4 whitespace-nowrap text-sm text-gray-900', className)}>
+    <td className={cn('px-3 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-gray-900', className)}>
       {children}
     </td>
   );
