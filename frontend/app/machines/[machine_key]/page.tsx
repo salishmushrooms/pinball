@@ -17,6 +17,7 @@ import {
   FilterPanel,
 } from '@/components/ui';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
+import { SUPPORTED_SEASONS, filterSupportedSeasons } from '@/lib/utils';
 
 export default function MachineDetailPage() {
   const params = useParams();
@@ -26,7 +27,7 @@ export default function MachineDetailPage() {
   const [scores, setScores] = useState<MachineScore[]>([]);
   const [venues, setVenues] = useState<MachineVenue[]>([]);
   const [teams, setTeams] = useState<MachineTeam[]>([]);
-  const [availableSeasons, setAvailableSeasons] = useState<number[]>([21, 22]);
+  const [availableSeasons, setAvailableSeasons] = useState<number[]>([...SUPPORTED_SEASONS]);
   const [selectedVenue, setSelectedVenue] = useState<string>('all');
   const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
   const [selectedSeasons, setSelectedSeasons] = useState<number[]>([22]);
@@ -38,10 +39,11 @@ export default function MachineDetailPage() {
     async function loadSeasons() {
       try {
         const data = await api.getSeasons();
-        setAvailableSeasons(data.seasons);
-        // Default to most recent season
-        if (data.seasons.length > 0) {
-          setSelectedSeasons([Math.max(...data.seasons)]);
+        const supported = filterSupportedSeasons(data.seasons);
+        setAvailableSeasons(supported);
+        // Default to most recent supported season
+        if (supported.length > 0) {
+          setSelectedSeasons([Math.max(...supported)]);
         }
       } catch (err) {
         console.error('Failed to load seasons:', err);
