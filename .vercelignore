@@ -1,0 +1,8 @@
+# Ignore the API directory - it's deployed separately on Railway
+api/
+
+# Ignore other non-frontend directories
+reports/
+mnp-data-archive/
+mnp-app-docs/
+schema/
