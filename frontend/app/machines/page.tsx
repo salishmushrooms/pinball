@@ -39,6 +39,12 @@ export default function MachinesPage() {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [selectedVenue, setSelectedVenue] = useState<string>('');
 
+  // Sort state
+  type SortField = 'machine_name' | 'game_count';
+  type SortDirection = 'asc' | 'desc';
+  const [sortField, setSortField] = useState<SortField>('machine_name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
   // Load available seasons and venues on mount
   useEffect(() => {
     async function loadFilterOptions() {
@@ -97,6 +103,27 @@ export default function MachinesPage() {
     setSelectedSeasons([]);
     setSelectedVenue('');
   }
+
+  // Sort handler
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection(field === 'game_count' ? 'desc' : 'asc');
+    }
+  }
+
+  // Sort machines
+  const sortedMachines = [...machines].sort((a, b) => {
+    let comparison = 0;
+    if (sortField === 'machine_name') {
+      comparison = a.machine_name.localeCompare(b.machine_name);
+    } else if (sortField === 'game_count') {
+      comparison = (a.game_count ?? 0) - (b.game_count ?? 0);
+    }
+    return sortDirection === 'asc' ? comparison : -comparison;
+  });
 
   return (
     <div className="space-y-6">
@@ -181,13 +208,26 @@ export default function MachinesPage() {
             <Table>
               <Table.Header>
                 <Table.Row hoverable={false}>
-                  <Table.Head>Machine Name</Table.Head>
-                  <Table.Head className="text-right">Games</Table.Head>
+                  <Table.Head
+                    sortable
+                    onSort={() => handleSort('machine_name')}
+                    sortDirection={sortField === 'machine_name' ? sortDirection : null}
+                  >
+                    Machine Name
+                  </Table.Head>
+                  <Table.Head
+                    className="text-right"
+                    sortable
+                    onSort={() => handleSort('game_count')}
+                    sortDirection={sortField === 'game_count' ? sortDirection : null}
+                  >
+                    Scores
+                  </Table.Head>
                   <Table.Head className="text-right">Median Score</Table.Head>
                 </Table.Row>
               </Table.Header>
               <Table.Body>
-                {machines.map((machine) => (
+                {sortedMachines.map((machine) => (
                   <Table.Row key={machine.machine_key}>
                     <Table.Cell>
                       <Link
