@@ -7,24 +7,24 @@ Steps to take to update mnp-data-archive and then use that to update database.
 ### Conda Environment
 The ETL scripts require the `mnp` conda environment. Activate it before running any commands:
 ```bash
-source /Users/test_1/opt/anaconda3/bin/activate mnp
+conda activate mnp
 ```
 
 ### PYTHONPATH
 All ETL scripts need PYTHONPATH set to the project root:
 ```bash
-export PYTHONPATH=/Users/test_1/Pinball/MNP/pinball
+export PYTHONPATH=/Users/JJC/Pinball/MNP
 ```
 
 Or prefix each command:
 ```bash
-PYTHONPATH=/Users/test_1/Pinball/MNP/pinball python etl/...
+PYTHONPATH=/Users/JJC/Pinball/MNP python etl/...
 ```
 
 ### PostgreSQL
 The database must be running. Check with:
 ```bash
-/usr/local/Cellar/postgresql@15/15.15/bin/psql -h localhost -p 5432 -U mnp_user -d mnp_analyzer -c "SELECT 1"
+psql -d mnp_analyzer -c "SELECT 1"
 ```
 
 ## Update mnp-data-archive submodule with latest data
@@ -40,13 +40,40 @@ cd mnp-data-archive && git pull origin main && cd ..
 git add mnp-data-archive && git commit -m "Update data archive"
 ```
 
-## Database Update Process
+## Full Database Rebuild (Clean Slate)
+
+Use this when you need to completely rebuild the database from scratch.
+
+```bash
+# 1. Drop and recreate the database
+psql -d postgres -c "DROP DATABASE IF EXISTS mnp_analyzer;"
+psql -d postgres -c "CREATE DATABASE mnp_analyzer OWNER mnp_user;"
+
+# 2. Run the consolidated schema (creates all tables, indexes, constraints)
+psql -d mnp_analyzer -f schema/migrations/001_complete_schema.sql
+
+# 3. Activate environment and load all data
+conda activate mnp
+export PYTHONPATH=/Users/JJC/Pinball/MNP
+
+for season in 20 21 22; do
+  python etl/load_season.py --season $season
+  python etl/calculate_percentiles.py --season $season
+  python etl/calculate_player_stats.py --season $season
+  python etl/calculate_team_machine_picks.py --season $season
+  python etl/calculate_match_points.py --season $season
+done
+
+python etl/calculate_player_totals.py
+```
+
+## Database Update Process (Incremental)
 
 ### Quick Reference (All Seasons 20-22)
 ```bash
 # Activate environment
-source /Users/test_1/opt/anaconda3/bin/activate mnp
-export PYTHONPATH=/Users/test_1/Pinball/MNP/pinball
+conda activate mnp
+export PYTHONPATH=/Users/JJC/Pinball/MNP
 
 # Load season data
 for season in 20 21 22; do
@@ -147,7 +174,7 @@ The database currently supports seasons 20, 21, and 22. Season data is located a
 ### ModuleNotFoundError: No module named 'etl'
 Make sure PYTHONPATH is set:
 ```bash
-export PYTHONPATH=/Users/test_1/Pinball/MNP/pinball
+export PYTHONPATH=/Users/JJC/Pinball/MNP
 ```
 
 ### Cannot connect to database

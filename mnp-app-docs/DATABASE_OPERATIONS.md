@@ -129,20 +129,21 @@ When you add new migrations to `schema/migrations/`:
 
 ### Migration Order (for fresh setup)
 
-Run these in order, **skipping 003_constraints.sql** (has score limit that blocks some data):
+Run the consolidated schema (includes all tables, indexes, and constraints):
 
 ```sql
-\i schema/migrations/001_initial_schema.sql
-\i schema/migrations/002_indexes.sql
-\i schema/migrations/002_allow_week_zero.sql
-\i schema/migrations/002_remove_mn_state.sql
-\i schema/migrations/004_add_substitute_field.sql
-\i schema/migrations/005_performance_indexes.sql
-\i schema/migrations/006_team_aliases.sql
-\i schema/migrations/007_matchplay_integration.sql
+\i schema/migrations/001_complete_schema.sql
 ```
 
-**Note:** `003_constraints.sql` adds a check `score <= 10000000000` which blocks some AFM scores. Skip it unless you need strict constraints.
+This single file replaces all previous migrations (001-008) and includes:
+- All tables (core + aggregate + matchplay integration)
+- All indexes
+- All foreign key constraints
+- Unique constraint on scores to prevent duplicates
+- Week constraint (0-15) for playoffs
+- Team aliases table with seed data
+
+**Note:** Old migrations are archived in `schema/migrations/archive/` for reference.
 
 ---
 
@@ -171,33 +172,36 @@ Currently not supported - run ETL locally and export/import.
 
 If you need to completely reset the production database:
 
-1. **Connect to Railway PostgreSQL:**
+1. **Export local data first:**
+   ```bash
+   pg_dump -h localhost -U mnp_user -d mnp_analyzer --data-only --no-owner --no-acl > /tmp/mnp_data.sql
+   ```
+
+2. **Connect to Railway PostgreSQL:**
    ```bash
    railway connect postgres
    ```
 
-2. **Drop and recreate schema:**
+3. **Drop and recreate schema:**
    ```sql
    DROP SCHEMA public CASCADE;
    CREATE SCHEMA public;
-   ```
-
-3. **Run migrations (skip 003):**
-   ```sql
-   \i schema/migrations/001_initial_schema.sql
-   \i schema/migrations/002_indexes.sql
-   \i schema/migrations/002_allow_week_zero.sql
-   \i schema/migrations/002_remove_mn_state.sql
-   \i schema/migrations/004_add_substitute_field.sql
-   \i schema/migrations/005_performance_indexes.sql
-   \i schema/migrations/006_team_aliases.sql
-   \i schema/migrations/007_matchplay_integration.sql
    \q
    ```
 
-4. **Import data:**
+4. **Run consolidated schema:**
+   ```bash
+   railway connect postgres < schema/migrations/001_complete_schema.sql
+   ```
+
+5. **Import data:**
    ```bash
    railway connect postgres < /tmp/mnp_data.sql
+   ```
+
+6. **Verify:**
+   ```bash
+   curl "https://pinball-production.up.railway.app/seasons"
    ```
 
 ---
