@@ -27,7 +27,8 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
   const [error, setError] = useState<string | null>(null);
   const [lookupResult, setLookupResult] = useState<MatchplayLookupResult | null>(null);
   const [stats, setStats] = useState<MatchplayPlayerStats | null>(null);
-  const [linking, setLinking] = useState(false);
+  const [linkingUserId, setLinkingUserId] = useState<number | null>(null);
+  const [unlinking, setUnlinking] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
@@ -56,20 +57,32 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
   }
 
   async function handleLink(matchplayUserId: number) {
-    setLinking(true);
+    // Prevent double-clicks
+    if (linkingUserId !== null) return;
+
+    setLinkingUserId(matchplayUserId);
+    setError(null);
     try {
       await api.linkMatchplayPlayer(playerKey, matchplayUserId);
       // Refresh data after linking
       await fetchMatchplayData();
     } catch (err) {
+      // Handle 409 as success - player is already linked
+      if (err instanceof Error && err.message.includes('409')) {
+        await fetchMatchplayData();
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Failed to link player');
     } finally {
-      setLinking(false);
+      setLinkingUserId(null);
     }
   }
 
   async function handleUnlink() {
-    setLinking(true);
+    if (unlinking) return;
+
+    setUnlinking(true);
+    setError(null);
     try {
       await api.unlinkMatchplayPlayer(playerKey);
       setStats(null);
@@ -78,7 +91,7 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to unlink player');
     } finally {
-      setLinking(false);
+      setUnlinking(false);
     }
   }
 
@@ -229,9 +242,9 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
                 variant="ghost"
                 size="sm"
                 onClick={handleUnlink}
-                disabled={linking}
+                disabled={unlinking}
               >
-                {linking ? 'Unlinking...' : 'Unlink Account'}
+                {unlinking ? 'Unlinking...' : 'Unlink Account'}
               </Button>
             </div>
           </div>
@@ -309,9 +322,9 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
                     variant={match.auto_link_eligible ? 'primary' : 'secondary'}
                     size="sm"
                     onClick={() => handleLink(match.user.userId)}
-                    disabled={linking}
+                    disabled={linkingUserId !== null}
                   >
-                    {linking ? 'Linking...' : 'Link'}
+                    {linkingUserId === match.user.userId ? 'Linking...' : 'Link'}
                   </Button>
                 </div>
               ))}
