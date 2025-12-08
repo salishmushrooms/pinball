@@ -9,20 +9,34 @@ This repository contains Monday Night Pinball (MNP) match data, analytics, and r
 ## Directory Structure
 
 ```
-/Users/JJC/Pinball/MNP/
-├── mnp-data-archive/          # League data (submodule)
-│   ├── season-XX/
-│   │   └── matches/
+/Users/test_1/Pinball/MNP/pinball/
+├── api/                        # FastAPI backend
+│   ├── main.py                 # App entry point
+│   ├── routers/                # API endpoints
+│   ├── models/                 # Pydantic schemas
+│   └── requirements.txt
+├── frontend/                   # Next.js frontend
+│   ├── app/                    # App router pages
+│   ├── components/             # React components
+│   └── lib/                    # API client & types
+├── etl/                        # Data pipeline
+│   ├── load_season.py          # Load season data
+│   ├── calculate_*.py          # Aggregate calculations
+│   └── database.py             # DB connection
+├── schema/                     # Database schema
+│   └── migrations/             # SQL migrations
+├── mnp-data-archive/           # League data (submodule)
+│   ├── season-XX/matches/
 │   ├── machines.json
-│   ├── venues.json
-│   └── IPR.csv
+│   └── venues.json
+├── mnp-app-docs/               # Deployment documentation
+│   ├── DEPLOYMENT_CHECKLIST.md
+│   ├── DATABASE_OPERATIONS.md
+│   └── DEPLOYMENT_PLAN.md
 ├── reports/                    # Analysis and report generation
-│   ├── configs/
-│   └── generators/
-├── README.md
-├── MNP_Data_Structure_Reference.md
-├── MNP_Match_Data_Analysis_Guide.md
-└── machine_variations.json
+├── Procfile                    # Railway start command
+├── railway.toml                # Railway config
+└── requirements.txt            # Python dependencies (root)
 ```
 
 ---
@@ -222,35 +236,66 @@ python reports/generators/score_percentile_report.py
 
 ## Current Status
 
+### Production Deployment ✅ LIVE
+- **API:** https://pinball-production.up.railway.app
+- **Frontend:** Deployed on Vercel
+- **Database:** PostgreSQL on Railway
+- **Cost:** $5/month (Railway Hobby)
+
 ### Data & Analytics
-- **Season 21 & 22 data available**
+- **Seasons 18-22 data loaded**
 - **Four specialized report generators created**:
   - Score percentile analysis (multi-machine, multi-season)
   - Venue summary analysis
   - Team comparison reports
   - Machine choice analysis (home/away picks)
-- Home advantage analysis in progress
 
 ### Frontend Application
 - **Component library**: 14+ reusable UI components in `components/ui/`
-- **Reusable specialized components**:
-  - `SeasonMultiSelect` - Multi-season selector (used on Matchups page, reusable for Venue/Player/Team details)
-- **Multi-season support**: Matchups page supports analyzing data across multiple seasons
+- **Multi-season support**: All pages support analyzing data across multiple seasons
 - **API**: Fully typed TypeScript API client with array parameter support
-- **Pages migrated**: Teams, Players, Matchups
+
+---
+
+## Production Operations
+
+### Adding New Season Data
+See [mnp-app-docs/DATABASE_OPERATIONS.md](mnp-app-docs/DATABASE_OPERATIONS.md) for:
+- Loading new season data (e.g., Season 23)
+- Running ETL pipelines
+- Exporting/importing to production database
+
+### Quick Commands
+```bash
+# Connect to production database
+railway connect postgres
+
+# View API logs
+railway logs -s pinball
+
+# Export local data
+pg_dump -h localhost -U mnp_user -d mnp_analyzer --data-only --no-owner --no-acl > /tmp/mnp_data.sql
+
+# Import to production
+railway connect postgres < /tmp/mnp_data.sql
+```
+
+### Key Configuration
+- **Railway:** Deploy from repo root (not api/), Target Port: 8080
+- **Vercel:** Root Directory: frontend, Env: NEXT_PUBLIC_API_URL
 
 ---
 
 ## Next Steps
 
+- Add Season 23 data when available
 - Continue developing analysis reports
 - Refine home advantage metrics
-- Expand machine-specific analysis
-- Support Pin Stats app with data exports and analysis
+- Support Pin Stats app with data exports
 
 ---
 
-**Last Updated**: 2025-11-10
+**Last Updated**: 2025-12-08
 **Maintained by**: JJC
 **LLM Context**: This file helps Claude understand the MNP data analysis project structure
 
