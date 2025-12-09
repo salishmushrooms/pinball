@@ -11,7 +11,6 @@ import {
   Select,
   Alert,
   LoadingSpinner,
-  StatCard,
   Table,
 } from '@/components/ui';
 import PlayerMachineProgressionChart from '@/components/PlayerMachineProgressionChart';
@@ -294,21 +293,10 @@ export default function PlayerDetailPage() {
           ← Back to Players
         </Link>
         <PageHeader title={player.name} />
+        <p className="text-sm text-gray-600 mt-1">
+          IPR: {player.current_ipr ? Math.round(player.current_ipr) : 'N/A'}
+        </p>
       </div>
-
-      <Card>
-        <Card.Header>
-          <Card.Title>Player Information</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <div className="max-w-xs">
-            <StatCard
-              label="IPR"
-              value={player.current_ipr ? Math.round(player.current_ipr).toLocaleString() : 'N/A'}
-            />
-          </div>
-        </Card.Content>
-      </Card>
 
       {/* Matchplay.events Integration */}
       <MatchplaySection playerKey={playerKey} playerName={player.name} />
