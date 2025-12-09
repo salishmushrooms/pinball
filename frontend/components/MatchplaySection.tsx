@@ -36,22 +36,37 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
   }, [playerKey]);
 
   async function fetchMatchplayData() {
+    console.log('fetchMatchplayData called');
     setLoading(true);
     setError(null);
 
     try {
       // First check if player is already linked
       const lookup = await api.lookupMatchplayPlayer(playerKey);
+      console.log('Lookup result:', lookup);
       setLookupResult(lookup);
 
       // If already linked, fetch their stats
       if (lookup.status === 'already_linked') {
-        const playerStats = await api.getMatchplayPlayerStats(playerKey);
-        setStats(playerStats);
+        console.log('Player is already linked, fetching stats...');
+        try {
+          const playerStats = await api.getMatchplayPlayerStats(playerKey);
+          console.log('Stats fetched:', playerStats);
+          setStats(playerStats);
+        } catch (statsErr) {
+          console.error('Failed to fetch Matchplay stats:', statsErr);
+          // Still show linked state even if stats fail
+        }
+      } else {
+        console.log('Player not linked, status:', lookup.status);
+        // Clear stats if not linked
+        setStats(null);
       }
     } catch (err) {
+      console.error('fetchMatchplayData error:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch Matchplay data');
     } finally {
+      console.log('fetchMatchplayData done, setting loading=false');
       setLoading(false);
     }
   }
@@ -63,12 +78,31 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
     setLinkingUserId(matchplayUserId);
     setError(null);
     try {
-      await api.linkMatchplayPlayer(playerKey, matchplayUserId);
-      // Refresh data after linking
-      await fetchMatchplayData();
+      console.log('Linking player...', playerKey, matchplayUserId);
+      const linkResponse = await api.linkMatchplayPlayer(playerKey, matchplayUserId);
+      console.log('Link succeeded:', linkResponse);
+
+      // Update state directly with the response - don't re-fetch as there may be a race condition
+      setLookupResult({
+        mnp_player: { key: playerKey, name: playerName },
+        matches: [],
+        status: 'already_linked',
+        mapping: linkResponse.mapping,
+      });
+
+      // Now fetch stats for the linked player
+      try {
+        const playerStats = await api.getMatchplayPlayerStats(playerKey);
+        console.log('Stats fetched:', playerStats);
+        setStats(playerStats);
+      } catch (statsErr) {
+        console.error('Failed to fetch stats after link:', statsErr);
+      }
     } catch (err) {
+      console.log('Link error:', err);
       // Handle 409 as success - player is already linked
       if (err instanceof Error && err.message.includes('409')) {
+        console.log('409 detected, treating as already linked, refreshing...');
         await fetchMatchplayData();
         return;
       }
@@ -123,8 +157,23 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
     );
   }
 
-  // Player is linked - show stats
-  if (lookupResult?.status === 'already_linked' && stats) {
+  // Player is linked - show stats (or loading state if stats not yet fetched)
+  if (lookupResult?.status === 'already_linked') {
+    // If stats haven't loaded yet, show a simple linked message
+    if (!stats) {
+      return (
+        <Card>
+          <Card.Header>
+            <Card.Title>Matchplay.events</Card.Title>
+          </Card.Header>
+          <Card.Content>
+            <Alert variant="success" title="Linked">
+              Player linked to Matchplay.events. Loading stats...
+            </Alert>
+          </Card.Content>
+        </Card>
+      );
+    }
     return (
       <Card>
         <Card.Header>
@@ -321,7 +370,10 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
                   <Button
                     variant={match.auto_link_eligible ? 'primary' : 'secondary'}
                     size="sm"
-                    onClick={() => handleLink(match.user.userId)}
+                    onClick={() => {
+                      console.log('Button clicked!', match.user.userId, 'linkingUserId:', linkingUserId);
+                      handleLink(match.user.userId);
+                    }}
                     disabled={linkingUserId !== null}
                   >
                     {linkingUserId === match.user.userId ? 'Linking...' : 'Link'}
