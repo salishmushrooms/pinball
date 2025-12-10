@@ -84,15 +84,18 @@ export function FilterPanel({
 
   // Collapsible mode
   return (
-    <div className={cn('border border-gray-200 rounded-lg bg-white', className)}>
-      <div className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+    <div
+      className={cn('border rounded-lg', className)}
+      style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg)' }}
+    >
+      <div className="px-6 py-4 flex items-center justify-between transition-colors hover:opacity-80">
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="flex items-center gap-3 flex-1"
           aria-expanded={isOpen}
           aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${title}`}
         >
-          <span className="text-lg font-semibold text-gray-900">{title}</span>
+          <span className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</span>
           {activeFilterCount > 0 && (
             <Badge variant="info">{activeFilterCount} active</Badge>
           )}
@@ -101,7 +104,8 @@ export function FilterPanel({
           {showClearAll && onClearAll && activeFilterCount > 0 && (
             <button
               onClick={onClearAll}
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              className="text-sm font-medium"
+              style={{ color: 'var(--text-link)' }}
             >
               Clear All
             </button>
@@ -113,9 +117,10 @@ export function FilterPanel({
           >
             <svg
               className={cn(
-                'w-5 h-5 text-gray-500 transition-transform',
+                'w-5 h-5 transition-transform',
                 isOpen && 'transform rotate-180'
               )}
+              style={{ color: 'var(--text-muted)' }}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -131,7 +136,7 @@ export function FilterPanel({
         </div>
       </div>
       {isOpen && (
-        <div className="px-6 py-4 border-t border-gray-200">{children}</div>
+        <div className="px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>{children}</div>
       )}
     </div>
   );

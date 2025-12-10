@@ -73,20 +73,27 @@ export default function TeamsPage() {
                 href={`/teams/${team.team_key}?season=${team.season}`}
               >
                 <Card.Content>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
                     {team.team_name}
                   </h3>
-                  {team.home_venue_key && (
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">Venue:</span> {team.home_venue_key}
-                    </p>
-                  )}
+                  <div className="space-y-1">
+                    {team.home_venue_name && (
+                      <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                        <span className="font-medium">Venue:</span> {team.home_venue_name}
+                      </p>
+                    )}
+                    {team.team_ipr !== null && (
+                      <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                        <span className="font-medium">Team IPR:</span> {team.team_ipr}
+                      </p>
+                    )}
+                  </div>
                 </Card.Content>
               </Card>
             ))}
           </div>
 
-          <div className="text-center text-sm text-gray-600">
+          <div className="text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
             Showing {teams.length} team{teams.length !== 1 ? 's' : ''} (Season {CURRENT_SEASON})
           </div>
         </>

@@ -126,6 +126,7 @@ def load_season_data(season: int):
     # Step 4: Extract and load teams
     logger.info("Step 4: Extracting teams...")
     try:
+        import csv
         all_teams = {}
 
         for match in matches:
@@ -133,6 +134,30 @@ def load_season_data(season: int):
             for team in teams:
                 key = (team['team_key'], team['season'])
                 all_teams[key] = team
+
+        # Load team-venue mappings from teams.csv if available
+        teams_csv = config.get_season_path(season) / "teams.csv"
+        if teams_csv.exists():
+            logger.info(f"  Loading team-venue mappings from teams.csv...")
+            with open(teams_csv, 'r') as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    if len(row) >= 3:
+                        team_key = row[0].strip()
+                        venue_key = row[1].strip()
+                        team_name = row[2].strip()
+                        key = (team_key, season)
+                        if key in all_teams:
+                            all_teams[key]['home_venue_key'] = venue_key
+                            all_teams[key]['team_name'] = team_name
+                        else:
+                            # Team from CSV not in matches (possibly didn't play)
+                            all_teams[key] = {
+                                'team_key': team_key,
+                                'season': season,
+                                'team_name': team_name,
+                                'home_venue_key': venue_key
+                            }
 
         loader.load_teams(list(all_teams.values()))
         logger.info(f"✓ Loaded {len(all_teams)} teams")

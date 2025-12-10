@@ -26,6 +26,7 @@ import {
   Venue,
   VenueDetail,
   VenueListResponse,
+  VenueWithStatsListResponse,
   VenueMachineStats,
   VenueQueryParams,
   VenueMachinesParams,
@@ -223,6 +224,13 @@ export const api = {
    */
   getVenues: (params?: VenueQueryParams): Promise<VenueListResponse> => {
     return fetchAPI<VenueListResponse>('/venues', params);
+  },
+
+  /**
+   * Get list of venues with stats (machine count, home teams)
+   */
+  getVenuesWithStats: (params?: VenueQueryParams & { season?: number }): Promise<VenueWithStatsListResponse> => {
+    return fetchAPI<VenueWithStatsListResponse>('/venues/with-stats', params);
   },
 
   /**

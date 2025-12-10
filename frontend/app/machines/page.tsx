@@ -12,10 +12,10 @@ import {
   LoadingSpinner,
   EmptyState,
   Table,
-  Select,
   FilterPanel,
 } from '@/components/ui';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
+import { VenueSelect } from '@/components/VenueMultiSelect';
 import { SUPPORTED_SEASONS, filterSupportedSeasons } from '@/lib/utils';
 
 // Format large scores for display (e.g., 1.2M, 500K)
@@ -159,18 +159,13 @@ export default function MachinesPage() {
             availableSeasons={availableSeasons}
             label="Season"
             helpText="Filter machines played in selected season"
+            variant="dropdown"
           />
-          <Select
-            label="Venue"
+          <VenueSelect
             value={selectedVenue}
-            onChange={(e) => setSelectedVenue(e.target.value)}
-            options={[
-              { value: '', label: 'All Venues' },
-              ...venues.map((v) => ({
-                value: v.venue_key,
-                label: v.venue_name,
-              })),
-            ]}
+            onChange={setSelectedVenue}
+            venues={venues}
+            label="Venue"
           />
         </div>
       </FilterPanel>

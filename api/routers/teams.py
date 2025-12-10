@@ -79,14 +79,36 @@ def list_teams(
 
     where_clause = " AND ".join(where_clauses) if where_clauses else "TRUE"
 
-    # Get paginated results - get all teams
+    # Get paginated results - get all teams with venue names and team IPR
+    # Team IPR is calculated as the sum of IPRs for players who played for the team that season
     query = f"""
         SELECT
             t.team_key,
             t.team_name,
             t.home_venue_key,
-            t.season
+            v.venue_name as home_venue_name,
+            t.season,
+            team_ipr.total_ipr as team_ipr
         FROM teams t
+        LEFT JOIN venues v ON t.home_venue_key = v.venue_key
+        LEFT JOIN (
+            SELECT
+                team_key,
+                season,
+                SUM(current_ipr) as total_ipr
+            FROM (
+                SELECT DISTINCT
+                    s.team_key,
+                    s.season,
+                    s.player_key,
+                    p.current_ipr
+                FROM scores s
+                JOIN players p ON s.player_key = p.player_key
+                WHERE (s.is_substitute IS NULL OR s.is_substitute = false)
+                  AND p.current_ipr IS NOT NULL
+            ) unique_players
+            GROUP BY team_key, season
+        ) team_ipr ON t.team_key = team_ipr.team_key AND t.season = team_ipr.season
         WHERE {where_clause}
         ORDER BY t.team_name, t.season DESC
         LIMIT :limit OFFSET :offset

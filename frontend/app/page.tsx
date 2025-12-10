@@ -56,7 +56,7 @@ export default function Home() {
             <Card.Title>Data Summary</Card.Title>
           </Card.Header>
           <Card.Content>
-            <p className="text-gray-600 mb-4">{apiInfo.data_summary.description}</p>
+            <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>{apiInfo.data_summary.description}</p>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <StatCard
                 label="Players"
@@ -90,10 +90,10 @@ export default function Home() {
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card variant="interactive" href="/players">
           <Card.Content>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
               Browse Players
             </h3>
-            <p className="text-gray-600">
+            <p style={{ color: 'var(--text-secondary)' }}>
               Search and analyze player performance across machines and venues
             </p>
           </Card.Content>
@@ -101,10 +101,10 @@ export default function Home() {
 
         <Card variant="interactive" href="/machines">
           <Card.Content>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
               Browse Machines
             </h3>
-            <p className="text-gray-600">
+            <p style={{ color: 'var(--text-secondary)' }}>
               Explore machine statistics and percentile distributions
             </p>
           </Card.Content>
@@ -112,10 +112,10 @@ export default function Home() {
 
         <Card variant="interactive" href="/venues">
           <Card.Content>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
               Browse Venues
             </h3>
-            <p className="text-gray-600">
+            <p style={{ color: 'var(--text-secondary)' }}>
               View venue locations and their current machine lineups
             </p>
           </Card.Content>
@@ -123,10 +123,10 @@ export default function Home() {
 
         <Card variant="interactive" href="/matchups">
           <Card.Content>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
               Matchup Analysis
             </h3>
-            <p className="text-gray-600">
+            <p style={{ color: 'var(--text-secondary)' }}>
               Analyze team vs team matchups with score predictions and strategies
             </p>
           </Card.Content>
