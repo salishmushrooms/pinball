@@ -8,13 +8,14 @@ import { Player, PlayerMachineStat, Venue, PlayerMachineScoreHistory } from '@/l
 import {
   Card,
   PageHeader,
-  Select,
   Alert,
   LoadingSpinner,
   Table,
+  FilterPanel,
 } from '@/components/ui';
 import PlayerMachineProgressionChart from '@/components/PlayerMachineProgressionChart';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
+import { VenueSelect } from '@/components/VenueMultiSelect';
 import { MatchplaySection } from '@/components/MatchplaySection';
 import { useDebouncedEffect } from '@/lib/hooks';
 import { SUPPORTED_SEASONS, filterSupportedSeasons } from '@/lib/utils';
@@ -33,7 +34,7 @@ export default function PlayerDetailPage() {
   const [sortBy, setSortBy] = useState<'avg_percentile' | 'games_played' | 'avg_score' | 'win_percentage'>('games_played');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [seasonsFilter, setSeasonsFilter] = useState<number[]>([22]);
-  const [venueFilter, setVenueFilter] = useState<string | undefined>(undefined);
+  const [venueFilter, setVenueFilter] = useState<string>('');
 
   // Chart-related state
   const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
@@ -103,7 +104,7 @@ export default function PlayerDetailPage() {
         api.getPlayer(playerKey),
         api.getPlayerMachineStats(playerKey, {
           seasons: seasonsFilter.length > 0 ? seasonsFilter : undefined,
-          venue_key: venueFilter,
+          venue_key: venueFilter || undefined,
           min_games: 1,
           sort_by: sortBy,
           sort_order: sortDirection,
@@ -138,7 +139,7 @@ export default function PlayerDetailPage() {
         playerKey,
         machineKey,
         {
-          venue_key: venueFilter,
+          venue_key: venueFilter || undefined,
           seasons: seasonsFilter.length > 0 ? seasonsFilter : undefined,
         }
       );
@@ -263,6 +264,16 @@ export default function PlayerDetailPage() {
     }
   }
 
+  // Count active filters
+  const activeFilterCount =
+    (seasonsFilter.length > 0 && seasonsFilter.length < availableSeasons.length ? 1 : 0) +
+    (venueFilter ? 1 : 0);
+
+  function clearFilters() {
+    setSeasonsFilter([22]);
+    setVenueFilter('');
+  }
+
   if (loading) {
     return <LoadingSpinner fullPage text="Loading player data..." />;
   }
@@ -288,7 +299,8 @@ export default function PlayerDetailPage() {
       <div>
         <Link
           href="/players"
-          className="text-blue-600 hover:text-blue-800 text-sm mb-2 inline-block"
+          className="text-sm mb-2 inline-block"
+          style={{ color: 'var(--text-link)' }}
         >
           ← Back to Players
         </Link>
@@ -301,41 +313,43 @@ export default function PlayerDetailPage() {
       {/* Matchplay.events Integration */}
       <MatchplaySection playerKey={playerKey} playerName={player.name} />
 
-      <Card>
-        <Card.Header>
-          <div className="flex items-center justify-between">
-            <Card.Title>Machine Statistics</Card.Title>
-            {fetching && (
-              <div className="flex items-center text-sm text-gray-600">
-                <svg className="animate-spin h-4 w-4 mr-2 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Updating...
-              </div>
-            )}
-          </div>
-        </Card.Header>
-        <Card.Content>
-          <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <SeasonMultiSelect
-              value={seasonsFilter}
-              onChange={setSeasonsFilter}
-              availableSeasons={availableSeasons}
-            />
+      {/* Filters */}
+      <FilterPanel
+        title="Filters"
+        collapsible={true}
+        activeFilterCount={activeFilterCount}
+        showClearAll={activeFilterCount > 0}
+        onClearAll={clearFilters}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <SeasonMultiSelect
+            value={seasonsFilter}
+            onChange={setSeasonsFilter}
+            availableSeasons={availableSeasons}
+            variant="dropdown"
+          />
 
-            <Select
-              label="Venue"
-              value={venueFilter || ''}
-              onChange={(e) => setVenueFilter(e.target.value || undefined)}
-              options={[
-                { value: '', label: 'All Venues' },
-                ...venues.map((venue) => ({
-                  value: venue.venue_key,
-                  label: venue.venue_name,
-                })),
-              ]}
-            />
+          <VenueSelect
+            value={venueFilter}
+            onChange={setVenueFilter}
+            venues={venues}
+            label="Venue"
+          />
+        </div>
+      </FilterPanel>
+
+      <Card>
+        <Card.Content>
+          <div className="flex items-center justify-between mb-4">
+            <h2
+              className="text-xl font-semibold"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              Machine Statistics
+            </h2>
+            {fetching && (
+              <LoadingSpinner size="sm" text="Updating..." />
+            )}
           </div>
 
           {machineStats.length === 0 ? (
@@ -407,8 +421,13 @@ export default function PlayerDetailPage() {
                         className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
                           selectedMachine === stat.machine_key
                             ? 'bg-blue-600 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            : 'hover:opacity-80'
                         }`}
+                        style={
+                          selectedMachine === stat.machine_key
+                            ? undefined
+                            : { backgroundColor: 'var(--card-bg-secondary)', color: 'var(--text-secondary)' }
+                        }
                         title="View score progression chart"
                       >
                         📊
@@ -420,10 +439,13 @@ export default function PlayerDetailPage() {
             </Table>
           )}
 
-          <div className="mt-4 text-sm text-gray-600">
+          <div
+            className="mt-4 text-sm"
+            style={{ color: 'var(--text-muted)' }}
+          >
             Showing {machineStats.length} machine{machineStats.length !== 1 ? 's' : ''}
             {machineStats.length > 0 && (
-              <span className="ml-2 text-gray-500">
+              <span className="ml-2" style={{ color: 'var(--text-muted)' }}>
                 (Click 📊 to view score progression)
               </span>
             )}
@@ -446,13 +468,16 @@ export default function PlayerDetailPage() {
               </Alert>
             ) : scoreHistory ? (
               <div>
-                <p className="text-sm text-gray-600 mb-4">
+                <p
+                  className="text-sm mb-4"
+                  style={{ color: 'var(--text-muted)' }}
+                >
                   Loaded {scoreHistory.total_games} games
                 </p>
                 <PlayerMachineProgressionChart data={scoreHistory} />
               </div>
             ) : (
-              <p className="text-gray-500">No data loaded</p>
+              <p style={{ color: 'var(--text-muted)' }}>No data loaded</p>
             )}
           </Card.Content>
         </Card>

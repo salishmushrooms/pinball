@@ -2,40 +2,55 @@
 
 ## Project Overview
 
-This repository contains Monday Night Pinball (MNP) match data, analytics, and reporting tools.
+This repository contains Monday Night Pinball (MNP) match data, analytics, and reporting tools. It includes a full-stack web application (FastAPI + Next.js), ETL pipelines for loading match data, and Python-based report generators for statistical analysis.
 
 ---
 
 ## Directory Structure
 
 ```
-/Users/test_1/Pinball/MNP/pinball/
+/Users/JJC/Pinball/MNP/
 ├── api/                        # FastAPI backend
 │   ├── main.py                 # App entry point
-│   ├── routers/                # API endpoints
+│   ├── routers/                # API endpoints (8 routers)
 │   ├── models/                 # Pydantic schemas
+│   ├── services/               # Business logic (matchplay, player matching)
 │   └── requirements.txt
-├── frontend/                   # Next.js frontend
-│   ├── app/                    # App router pages
+├── frontend/                   # Next.js 16 frontend
+│   ├── app/                    # App router pages (6 main + detail pages)
 │   ├── components/             # React components
+│   │   ├── ui/                 # 16 reusable UI components
+│   │   └── *.tsx               # 6 specialized components
 │   └── lib/                    # API client & types
 ├── etl/                        # Data pipeline
 │   ├── load_season.py          # Load season data
-│   ├── calculate_*.py          # Aggregate calculations
+│   ├── calculate_*.py          # Aggregate calculations (5 scripts)
+│   ├── update_ipr.py           # Update IPR ratings
+│   ├── parsers/                # Data parsers (match, machine, ipr)
+│   ├── loaders/                # Database loaders
 │   └── database.py             # DB connection
 ├── schema/                     # Database schema
-│   └── migrations/             # SQL migrations
-├── mnp-data-archive/           # League data (submodule)
-│   ├── season-XX/matches/
+│   ├── 001_complete_schema.sql # Consolidated schema
+│   └── migrations/             # 8 SQL migrations
+├── mnp-data-archive/           # League data (git submodule)
+│   ├── season-14/ to season-22/  # 9 seasons of match data
 │   ├── machines.json
-│   └── venues.json
-├── mnp-app-docs/               # Deployment documentation
-│   ├── DEPLOYMENT_CHECKLIST.md
+│   ├── venues.json
+│   └── IPR.csv
+├── mnp-app-docs/               # Comprehensive deployment docs
 │   ├── DATABASE_OPERATIONS.md
-│   └── DEPLOYMENT_PLAN.md
+│   ├── DEPLOYMENT_CHECKLIST.md
+│   ├── api/endpoints.md        # API documentation
+│   └── database/schema.md      # Schema documentation
 ├── reports/                    # Analysis and report generation
+│   ├── generators/             # 15 Python report generators
+│   ├── configs/                # 23 JSON config files
+│   ├── output/                 # Generated markdown reports
+│   └── charts/                 # Generated PNG visualizations
+├── docs/                       # Additional documentation
 ├── Procfile                    # Railway start command
 ├── railway.toml                # Railway config
+├── vercel.json                 # Vercel deployment config
 └── requirements.txt            # Python dependencies (root)
 ```
 
@@ -77,27 +92,38 @@ Located in [reports/](reports/) directory:
 
 ### Available Report Generators
 
+**Core Reports:**
 1. **score_percentile_report.py** - Score distribution analysis
    - Generates percentile charts for machines
    - Supports venue filtering, IPR filtering, multi-season analysis
    - Creates aggregate grid images for multiple machines
-   - Config pattern: Specify seasons, machines, venues, IPR ranges
 
 2. **venue_summary_report.py** - Venue-specific analysis
    - Machine statistics at specific venues
    - High scores, selection patterns, round analysis
-   - Both detailed and simplified output formats
 
 3. **team_machine_comparison_report.py** - Team vs team comparison
    - Compare two teams' performance on specific machines
    - Scores from all venues (no venue filtering)
-   - Sorted by score with player details
 
 4. **team_machine_choice_report.py** - Machine selection analysis
    - Track when team picked machines vs opponent picked
-   - Home venue: team picks rounds 2 & 4
-   - Away venues: team picks rounds 1 & 3
-   - Shows performance on own picks vs forced picks
+
+**Home Advantage Analysis:**
+5. **home_advantage_ipr_analysis.py** - IPR-based home advantage
+6. **home_advantage_ipr_analysis_points.py** - Points-based analysis
+7. **home_away_advantage_report.py** - General home/away comparison
+8. **venue_home_advantage_analysis.py** - Per-venue home advantage
+9. **venue_controlled_ipr_analysis.py** - Controlled IPR analysis
+
+**Team Analysis:**
+10. **team_venue_machine_performance_report.py** - Team performance at venues
+11. **team_venue_pick_frequency_report.py** - Machine pick frequency
+
+**Utility Reports:**
+12. **score_percentile_report_exclude_venues.py** - Percentiles with venue exclusions
+13. **find_missing_machines.py** - Identify missing machine data
+14. **prediction_data_audit.py** - Audit prediction data quality
 
 ### Config File Pattern
 
@@ -211,9 +237,25 @@ python reports/generators/score_percentile_report.py
 
 ## Tools & Technologies
 
-- **Python** for report generation
-- **JSON** for match data storage
-- **CSV** for tabular data (venues, IPR, matches overview)
+### Backend
+- **Python 3.12** for ETL, API, and report generation
+- **FastAPI** for REST API
+- **PostgreSQL 15** for database
+- **SQLAlchemy** for ORM
+
+### Frontend
+- **Next.js 16** with App Router
+- **React 19** with TypeScript
+- **Tailwind CSS v4** for styling
+
+### Data Storage
+- **JSON** for match data files
+- **CSV** for tabular data (IPR ratings, team rosters)
+- **PostgreSQL** for application data
+
+### Deployment
+- **Railway** for API and PostgreSQL hosting ($5/month)
+- **Vercel** for frontend hosting
 
 ---
 
@@ -242,18 +284,30 @@ python reports/generators/score_percentile_report.py
 - **Database:** PostgreSQL on Railway
 - **Cost:** $5/month (Railway Hobby)
 
-### Data & Analytics
-- **Seasons 18-22 data loaded**
-- **Four specialized report generators created**:
+### Data Available
+- **Seasons 14-22** in mnp-data-archive (9 seasons total)
+- **Seasons 18-22** loaded in production database
+- **943 matches**, **56,504 scores**, **938 players**
+
+### Report Generators
+- **14 specialized report generators** covering:
   - Score percentile analysis (multi-machine, multi-season)
-  - Venue summary analysis
-  - Team comparison reports
-  - Machine choice analysis (home/away picks)
+  - Venue summary and home advantage analysis
+  - Team comparison and machine choice analysis
+  - IPR-controlled analysis
 
 ### Frontend Application
-- **Component library**: 14+ reusable UI components in `components/ui/`
+- **16 UI components** in `components/ui/`
+- **6 specialized components** (SeasonMultiSelect, RoundMultiSelect, etc.)
+- **6 main pages** with detail views (players, teams, machines, venues, matchups)
 - **Multi-season support**: All pages support analyzing data across multiple seasons
 - **API**: Fully typed TypeScript API client with array parameter support
+
+### API Endpoints
+8 routers providing endpoints for:
+- Players, Teams, Machines, Venues, Seasons
+- Matchups and predictions
+- Matchplay integration (external API)
 
 ---
 
@@ -286,18 +340,68 @@ railway connect postgres < /tmp/mnp_data.sql
 
 ---
 
-## Next Steps
-
-- Add Season 23 data when available
-- Continue developing analysis reports
-- Refine home advantage metrics
-- Support Pin Stats app with data exports
+**Last Updated**: 2025-12-10
+**Maintained by**: JJC
+**LLM Context**: This file helps Claude understand the MNP data analysis project structure
 
 ---
 
-**Last Updated**: 2025-12-08
-**Maintained by**: JJC
-**LLM Context**: This file helps Claude understand the MNP data analysis project structure
+## Development Environment
+
+### Quick Start
+```bash
+# Activate Python environment
+conda activate mnp
+
+# Start API (from repo root)
+cd /Users/JJC/Pinball/MNP
+uvicorn api.main:app --reload --port 8000
+
+# Start frontend (separate terminal)
+cd /Users/JJC/Pinball/MNP/frontend
+npm run dev
+```
+
+### Database Access
+```bash
+# Local database
+psql -h localhost -U mnp_user -d mnp_analyzer
+
+# Production database (via Railway CLI)
+railway connect postgres
+```
+
+### Environment Files
+- `.env` - Local database credentials
+- `frontend/.env.local` - Frontend API URL (`NEXT_PUBLIC_API_URL`)
+
+---
+
+## ETL Pipeline
+
+### Loading Season Data
+```bash
+# Load a specific season
+python etl/load_season.py --season 22
+
+# Recalculate aggregates after loading
+python etl/calculate_percentiles.py
+python etl/calculate_player_stats.py
+python etl/calculate_player_totals.py
+python etl/calculate_team_machine_picks.py
+python etl/calculate_match_points.py
+```
+
+### ETL Scripts
+| Script | Purpose |
+|--------|---------|
+| `load_season.py` | Load match data from JSON files |
+| `update_ipr.py` | Update IPR ratings from CSV |
+| `calculate_percentiles.py` | Calculate score percentiles per machine |
+| `calculate_player_stats.py` | Aggregate player statistics |
+| `calculate_player_totals.py` | Calculate player totals |
+| `calculate_team_machine_picks.py` | Track machine pick patterns |
+| `calculate_match_points.py` | Calculate match point totals |
 
 ---
 
@@ -342,4 +446,44 @@ if isinstance(seasons, list):
     self.seasons = seasons
 else:
     self.seasons = [str(seasons)]
+```
+
+---
+
+## API Structure
+
+### Routers (api/routers/)
+| Router | Purpose |
+|--------|---------|
+| `machines.py` | Machine data and percentiles |
+| `matchplay.py` | External Matchplay.events integration |
+| `matchups.py` | Team matchup predictions |
+| `players.py` | Player stats and performance |
+| `predictions.py` | Score predictions |
+| `seasons.py` | Season metadata |
+| `teams.py` | Team data and rosters |
+| `venues.py` | Venue information and machines |
+
+### Services (api/services/)
+- `matchplay_client.py` - Client for Matchplay.events API
+- `player_matcher.py` - Match player names across data sources
+
+---
+
+## Documentation Index
+
+### In This Repository
+| File | Purpose |
+|------|---------|
+| [DESIGN_SYSTEM.md](frontend/DESIGN_SYSTEM.md) | Frontend component design system |
+| [MNP_Data_Structure_Reference.md](MNP_Data_Structure_Reference.md) | Match data JSON structure |
+| [MNP_Match_Data_Analysis_Guide.md](MNP_Match_Data_Analysis_Guide.md) | Analysis methodology |
+| [mnp-app-docs/DATABASE_OPERATIONS.md](mnp-app-docs/DATABASE_OPERATIONS.md) | Database operations guide |
+| [mnp-app-docs/api/endpoints.md](mnp-app-docs/api/endpoints.md) | API endpoint documentation |
+| [reports/README.md](reports/README.md) | Report generation guide |
+
+### Git Submodule
+The `mnp-data-archive/` directory is a git submodule. To update:
+```bash
+git submodule update --remote mnp-data-archive
 ```

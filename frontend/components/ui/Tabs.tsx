@@ -43,9 +43,10 @@ export function TabsList({ children, className }: TabsListProps) {
   return (
     <div
       className={cn(
-        'inline-flex h-12 items-center justify-center rounded-lg bg-gray-100 p-1 text-gray-600',
+        'inline-flex h-12 items-center justify-center rounded-lg p-1',
         className
       )}
+      style={{ backgroundColor: 'var(--card-bg-secondary)', color: 'var(--text-secondary)' }}
       role="tablist"
     >
       {children}
@@ -71,11 +72,14 @@ export function TabsTrigger({ value, children, className }: TabsTriggerProps) {
       className={cn(
         'inline-flex items-center justify-center whitespace-nowrap rounded-md px-6 py-2 text-sm font-medium transition-all',
         'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
-        isActive
-          ? 'bg-white text-gray-900 shadow-sm'
-          : 'text-gray-600 hover:text-gray-900',
+        isActive ? 'shadow-sm' : '',
         className
       )}
+      style={
+        isActive
+          ? { backgroundColor: 'var(--card-bg)', color: 'var(--text-primary)' }
+          : { color: 'var(--text-secondary)' }
+      }
     >
       {children}
     </button>

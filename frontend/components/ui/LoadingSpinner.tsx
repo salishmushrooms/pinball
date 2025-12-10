@@ -34,7 +34,7 @@ export function LoadingSpinner({
   const content = (
     <div className={cn('flex flex-col items-center justify-center gap-3', className)}>
       {spinner}
-      {text && <div className="text-sm text-gray-600">{text}</div>}
+      {text && <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>{text}</div>}
     </div>
   );
 

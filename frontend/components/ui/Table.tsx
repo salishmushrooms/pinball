@@ -12,11 +12,14 @@ interface TableProps {
 export function Table({ children, className, compact = false }: TableProps) {
   return (
     <div className="overflow-x-auto -mx-4 sm:mx-0">
-      <table className={cn(
-        'w-full divide-y divide-gray-200',
-        compact && 'text-sm',
-        className
-      )}>
+      <table
+        className={cn(
+          'w-full divide-y',
+          compact && 'text-sm',
+          className
+        )}
+        style={{ borderColor: 'var(--table-border)' }}
+      >
         {children}
       </table>
     </div>
@@ -30,7 +33,7 @@ interface TableHeaderProps {
 
 export function TableHeader({ children, className }: TableHeaderProps) {
   return (
-    <thead className={cn('bg-gray-50', className)}>
+    <thead className={cn(className)} style={{ backgroundColor: 'var(--table-header-bg)' }}>
       {children}
     </thead>
   );
@@ -43,7 +46,10 @@ interface TableBodyProps {
 
 export function TableBody({ children, className }: TableBodyProps) {
   return (
-    <tbody className={cn('bg-white divide-y divide-gray-200', className)}>
+    <tbody
+      className={cn('divide-y', className)}
+      style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--table-border)' }}
+    >
       {children}
     </tbody>
   );
@@ -57,13 +63,15 @@ interface TableRowProps {
 }
 
 export function TableRow({ children, className, onClick, hoverable = true }: TableRowProps) {
+  const hoverStyle = hoverable ? { '--tw-row-hover': 'var(--table-row-hover)' } as React.CSSProperties : {};
   return (
     <tr
       className={cn(
-        hoverable && 'hover:bg-gray-50',
+        hoverable && 'hover:bg-[var(--table-row-hover)]',
         onClick && 'cursor-pointer',
         className
       )}
+      style={hoverStyle}
       onClick={onClick}
     >
       {children}
@@ -89,16 +97,17 @@ export function TableHead({
   return (
     <th
       className={cn(
-        'px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
-        sortable && 'cursor-pointer select-none hover:text-gray-700',
+        'px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium uppercase tracking-wider',
+        sortable && 'cursor-pointer select-none',
         className
       )}
+      style={{ color: 'var(--text-muted)' }}
       onClick={sortable ? onSort : undefined}
     >
       <div className="flex items-center gap-1">
         {children}
         {sortable && (
-          <span className="text-gray-400">
+          <span style={{ color: 'var(--text-muted)' }}>
             {sortDirection === 'asc' && '↑'}
             {sortDirection === 'desc' && '↓'}
             {!sortDirection && '↕'}
@@ -116,7 +125,10 @@ interface TableCellProps {
 
 export function TableCell({ children, className }: TableCellProps) {
   return (
-    <td className={cn('px-3 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm text-gray-900', className)}>
+    <td
+      className={cn('px-3 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm', className)}
+      style={{ color: 'var(--text-primary)' }}
+    >
       {children}
     </td>
   );
