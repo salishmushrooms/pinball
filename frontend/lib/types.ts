@@ -258,6 +258,24 @@ export interface VenueListResponse {
   offset: number;
 }
 
+export interface VenueHomeTeam {
+  team_key: string;
+  team_name: string;
+  season: number;
+}
+
+export interface VenueWithStats extends Venue {
+  machine_count: number;
+  home_teams: VenueHomeTeam[];
+}
+
+export interface VenueWithStatsListResponse {
+  venues: VenueWithStats[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface VenueMachineStats {
   machine_key: string;
   machine_name: string;
@@ -294,7 +312,9 @@ export interface Team {
   team_key: string;
   team_name: string;
   home_venue_key: string | null;
+  home_venue_name: string | null;
   season: number;
+  team_ipr: number | null;
 }
 
 export interface TeamListResponse {

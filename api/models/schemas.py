@@ -162,7 +162,9 @@ class TeamBase(BaseModel):
     team_key: str
     team_name: str
     home_venue_key: Optional[str] = None
+    home_venue_name: Optional[str] = None
     season: int
+    team_ipr: Optional[int] = Field(None, description="Sum of roster player IPRs")
 
 
 class TeamDetail(TeamBase):
@@ -204,6 +206,27 @@ class VenueDetail(VenueBase):
 class VenueList(BaseModel):
     """List of venues with pagination info"""
     venues: List[VenueBase]
+    total: int
+    limit: int
+    offset: int
+
+
+class VenueHomeTeam(BaseModel):
+    """Team that uses this venue as home"""
+    team_key: str
+    team_name: str
+    season: int
+
+
+class VenueWithStats(VenueBase):
+    """Venue with additional statistics"""
+    machine_count: int = Field(0, description="Number of machines currently at this venue")
+    home_teams: List[VenueHomeTeam] = Field(default_factory=list, description="Teams that use this venue as home")
+
+
+class VenueWithStatsList(BaseModel):
+    """List of venues with stats and pagination info"""
+    venues: List[VenueWithStats]
     total: int
     limit: int
     offset: int

@@ -7,8 +7,9 @@ import { api } from '@/lib/api';
 import { Team, TeamMachineStat, TeamPlayer, Venue, MatchplayRatingInfo } from '@/lib/types';
 import { RoundMultiSelect } from '@/components/RoundMultiSelect';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
+import { VenueSelect } from '@/components/VenueMultiSelect';
 import { useDebouncedEffect } from '@/lib/hooks';
-import { Table } from '@/components/ui';
+import { Table, Card, PageHeader, FilterPanel, Alert, LoadingSpinner } from '@/components/ui';
 import { SUPPORTED_SEASONS, filterSupportedSeasons } from '@/lib/utils';
 
 export default function TeamDetailPage() {
@@ -34,7 +35,7 @@ export default function TeamDetailPage() {
   const [seasonsFilter, setSeasonsFilter] = useState<number[]>(
     initialSeason ? [parseInt(initialSeason)] : [22]
   );
-  const [venueFilter, setVenueFilter] = useState<string | undefined>(undefined);
+  const [venueFilter, setVenueFilter] = useState<string>('');
   const [roundsFilter, setRoundsFilter] = useState<number[]>([1, 2, 3, 4]);
   const [excludeSubs, setExcludeSubs] = useState<boolean>(true);
 
@@ -91,7 +92,7 @@ export default function TeamDetailPage() {
         api.getTeam(teamKey, seasonsFilter.length === 1 ? seasonsFilter[0] : undefined),
         api.getTeamMachineStats(teamKey, {
           seasons: seasonsFilter,
-          venue_key: venueFilter,
+          venue_key: venueFilter || undefined,
           rounds: roundsParam,
           exclude_subs: excludeSubs,
           min_games: 1,
@@ -99,7 +100,7 @@ export default function TeamDetailPage() {
           sort_order: sortBy === 'machine_name' ? sortDirection : sortDirection,
           limit: 100,
         }),
-        api.getTeamPlayers(teamKey, seasonsFilter, venueFilter, excludeSubs),
+        api.getTeamPlayers(teamKey, seasonsFilter, venueFilter || undefined, excludeSubs),
       ]);
 
       setTeam(teamData);
@@ -190,28 +191,41 @@ export default function TeamDetailPage() {
     });
   }, [players, rosterSortBy, rosterSortDirection]);
 
+  // Count active filters
+  const activeFilterCount =
+    (seasonsFilter.length > 0 && seasonsFilter.length < availableSeasons.length ? 1 : 0) +
+    (venueFilter ? 1 : 0) +
+    (roundsFilter.length > 0 && roundsFilter.length < 4 ? 1 : 0) +
+    (excludeSubs ? 0 : 1); // excludeSubs is default on, so only count when off
+
+  function clearFilters() {
+    setSeasonsFilter([22]);
+    setVenueFilter('');
+    setRoundsFilter([1, 2, 3, 4]);
+    setExcludeSubs(true);
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
-        <div className="text-lg text-gray-600">Loading team data...</div>
+        <LoadingSpinner size="lg" text="Loading team data..." />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-        <strong className="font-bold">Error: </strong>
-        <span>{error}</span>
-      </div>
+      <Alert variant="error" title="Error">
+        {error}
+      </Alert>
     );
   }
 
   if (!team) {
     return (
-      <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
+      <Alert variant="warning" title="Not Found">
         Team not found
-      </div>
+      </Alert>
     );
   }
 
@@ -220,63 +234,45 @@ export default function TeamDetailPage() {
       <div>
         <Link
           href="/teams"
-          className="text-blue-600 hover:text-blue-800 text-sm mb-2 inline-block"
+          className="text-sm mb-2 inline-block"
+          style={{ color: 'var(--text-link)' }}
         >
           ← Back to Teams
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900">{team.team_name}</h1>
-        <p className="text-gray-600 mt-1">
-          Season {team.season} {team.home_venue_key && `• Home Venue: ${team.home_venue_key}`}
-        </p>
+        <PageHeader
+          title={team.team_name}
+          description={`Season ${team.season}${team.home_venue_key ? ` • Home Venue: ${team.home_venue_key}` : ''}`}
+        />
       </div>
 
-      {/* Machine Statistics Section */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Machine Statistics
-          </h2>
-          {fetching && (
-            <div className="flex items-center text-sm text-gray-600">
-              <svg className="animate-spin h-4 w-4 mr-2 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Updating...
-            </div>
-          )}
-        </div>
-
-        {/* Filters */}
-        <div className="mb-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Filters */}
+      <FilterPanel
+        title="Filters"
+        collapsible={true}
+        activeFilterCount={activeFilterCount}
+        showClearAll={activeFilterCount > 0}
+        onClearAll={clearFilters}
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <SeasonMultiSelect
               value={seasonsFilter}
               onChange={setSeasonsFilter}
               availableSeasons={availableSeasons}
+              variant="dropdown"
             />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Venue
-              </label>
-              <select
-                value={venueFilter || ''}
-                onChange={(e) => setVenueFilter(e.target.value || undefined)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Venues</option>
-                {venues.map((venue) => (
-                  <option key={venue.venue_key} value={venue.venue_key}>
-                    {venue.venue_name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <VenueSelect
+              value={venueFilter}
+              onChange={setVenueFilter}
+              venues={venues}
+              label="Venue"
+            />
 
             <RoundMultiSelect
               value={roundsFilter}
               onChange={setRoundsFilter}
+              variant="dropdown"
             />
           </div>
 
@@ -286,196 +282,229 @@ export default function TeamDetailPage() {
               id="exclude-subs"
               checked={excludeSubs}
               onChange={(e) => setExcludeSubs(e.target.checked)}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 rounded"
+              style={{ borderColor: 'var(--input-border)' }}
             />
-            <label htmlFor="exclude-subs" className="ml-2 text-sm text-gray-700">
+            <label
+              htmlFor="exclude-subs"
+              className="ml-2 text-sm"
+              style={{ color: 'var(--text-secondary)' }}
+            >
               Exclude substitute players (roster only)
             </label>
           </div>
         </div>
+      </FilterPanel>
 
-        {/* Machine Stats Table */}
-        {machineStats.length === 0 ? (
-          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
-            No machine statistics found for the selected filters.
+      {/* Machine Statistics Section */}
+      <Card>
+        <Card.Content>
+          <div className="flex items-center justify-between mb-4">
+            <h2
+              className="text-xl font-semibold"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              Machine Statistics
+            </h2>
+            {fetching && (
+              <LoadingSpinner size="sm" text="Updating..." />
+            )}
           </div>
-        ) : (
-          <Table>
-            <Table.Header>
-              <Table.Row hoverable={false}>
-                <Table.Head
-                  sortable
-                  onSort={() => handleSort('machine_name')}
-                  sortDirection={sortBy === 'machine_name' ? sortDirection : null}
-                >
-                  Machine
-                </Table.Head>
-                <Table.Head
-                  sortable
-                  onSort={() => handleSort('games_played')}
-                  sortDirection={sortBy === 'games_played' ? sortDirection : null}
-                >
-                  Games
-                </Table.Head>
-                <Table.Head
-                  sortable
-                  onSort={() => handleSort('win_percentage')}
-                  sortDirection={sortBy === 'win_percentage' ? sortDirection : null}
-                >
-                  Win %
-                </Table.Head>
-                <Table.Head
-                  sortable
-                  onSort={() => handleSort('median_score')}
-                  sortDirection={sortBy === 'median_score' ? sortDirection : null}
-                >
-                  Median Score
-                </Table.Head>
-                <Table.Head
-                  sortable
-                  onSort={() => handleSort('best_score')}
-                  sortDirection={sortBy === 'best_score' ? sortDirection : null}
-                >
-                  Best Score
-                </Table.Head>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              {machineStats.map((stat, idx) => (
-                <Table.Row key={idx}>
-                  <Table.Cell>
-                    <Link
-                      href={`/machines/${stat.machine_key}`}
-                      className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                    >
-                      {stat.machine_name}
-                    </Link>
-                  </Table.Cell>
-                  <Table.Cell>{stat.games_played}</Table.Cell>
-                  <Table.Cell>
-                    {typeof stat.win_percentage === 'number' ? `${stat.win_percentage.toFixed(1)}%` : 'N/A'}
-                  </Table.Cell>
-                  <Table.Cell>
-                    {stat.median_score?.toLocaleString(undefined, {
-                      maximumFractionDigits: 0,
-                    }) || 'N/A'}
-                  </Table.Cell>
-                  <Table.Cell>
-                    {stat.best_score?.toLocaleString() || 'N/A'}
-                  </Table.Cell>
+
+          {/* Machine Stats Table */}
+          {machineStats.length === 0 ? (
+            <Alert variant="warning">
+              No machine statistics found for the selected filters.
+            </Alert>
+          ) : (
+            <Table>
+              <Table.Header>
+                <Table.Row hoverable={false}>
+                  <Table.Head
+                    sortable
+                    onSort={() => handleSort('machine_name')}
+                    sortDirection={sortBy === 'machine_name' ? sortDirection : null}
+                  >
+                    Machine
+                  </Table.Head>
+                  <Table.Head
+                    sortable
+                    onSort={() => handleSort('games_played')}
+                    sortDirection={sortBy === 'games_played' ? sortDirection : null}
+                  >
+                    Games
+                  </Table.Head>
+                  <Table.Head
+                    sortable
+                    onSort={() => handleSort('win_percentage')}
+                    sortDirection={sortBy === 'win_percentage' ? sortDirection : null}
+                  >
+                    Win %
+                  </Table.Head>
+                  <Table.Head
+                    sortable
+                    onSort={() => handleSort('median_score')}
+                    sortDirection={sortBy === 'median_score' ? sortDirection : null}
+                  >
+                    Median Score
+                  </Table.Head>
+                  <Table.Head
+                    sortable
+                    onSort={() => handleSort('best_score')}
+                    sortDirection={sortBy === 'best_score' ? sortDirection : null}
+                  >
+                    Best Score
+                  </Table.Head>
                 </Table.Row>
-              ))}
-            </Table.Body>
-          </Table>
-        )}
-
-        <div className="mt-4 text-sm text-gray-600">
-          Showing {machineStats.length} machine{machineStats.length !== 1 ? 's' : ''}
-        </div>
-      </div>
-
-      {/* Team Roster Section */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
-          Team Roster
-        </h2>
-
-        {players.length === 0 ? (
-          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
-            No players found for the selected filters.
-          </div>
-        ) : (
-          <Table>
-            <Table.Header>
-              <Table.Row hoverable={false}>
-                <Table.Head
-                  sortable
-                  onSort={() => handleRosterSort('player_name')}
-                  sortDirection={rosterSortBy === 'player_name' ? rosterSortDirection : null}
-                >
-                  Player
-                </Table.Head>
-                <Table.Head
-                  sortable
-                  onSort={() => handleRosterSort('current_ipr')}
-                  sortDirection={rosterSortBy === 'current_ipr' ? rosterSortDirection : null}
-                >
-                  IPR
-                </Table.Head>
-                <Table.Head>MP Rating</Table.Head>
-                <Table.Head
-                  sortable
-                  onSort={() => handleRosterSort('games_played')}
-                  sortDirection={rosterSortBy === 'games_played' ? rosterSortDirection : null}
-                >
-                  Games
-                </Table.Head>
-                <Table.Head
-                  sortable
-                  onSort={() => handleRosterSort('win_percentage')}
-                  sortDirection={rosterSortBy === 'win_percentage' ? rosterSortDirection : null}
-                >
-                  Win %
-                </Table.Head>
-                <Table.Head>Most Played Machine</Table.Head>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              {sortedPlayers.map((player) => {
-                const mpRating = matchplayRatings[player.player_key];
-                return (
-                  <Table.Row key={player.player_key}>
+              </Table.Header>
+              <Table.Body>
+                {machineStats.map((stat, idx) => (
+                  <Table.Row key={idx}>
                     <Table.Cell>
                       <Link
-                        href={`/players/${player.player_key}`}
+                        href={`/machines/${stat.machine_key}`}
                         className="text-sm font-medium text-blue-600 hover:text-blue-800"
                       >
-                        {player.player_name}
+                        {stat.machine_name}
                       </Link>
                     </Table.Cell>
-                    <Table.Cell>{player.current_ipr || 'N/A'}</Table.Cell>
+                    <Table.Cell>{stat.games_played}</Table.Cell>
                     <Table.Cell>
-                      {mpRating ? (
-                        <a
-                          href={mpRating.profile_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800"
-                          title={`Matchplay: ${mpRating.matchplay_name}`}
-                        >
-                          {mpRating.rating ?? '—'}
-                        </a>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
-                    </Table.Cell>
-                    <Table.Cell>{player.games_played}</Table.Cell>
-                    <Table.Cell>
-                      {player.win_percentage !== null ? `${player.win_percentage.toFixed(1)}%` : 'N/A'}
+                      {typeof stat.win_percentage === 'number' ? `${stat.win_percentage.toFixed(1)}%` : 'N/A'}
                     </Table.Cell>
                     <Table.Cell>
-                      {player.most_played_machine_name ? (
-                        <Link
-                          href={`/machines/${player.most_played_machine_key}`}
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          {player.most_played_machine_name} ({player.most_played_machine_games})
-                        </Link>
-                      ) : (
-                        'N/A'
-                      )}
+                      {stat.median_score?.toLocaleString(undefined, {
+                        maximumFractionDigits: 0,
+                      }) || 'N/A'}
+                    </Table.Cell>
+                    <Table.Cell>
+                      {stat.best_score?.toLocaleString() || 'N/A'}
                     </Table.Cell>
                   </Table.Row>
-                );
-              })}
-            </Table.Body>
-          </Table>
-        )}
+                ))}
+              </Table.Body>
+            </Table>
+          )}
 
-        <div className="mt-4 text-sm text-gray-600">
-          Showing {players.length} player{players.length !== 1 ? 's' : ''}
-        </div>
-      </div>
+          <div
+            className="mt-4 text-sm"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Showing {machineStats.length} machine{machineStats.length !== 1 ? 's' : ''}
+          </div>
+        </Card.Content>
+      </Card>
+
+      {/* Team Roster Section */}
+      <Card>
+        <Card.Content>
+          <h2
+            className="text-xl font-semibold mb-4"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            Team Roster
+          </h2>
+
+          {players.length === 0 ? (
+            <Alert variant="warning">
+              No players found for the selected filters.
+            </Alert>
+          ) : (
+            <Table>
+              <Table.Header>
+                <Table.Row hoverable={false}>
+                  <Table.Head
+                    sortable
+                    onSort={() => handleRosterSort('player_name')}
+                    sortDirection={rosterSortBy === 'player_name' ? rosterSortDirection : null}
+                  >
+                    Player
+                  </Table.Head>
+                  <Table.Head
+                    sortable
+                    onSort={() => handleRosterSort('current_ipr')}
+                    sortDirection={rosterSortBy === 'current_ipr' ? rosterSortDirection : null}
+                  >
+                    IPR
+                  </Table.Head>
+                  <Table.Head>MP Rating</Table.Head>
+                  <Table.Head
+                    sortable
+                    onSort={() => handleRosterSort('games_played')}
+                    sortDirection={rosterSortBy === 'games_played' ? rosterSortDirection : null}
+                  >
+                    Games
+                  </Table.Head>
+                  <Table.Head
+                    sortable
+                    onSort={() => handleRosterSort('win_percentage')}
+                    sortDirection={rosterSortBy === 'win_percentage' ? rosterSortDirection : null}
+                  >
+                    Win %
+                  </Table.Head>
+                  <Table.Head>Most Played Machine</Table.Head>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {sortedPlayers.map((player) => {
+                  const mpRating = matchplayRatings[player.player_key];
+                  return (
+                    <Table.Row key={player.player_key}>
+                      <Table.Cell>
+                        <Link
+                          href={`/players/${player.player_key}`}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                        >
+                          {player.player_name}
+                        </Link>
+                      </Table.Cell>
+                      <Table.Cell>{player.current_ipr || 'N/A'}</Table.Cell>
+                      <Table.Cell>
+                        {mpRating ? (
+                          <a
+                            href={mpRating.profile_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800"
+                            title={`Matchplay: ${mpRating.matchplay_name}`}
+                          >
+                            {mpRating.rating ?? '—'}
+                          </a>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>—</span>
+                        )}
+                      </Table.Cell>
+                      <Table.Cell>{player.games_played}</Table.Cell>
+                      <Table.Cell>
+                        {player.win_percentage !== null ? `${player.win_percentage.toFixed(1)}%` : 'N/A'}
+                      </Table.Cell>
+                      <Table.Cell>
+                        {player.most_played_machine_name ? (
+                          <Link
+                            href={`/machines/${player.most_played_machine_key}`}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            {player.most_played_machine_name} ({player.most_played_machine_games})
+                          </Link>
+                        ) : (
+                          'N/A'
+                        )}
+                      </Table.Cell>
+                    </Table.Row>
+                  );
+                })}
+              </Table.Body>
+            </Table>
+          )}
+
+          <div
+            className="mt-4 text-sm"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Showing {players.length} player{players.length !== 1 ? 's' : ''}
+          </div>
+        </Card.Content>
+      </Card>
     </div>
   );
 }

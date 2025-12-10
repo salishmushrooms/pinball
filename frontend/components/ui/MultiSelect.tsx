@@ -33,12 +33,12 @@ export function MultiSelect<T extends string | number = string | number>({
   return (
     <div className={className}>
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
           {label}
         </label>
       )}
       {helpText && (
-        <p className="text-xs text-gray-500 mb-2">{helpText}</p>
+        <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>{helpText}</p>
       )}
       <div className="space-y-2">
         {options.map((option) => {
@@ -52,9 +52,10 @@ export function MultiSelect<T extends string | number = string | number>({
                 type="checkbox"
                 checked={isSelected}
                 onChange={() => handleToggle(option.value)}
-                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+                className="h-4 w-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+                style={{ borderColor: 'var(--input-border)' }}
               />
-              <span className="ml-2 text-sm text-gray-700 group-hover:text-gray-900">
+              <span className="ml-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
                 {option.label}
               </span>
             </label>
@@ -94,12 +95,12 @@ export function MultiSelectButtons<T extends string | number = string | number>(
   return (
     <div className={className}>
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
           {label}
         </label>
       )}
       {helpText && (
-        <p className="text-xs text-gray-500 mb-2">{helpText}</p>
+        <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>{helpText}</p>
       )}
       <div className="flex gap-2 flex-wrap">
         {options.map((option) => {
@@ -112,8 +113,13 @@ export function MultiSelectButtons<T extends string | number = string | number>(
               className={`px-4 py-2 border rounded-md text-sm font-medium transition-colors ${
                 isSelected
                   ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  : ''
               }`}
+              style={
+                isSelected
+                  ? undefined
+                  : { backgroundColor: 'var(--card-bg)', color: 'var(--text-secondary)', borderColor: 'var(--border)' }
+              }
               aria-pressed={isSelected}
             >
               {isSelected && (

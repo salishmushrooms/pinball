@@ -18,6 +18,8 @@ export { EmptyState } from './EmptyState';
 export { StatCard } from './StatCard';
 export { MultiSelect, MultiSelectButtons } from './MultiSelect';
 export type { MultiSelectOption, MultiSelectProps, MultiSelectButtonsProps } from './MultiSelect';
+export { MultiSelectDropdown } from './MultiSelectDropdown';
+export type { MultiSelectDropdownOption, MultiSelectDropdownProps } from './MultiSelectDropdown';
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs';
 export { Collapsible } from './Collapsible';
 export { FilterPanel } from './FilterPanel';

@@ -1,17 +1,83 @@
-# Guide for updating database with latest data from mnp-data-archive
+# MNP Database Update Guide
 
-Steps to take to update mnp-data-archive and then use that to update database.
+This guide covers how to update the database when new match data becomes available.
+
+**Last Updated:** 2025-12-10
+
+---
+
+## Quick Start (Most Common Case)
+
+When new match data is available (e.g., week 14 of season 22):
+
+```bash
+# 1. Pull latest data from mnp-data-archive
+cd mnp-data-archive && git pull origin main && cd ..
+
+# 2. Commit the submodule update
+git add mnp-data-archive && git commit -m "Update mnp-data-archive submodule"
+
+# 3. Activate environment and update database
+conda activate mnp
+export PYTHONPATH=/Users/JJC/Pinball/MNP
+
+# 4. Run the update script
+python etl/update_season.py --season 22
+```
+
+That's it! The script handles loading data and recalculating all aggregations.
+
+---
+
+## The update_season.py Script
+
+This script orchestrates the full update process:
+1. Loads/upserts season data (new records added, existing unchanged)
+2. Calculates percentiles, player stats, team picks, match points
+3. Recalculates cross-season player totals
+4. Optionally syncs to production
+
+### Usage Examples
+
+```bash
+# Update a single season
+python etl/update_season.py --season 22
+
+# Update multiple seasons
+python etl/update_season.py --season 20 21 22
+
+# Update and sync to production
+python etl/update_season.py --season 22 --sync-production
+
+# Just load data without recalculating aggregations
+python etl/update_season.py --season 22 --skip-aggregations
+
+# Verbose output for debugging
+python etl/update_season.py --season 22 --verbose
+```
+
+### What It Does
+
+The script runs these ETL scripts in order:
+1. `load_season.py` - Load matches, teams, players, venues, games, scores
+2. `calculate_percentiles.py` - Score distribution thresholds per machine
+3. `calculate_player_stats.py` - Player performance aggregates
+4. `calculate_team_machine_picks.py` - Team machine selection patterns
+5. `calculate_match_points.py` - Match point totals
+6. `calculate_player_totals.py` - Cross-season player game counts
+
+All scripts use upsert logic (`INSERT ... ON CONFLICT DO UPDATE`), making them safe to re-run.
+
+---
 
 ## Prerequisites
 
 ### Conda Environment
-The ETL scripts require the `mnp` conda environment. Activate it before running any commands:
 ```bash
 conda activate mnp
 ```
 
 ### PYTHONPATH
-All ETL scripts need PYTHONPATH set to the project root:
 ```bash
 export PYTHONPATH=/Users/JJC/Pinball/MNP
 ```
@@ -21,168 +87,175 @@ Or prefix each command:
 PYTHONPATH=/Users/JJC/Pinball/MNP python etl/...
 ```
 
-### PostgreSQL
-The database must be running. Check with:
+### PostgreSQL Running
 ```bash
 psql -d mnp_analyzer -c "SELECT 1"
 ```
 
-## Update mnp-data-archive submodule with latest data
+---
 
-Run this combined command:
+## Updating Another Machine
+
+If you work from multiple computers and need to sync database state:
+
+### Option A: Run the Same Update (Recommended)
+
+Since `update_season.py` is idempotent, just run it on each machine:
+
 ```bash
+# On any machine, pull repo and data, then run:
+git pull
 git submodule update --init --remote
+conda activate mnp
+export PYTHONPATH=/Users/JJC/Pinball/MNP
+python etl/update_season.py --season 22
 ```
 
-If that fails, try:
+Both machines will end up with identical database state.
+
+### Option B: Export/Import Database Dump
+
+If you need an exact copy:
+
 ```bash
-cd mnp-data-archive && git pull origin main && cd ..
-git add mnp-data-archive && git commit -m "Update data archive"
+# On source machine - export
+pg_dump -h localhost -U mnp_user -d mnp_analyzer --data-only --no-owner --no-acl > mnp_backup.sql
+
+# Transfer file to other machine, then import
+psql -h localhost -U mnp_user -d mnp_analyzer < mnp_backup.sql
 ```
 
-## Full Database Rebuild (Clean Slate)
+---
 
-Use this when you need to completely rebuild the database from scratch.
+## Syncing to Production (Railway)
+
+### Prerequisites
+
+1. Railway CLI installed and authenticated:
+   ```bash
+   npm install -g @railway/cli
+   railway login
+   ```
+
+2. Project linked:
+   ```bash
+   railway link
+   # Select the pinball project
+   ```
+
+### Sync Command
 
 ```bash
-# 1. Drop and recreate the database
+python etl/update_season.py --season 22 --sync-production
+```
+
+This will:
+1. Export local database to a temp SQL file
+2. Truncate production tables (keeping schema)
+3. Import data to production
+4. Clean up temp file
+
+### Manual Sync (If Needed)
+
+```bash
+# Export local
+pg_dump -h localhost -U mnp_user -d mnp_analyzer --data-only --no-owner --no-acl > /tmp/mnp_data.sql
+
+# Import to Railway
+railway connect postgres < /tmp/mnp_data.sql
+```
+
+---
+
+## Full Database Rebuild
+
+For a complete rebuild from scratch:
+
+```bash
+# 1. Drop and recreate database
 psql -d postgres -c "DROP DATABASE IF EXISTS mnp_analyzer;"
 psql -d postgres -c "CREATE DATABASE mnp_analyzer OWNER mnp_user;"
 
-# 2. Run the consolidated schema (creates all tables, indexes, constraints)
+# 2. Create schema
 psql -d mnp_analyzer -f schema/migrations/001_complete_schema.sql
 
-# 3. Activate environment and load all data
+# 3. Activate environment
 conda activate mnp
 export PYTHONPATH=/Users/JJC/Pinball/MNP
 
-for season in 20 21 22; do
-  python etl/load_season.py --season $season
-  python etl/calculate_percentiles.py --season $season
-  python etl/calculate_player_stats.py --season $season
-  python etl/calculate_team_machine_picks.py --season $season
-  python etl/calculate_match_points.py --season $season
-done
-
-python etl/calculate_player_totals.py
+# 4. Load all seasons (18-19 loaded but excluded from aggregations)
+python etl/update_season.py --season 18 19 --skip-aggregations
+python etl/update_season.py --season 20 21 22
 ```
 
-## Database Update Process (Incremental)
+---
 
-### Quick Reference (All Seasons 20-22)
-```bash
-# Activate environment
-conda activate mnp
-export PYTHONPATH=/Users/JJC/Pinball/MNP
+## Season Data Notes
 
-# Load season data
-for season in 20 21 22; do
-  python etl/load_season.py --season $season
-done
+- **Seasons 18-19**: Loaded into database but excluded from aggregation calculations (older data less useful for predictions)
+- **Seasons 20-22**: Full data with all aggregations calculated
+- **New seasons**: Add to the script's `AGGREGATION_SEASONS` list in `update_season.py` if you want aggregations calculated
 
-# Calculate percentiles
-for season in 20 21 22; do
-  python etl/calculate_percentiles.py --season $season
-done
-
-# Calculate player stats
-for season in 20 21 22; do
-  python etl/calculate_player_stats.py --season $season
-done
-
-# Calculate team machine picks
-for season in 20 21 22; do
-  python etl/calculate_team_machine_picks.py --season $season
-done
-
-# Calculate match points
-for season in 20 21 22; do
-  python etl/calculate_match_points.py --season $season
-done
-
-# Calculate player totals (cross-season)
-python etl/calculate_player_totals.py
-```
-
-### Step-by-Step Guide
-
-#### 1. Load Season Data (matches, players, teams, venues, scores)
-```bash
-python etl/load_season.py --season 20
-python etl/load_season.py --season 21
-python etl/load_season.py --season 22
-```
-This loads:
-- Machine variations and aliases
-- Venues and venue-machine relationships
-- Teams
-- Players
-- IPR ratings (from IPR.csv)
-- Match metadata
-- Games and scores
-
-#### 2. Calculate Score Percentiles
-```bash
-python etl/calculate_percentiles.py --season 20
-python etl/calculate_percentiles.py --season 21
-python etl/calculate_percentiles.py --season 22
-```
-This generates percentile thresholds (10th, 25th, 50th, 75th, 90th, 95th, 99th) for each machine based on all scores.
-
-#### 3. Calculate Player Statistics
-```bash
-python etl/calculate_player_stats.py --season 20
-python etl/calculate_player_stats.py --season 21
-python etl/calculate_player_stats.py --season 22
-```
-This aggregates player performance per machine (games played, median/avg score, percentile rankings).
-
-#### 4. Calculate Team Machine Picks
-```bash
-python etl/calculate_team_machine_picks.py --season 20
-python etl/calculate_team_machine_picks.py --season 21
-python etl/calculate_team_machine_picks.py --season 22
-```
-
-#### 5. Calculate Match Point Totals
-```bash
-python etl/calculate_match_points.py --season 20
-python etl/calculate_match_points.py --season 21
-python etl/calculate_match_points.py --season 22
-```
-
-#### 6. Calculate Player Total Games Played (across all seasons)
-```bash
-python etl/calculate_player_totals.py
-```
-
-#### 7. (Optional) Update IPR Only
-If you only need to refresh IPR values without reloading everything:
-```bash
-python etl/update_ipr.py
-```
+---
 
 ## Available Seasons
 
-The database currently supports seasons 20, 21, and 22. Season data is located at:
+Data is located at:
+- `mnp-data-archive/season-18/`
+- `mnp-data-archive/season-19/`
 - `mnp-data-archive/season-20/`
 - `mnp-data-archive/season-21/`
 - `mnp-data-archive/season-22/`
 
+---
+
 ## Troubleshooting
 
 ### ModuleNotFoundError: No module named 'etl'
-Make sure PYTHONPATH is set:
 ```bash
 export PYTHONPATH=/Users/JJC/Pinball/MNP
 ```
 
 ### Cannot connect to database
-Check PostgreSQL is running and the connection details in `.env` are correct.
+Check PostgreSQL is running and `.env` has correct connection details.
 
 ### Submodule update fails
-Try:
 ```bash
 git submodule sync
 git submodule update --init --force
+```
+
+### Railway sync fails
+```bash
+# Check authentication
+railway whoami
+
+# Re-authenticate if needed
+railway login
+```
+
+### Duplicate key errors during import
+These are usually OK - it means the data already exists. The upsert logic handles this gracefully.
+
+---
+
+## Individual ETL Scripts
+
+If you need to run scripts individually:
+
+```bash
+# Load season data only
+python etl/load_season.py --season 22
+
+# Calculate specific aggregations
+python etl/calculate_percentiles.py --season 22
+python etl/calculate_player_stats.py --season 22
+python etl/calculate_team_machine_picks.py --season 22
+python etl/calculate_match_points.py --season 22
+
+# Cross-season totals (run after all seasons loaded)
+python etl/calculate_player_totals.py
+
+# Update IPR only (from IPR.csv)
+python etl/update_ipr.py
 ```

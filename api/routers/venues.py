@@ -10,6 +10,9 @@ from api.models.schemas import (
     VenueDetail,
     VenueList,
     VenueMachineStats,
+    VenueWithStats,
+    VenueWithStatsList,
+    VenueHomeTeam,
     ErrorResponse
 )
 from api.dependencies import execute_query
@@ -113,6 +116,119 @@ def list_venues(
 
     return VenueList(
         venues=[VenueBase(**venue) for venue in venues],
+        total=total,
+        limit=limit,
+        offset=offset
+    )
+
+
+@router.get(
+    "/with-stats",
+    response_model=VenueWithStatsList,
+    summary="List all venues with statistics",
+    description="Get a paginated list of all venues with machine count and home teams"
+)
+def list_venues_with_stats(
+    season: Optional[int] = Query(None, description="Filter home teams by season (defaults to most recent)"),
+    city: Optional[str] = Query(None, description="Filter by city"),
+    state: Optional[str] = Query(None, description="Filter by state"),
+    search: Optional[str] = Query(None, description="Search venue names (case-insensitive)"),
+    limit: int = Query(100, ge=1, le=500, description="Number of results to return"),
+    offset: int = Query(0, ge=0, description="Number of results to skip")
+):
+    """
+    List all venues with additional statistics including machine count and home teams.
+
+    Example queries:
+    - `/venues/with-stats` - All venues with stats
+    - `/venues/with-stats?season=22` - Home teams filtered to season 22
+    - `/venues/with-stats?search=Tavern` - Search for "Tavern" venues
+    """
+    # Build WHERE clauses
+    where_clauses = []
+    params = {}
+
+    if city:
+        where_clauses.append("LOWER(v.city) = LOWER(:city)")
+        params['city'] = city
+
+    if state:
+        where_clauses.append("LOWER(v.state) = LOWER(:state)")
+        params['state'] = state
+
+    if search:
+        where_clauses.append("LOWER(v.venue_name) LIKE LOWER(:search)")
+        params['search'] = f"%{search}%"
+
+    where_clause = " AND ".join(where_clauses) if where_clauses else "TRUE"
+
+    # Get total count
+    count_query = f"SELECT COUNT(*) as total FROM venues v WHERE {where_clause}"
+    count_result = execute_query(count_query, params)
+    total = count_result[0]['total'] if count_result else 0
+
+    # Get paginated venues
+    query = f"""
+        SELECT venue_key, venue_name, city, state
+        FROM venues v
+        WHERE {where_clause}
+        ORDER BY venue_name
+        LIMIT :limit OFFSET :offset
+    """
+    params['limit'] = limit
+    params['offset'] = offset
+    venues = execute_query(query, params)
+
+    # Get home teams for each venue
+    # If season not specified, get most recent season
+    if season is None:
+        season_query = "SELECT MAX(season) as max_season FROM teams"
+        season_result = execute_query(season_query, {})
+        season = season_result[0]['max_season'] if season_result and season_result[0]['max_season'] else 22
+
+    home_teams_query = """
+        SELECT team_key, team_name, home_venue_key, season
+        FROM teams
+        WHERE season = :season
+    """
+    home_teams_result = execute_query(home_teams_query, {'season': season})
+
+    # Group home teams by venue
+    venue_home_teams = {}
+    for team in home_teams_result:
+        venue_key = team['home_venue_key']
+        if venue_key:
+            if venue_key not in venue_home_teams:
+                venue_home_teams[venue_key] = []
+            venue_home_teams[venue_key].append(VenueHomeTeam(
+                team_key=team['team_key'],
+                team_name=team['team_name'],
+                season=team['season']
+            ))
+
+    # Build enriched venue list
+    enriched_venues = []
+    for venue in venues:
+        venue_key = venue['venue_key']
+
+        # Get current machine count for this venue
+        current_machines = get_current_machines_for_venue(venue_key)
+        machine_count = len(current_machines)
+
+        # Get home teams for this venue
+        home_teams = venue_home_teams.get(venue_key, [])
+
+        enriched_venues.append(VenueWithStats(
+            venue_key=venue_key,
+            venue_name=venue['venue_name'],
+            city=venue.get('city'),
+            state=venue.get('state'),
+            machine_count=machine_count,
+            home_teams=home_teams
+        ))
+
+    return VenueWithStatsList(
+        venues=enriched_venues,
         total=total,
         limit=limit,
         offset=offset

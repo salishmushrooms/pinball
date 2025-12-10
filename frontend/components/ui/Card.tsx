@@ -10,7 +10,7 @@ interface CardProps {
 }
 
 export function Card({ children, className, variant = 'default', href }: CardProps) {
-  const baseStyles = 'bg-white rounded-lg shadow-md border border-gray-200';
+  const baseStyles = 'rounded-lg shadow-md border';
   const variantStyles = {
     default: '',
     interactive: 'hover:shadow-lg hover:border-blue-500 transition-all cursor-pointer',
@@ -18,15 +18,20 @@ export function Card({ children, className, variant = 'default', href }: CardPro
 
   const combinedStyles = cn(baseStyles, variantStyles[variant], className);
 
+  const style = {
+    backgroundColor: 'var(--card-bg)',
+    borderColor: 'var(--border)',
+  };
+
   if (href && variant === 'interactive') {
     return (
-      <Link href={href} className={cn(combinedStyles, 'block')}>
+      <Link href={href} className={cn(combinedStyles, 'block')} style={style}>
         {children}
       </Link>
     );
   }
 
-  return <div className={combinedStyles}>{children}</div>;
+  return <div className={combinedStyles} style={style}>{children}</div>;
 }
 
 interface CardHeaderProps {
@@ -36,7 +41,7 @@ interface CardHeaderProps {
 
 export function CardHeader({ children, className }: CardHeaderProps) {
   return (
-    <div className={cn('px-6 py-4 border-b border-gray-200', className)}>
+    <div className={cn('px-6 py-4 border-b', className)} style={{ borderColor: 'var(--border)' }}>
       {children}
     </div>
   );
@@ -49,7 +54,7 @@ interface CardTitleProps {
 
 export function CardTitle({ children, className }: CardTitleProps) {
   return (
-    <h3 className={cn('text-lg font-semibold text-gray-900', className)}>
+    <h3 className={cn('text-lg font-semibold', className)} style={{ color: 'var(--text-primary)' }}>
       {children}
     </h3>
   );
@@ -71,7 +76,10 @@ interface CardFooterProps {
 
 export function CardFooter({ children, className }: CardFooterProps) {
   return (
-    <div className={cn('px-6 py-4 border-t border-gray-200 bg-gray-50', className)}>
+    <div
+      className={cn('px-6 py-4 border-t', className)}
+      style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg-secondary)' }}
+    >
       {children}
     </div>
   );

@@ -69,7 +69,7 @@ export default function PlayersPage() {
           </div>
 
           {loading && (
-            <div className="mt-4 text-sm text-gray-500">
+            <div className="mt-4 text-sm" style={{ color: 'var(--text-muted)' }}>
               Searching...
             </div>
           )}
@@ -111,7 +111,8 @@ export default function PlayersPage() {
                   <Table.Cell>
                     <Link
                       href={`/players/${player.player_key}`}
-                      className="font-medium text-blue-600 hover:text-blue-700"
+                      className="font-medium"
+                      style={{ color: 'var(--text-link)' }}
                     >
                       {player.name}
                     </Link>
@@ -128,7 +129,7 @@ export default function PlayersPage() {
 
       {/* Results Count */}
       {players.length > 0 && (
-        <div className="text-center text-sm text-gray-600">
+        <div className="text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
           Showing {players.length} player{players.length !== 1 ? 's' : ''}
         </div>
       )}

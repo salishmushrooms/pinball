@@ -28,9 +28,9 @@ export function StatCard({
   return (
     <Card className={className}>
       <Card.Content className="text-center">
-        {icon && <div className="flex justify-center mb-2 text-gray-400">{icon}</div>}
-        <div className="text-sm font-medium text-gray-600 mb-1">{label}</div>
-        <div className="text-3xl font-bold text-gray-900">{value}</div>
+        {icon && <div className="flex justify-center mb-2" style={{ color: 'var(--text-muted)' }}>{icon}</div>}
+        <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{label}</div>
+        <div className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{value}</div>
         {trend && (
           <div className={cn('text-sm mt-2', trendColors[trendDirection])}>
             {trend}

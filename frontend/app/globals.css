@@ -1,11 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  /* Base Colors */
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Base Colors - Light Mode */
+  --background: #f9fafb;
+  --foreground: #111827;
   --card-bg: #ffffff;
+  --card-bg-secondary: #f9fafb;
   --border: #e5e7eb;
+  --border-light: #f3f4f6;
+
+  /* Text Colors */
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  --text-link: #2563eb;
+  --text-link-hover: #1d4ed8;
 
   /* Primary Blue */
   --color-primary-50: #eff6ff;
@@ -19,30 +28,116 @@
   --color-gray-100: #f3f4f6;
   --color-gray-200: #e5e7eb;
   --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
   --color-gray-500: #6b7280;
   --color-gray-600: #4b5563;
   --color-gray-700: #374151;
+  --color-gray-800: #1f2937;
   --color-gray-900: #111827;
 
   /* Success */
   --color-success-50: #f0fdf4;
   --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
   --color-success-700: #15803d;
 
   /* Warning */
   --color-warning-50: #fefce8;
   --color-warning-500: #eab308;
+  --color-warning-600: #ca8a04;
   --color-warning-700: #a16207;
 
   /* Error */
   --color-error-50: #fef2f2;
   --color-error-500: #ef4444;
+  --color-error-600: #dc2626;
   --color-error-700: #b91c1c;
 
   /* Info */
   --color-info-50: #f0f9ff;
   --color-info-500: #0ea5e9;
   --color-info-700: #0369a1;
+
+  /* Input/Form */
+  --input-bg: #ffffff;
+  --input-border: #d1d5db;
+  --input-disabled-bg: #f3f4f6;
+
+  /* Table */
+  --table-header-bg: #f9fafb;
+  --table-row-hover: #f9fafb;
+  --table-border: #e5e7eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Base Colors - Dark Mode */
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    --card-bg: #171717;
+    --card-bg-secondary: #1f1f1f;
+    --border: #2a2a2a;
+    --border-light: #1f1f1f;
+
+    /* Text Colors */
+    --text-primary: #f9fafb;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+    --text-link: #60a5fa;
+    --text-link-hover: #93c5fd;
+
+    /* Primary Blue - adjusted for dark mode */
+    --color-primary-50: #1e3a5f;
+    --color-primary-100: #1e40af;
+    --color-primary-500: #3b82f6;
+    --color-primary-600: #60a5fa;
+    --color-primary-700: #93c5fd;
+
+    /* Neutral Grays - inverted for dark mode */
+    --color-gray-50: #1a1a1a;
+    --color-gray-100: #262626;
+    --color-gray-200: #333333;
+    --color-gray-300: #404040;
+    --color-gray-400: #525252;
+    --color-gray-500: #737373;
+    --color-gray-600: #a3a3a3;
+    --color-gray-700: #d4d4d4;
+    --color-gray-800: #e5e5e5;
+    --color-gray-900: #f5f5f5;
+
+    /* Success - adjusted for dark mode */
+    --color-success-50: #14532d;
+    --color-success-500: #22c55e;
+    --color-success-600: #4ade80;
+    --color-success-700: #86efac;
+
+    /* Warning - adjusted for dark mode */
+    --color-warning-50: #422006;
+    --color-warning-500: #eab308;
+    --color-warning-600: #facc15;
+    --color-warning-700: #fde047;
+
+    /* Error - adjusted for dark mode */
+    --color-error-50: #450a0a;
+    --color-error-500: #ef4444;
+    --color-error-600: #f87171;
+    --color-error-700: #fca5a5;
+
+    /* Info - adjusted for dark mode */
+    --color-info-50: #0c4a6e;
+    --color-info-500: #0ea5e9;
+    --color-info-700: #7dd3fc;
+
+    /* Input/Form */
+    --input-bg: #1a1a1a;
+    --input-border: #404040;
+    --input-disabled-bg: #262626;
+
+    /* Table */
+    --table-header-bg: #1a1a1a;
+    --table-row-hover: #262626;
+    --table-border: #333333;
+  }
 }
 
 @theme inline {
@@ -50,21 +145,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --card-bg: #1a1a1a;
-    --border: #2a2a2a;
-
-    /* Adjust colors for dark mode */
-    --color-gray-50: #1a1a1a;
-    --color-gray-100: #2a2a2a;
-    --color-gray-200: #3a3a3a;
-    --color-gray-900: #ededed;
-  }
 }
 
 body {

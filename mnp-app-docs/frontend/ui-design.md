@@ -23,12 +23,23 @@ The MNP Analyzer frontend is a mobile-first Progressive Web App (PWA) built with
 - Warning Yellow: `#F59E0B` (caution)
 - Danger Red: `#EF4444` (negative indicators)
 
-**Neutral Colors:**
+**Neutral Colors (Light Mode):**
 - Text Primary: `#111827` (main text)
-- Text Secondary: `#6B7280` (supporting text)
-- Background: `#FFFFFF` (main background)
-- Background Secondary: `#F9FAFB` (cards, sections)
+- Text Secondary: `#4B5563` (supporting text)
+- Text Muted: `#6B7280` (tertiary text)
+- Background: `#F9FAFB` (main background)
+- Card Background: `#FFFFFF` (cards)
+- Card Background Secondary: `#F9FAFB` (footers, secondary areas)
 - Border: `#E5E7EB` (dividers, borders)
+
+**Neutral Colors (Dark Mode):**
+- Text Primary: `#F9FAFB` (main text)
+- Text Secondary: `#D1D5DB` (supporting text)
+- Text Muted: `#9CA3AF` (tertiary text)
+- Background: `#0A0A0A` (main background)
+- Card Background: `#171717` (cards)
+- Card Background Secondary: `#1F1F1F` (footers, secondary areas)
+- Border: `#2A2A2A` (dividers, borders)
 
 **Percentile Color Scale:**
 - 90-100%: `#10B981` (Excellent - Green)
@@ -609,6 +620,51 @@ shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1)
 </div>
 ```
 
+**Entity Card (Grid Item):**
+Used for displaying venues, teams, or similar entities in a grid layout.
+```tsx
+<Card variant="interactive" href="/venues/T4B">
+  <Card.Content className="p-5">
+    <div className="space-y-3">
+      {/* Entity Name */}
+      <h3 className="text-lg font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+        4Bs Tavern
+      </h3>
+
+      {/* Stats Row */}
+      <div className="flex items-center gap-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <div className="flex items-center gap-1.5">
+          <Icon className="w-4 h-4" />
+          <span>17 machines</span>
+        </div>
+      </div>
+
+      {/* Related Items Section */}
+      <div className="pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+        <div className="text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+          Home Teams
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                style={{ backgroundColor: 'var(--card-bg-secondary)', color: 'var(--text-secondary)' }}>
+            Team Name
+          </span>
+        </div>
+      </div>
+    </div>
+  </Card.Content>
+</Card>
+```
+
+**Grid Layout for Entity Cards:**
+```tsx
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  {items.map((item) => (
+    <EntityCard key={item.key} item={item} />
+  ))}
+</div>
+```
+
 ### Badges
 
 **Percentile Badge:**
@@ -825,7 +881,189 @@ For most-used features:
 
 ---
 
-**Design Version**: 1.0
-**Last Updated**: 2025-01-23
-**Status**: Design Phase - Not yet implemented
+## Dark Mode Support
+
+The application supports automatic dark mode based on system preferences using CSS custom properties (CSS variables) defined in `frontend/app/globals.css`.
+
+### Implementation Strategy
+
+Dark mode is implemented using:
+1. **CSS Custom Properties**: All colors are defined as CSS variables in `:root` with automatic overrides in `@media (prefers-color-scheme: dark)`
+2. **Inline Styles**: Components use `style={{ color: 'var(--text-primary)' }}` to reference CSS variables
+3. **Automatic Detection**: No manual toggle needed - follows system preference via `prefers-color-scheme` media query
+
+### Available CSS Variables
+
+**Text Colors:**
+- `--text-primary`: Main heading and body text
+- `--text-secondary`: Supporting text, descriptions
+- `--text-muted`: Tertiary text, labels, placeholders
+- `--text-link`: Clickable links
+- `--text-link-hover`: Link hover state
+
+**Background Colors:**
+- `--background`: Page background
+- `--card-bg`: Card/component backgrounds
+- `--card-bg-secondary`: Footer areas, secondary backgrounds
+- `--table-header-bg`: Table header background
+- `--table-row-hover`: Table row hover state
+
+**Border Colors:**
+- `--border`: Primary borders
+- `--border-light`: Subtle borders
+- `--table-border`: Table dividers
+
+**Form Elements:**
+- `--input-bg`: Input/select backgrounds
+- `--input-border`: Input border color
+- `--input-disabled-bg`: Disabled input background
+
+### Usage in Components
+
+```tsx
+// Use CSS variables for colors
+<h1 style={{ color: 'var(--text-primary)' }}>Title</h1>
+<p style={{ color: 'var(--text-secondary)' }}>Description</p>
+<div style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--border)' }}>
+  Content
+</div>
+```
+
+### Best Practices
+
+1. **Never use hardcoded gray colors** like `text-gray-900` or `bg-white` for text/backgrounds
+2. **Always use CSS variables** for colors that should adapt to dark mode
+3. **Accent colors can remain static** (blue-600, green-500, red-500) as they work in both modes
+4. **Test both modes** by toggling system appearance settings
+
+### Components Updated for Dark Mode
+
+All components in `frontend/components/ui/` have been updated:
+- Card, CardHeader, CardTitle, CardContent, CardFooter
+- PageHeader
+- StatCard
+- Table, TableHeader, TableBody, TableRow, TableHead, TableCell
+- Input, Select
+- MultiSelect, MultiSelectButtons, MultiSelectDropdown
+- Tabs, TabsList, TabsTrigger, TabsContent
+- Collapsible
+- FilterPanel
+- EmptyState
+- LoadingSpinner
+- Navigation
+
+### Navigation Bar Design
+
+The navigation bar uses **fixed hex colors** (not CSS variables) to maintain a consistent dark header in both light and dark modes:
+
+```tsx
+// Navigation.tsx - Uses explicit hex colors, NOT CSS variables
+<nav style={{ backgroundColor: '#111827', color: '#ffffff' }}>
+  <span style={{ color: '#ffffff' }}>MNP Analyzer</span>
+  <Link style={{ color: isActive ? '#ffffff' : '#d1d5db' }}>...</Link>
+</nav>
+```
+
+**Rationale:**
+- The navigation should always have a dark background with white text
+- Using CSS variables would cause the nav to adapt to light/dark mode (undesired)
+- Hardcoded Tailwind classes like `bg-gray-900` can be overridden by CSS variable definitions
+- Inline styles with explicit hex values ensure consistent appearance regardless of color scheme
+
+---
+
+## Filter Design Guidelines
+
+### Standard Filter Pattern
+
+All pages with filters should follow this consistent pattern:
+
+1. **Use FilterPanel Component**: Wrap all filters in a collapsible `FilterPanel`
+   - Always set `collapsible={true}` for space efficiency
+   - Track `activeFilterCount` to show badge
+   - Provide `onClearAll` to reset filters
+
+2. **Use Dropdown Variants for Multi-Select**: For space efficiency, use `variant="dropdown"` on:
+   - `SeasonMultiSelect` - dropdown with checkboxes
+   - `RoundMultiSelect` - dropdown with checkboxes
+   - `VenueSelect` or `VenueMultiSelect` - standard select or multi-select dropdown
+
+3. **Consistent Sizing**: All dropdowns have `h-[38px]` height for visual alignment
+
+### Example Implementation
+
+```tsx
+import { FilterPanel } from '@/components/ui';
+import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
+import { VenueSelect } from '@/components/VenueMultiSelect';
+import { RoundMultiSelect } from '@/components/RoundMultiSelect';
+
+// Calculate active filters
+const activeFilterCount =
+  (selectedSeasons.length > 0 ? 1 : 0) +
+  (selectedVenue ? 1 : 0) +
+  (selectedRounds.length < 4 ? 1 : 0);
+
+function clearFilters() {
+  setSelectedSeasons([]);
+  setSelectedVenue('');
+  setSelectedRounds([1, 2, 3, 4]);
+}
+
+<FilterPanel
+  title="Filters"
+  collapsible={true}
+  activeFilterCount={activeFilterCount}
+  showClearAll={activeFilterCount > 0}
+  onClearAll={clearFilters}
+>
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <SeasonMultiSelect
+      value={selectedSeasons}
+      onChange={setSelectedSeasons}
+      availableSeasons={availableSeasons}
+      variant="dropdown"
+    />
+    <VenueSelect
+      value={selectedVenue}
+      onChange={setSelectedVenue}
+      venues={venues}
+    />
+    <RoundMultiSelect
+      value={selectedRounds}
+      onChange={setSelectedRounds}
+      variant="dropdown"
+    />
+  </div>
+</FilterPanel>
+```
+
+### Available Filter Components
+
+| Component | Single/Multi | Variants | Usage |
+|-----------|--------------|----------|-------|
+| `SeasonMultiSelect` | Multi | `buttons`, `dropdown` | Filter by seasons |
+| `SeasonSelect` | Single | dropdown only | Select one season |
+| `VenueMultiSelect` | Multi | dropdown only | Filter by venues |
+| `VenueSelect` | Single | dropdown only | Select one venue |
+| `RoundMultiSelect` | Multi | `buttons`, `dropdown` | Filter by rounds |
+
+### When to Use Button vs Dropdown Variant
+
+- **Dropdown (recommended)**: Use for most cases, especially when:
+  - Space is limited
+  - Many options available (>5)
+  - Options have long labels
+  - Consistency with other filters on page
+
+- **Buttons**: Use only when:
+  - Few options (≤5) that fit in a single row
+  - Quick visual scanning is important
+  - The page has ample horizontal space
+
+---
+
+**Design Version**: 1.2
+**Last Updated**: 2025-12-10
+**Status**: Dark mode implemented, Filter guidelines added
 **Figma Link**: TBD

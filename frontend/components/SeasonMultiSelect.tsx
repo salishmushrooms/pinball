@@ -1,5 +1,6 @@
 import React from 'react';
 import { MultiSelectButtons } from './ui/MultiSelect';
+import { MultiSelectDropdown } from './ui/MultiSelectDropdown';
 import { Select } from './ui';
 import { SUPPORTED_SEASONS } from '@/lib/utils';
 
@@ -10,6 +11,8 @@ interface SeasonMultiSelectProps {
   label?: string;
   helpText?: string;
   className?: string;
+  /** Use dropdown style instead of button grid (default: false) */
+  variant?: 'buttons' | 'dropdown';
 }
 
 interface SeasonSelectProps {
@@ -21,9 +24,12 @@ interface SeasonSelectProps {
 }
 
 /**
- * Reusable season multi-select component with button-style UI.
+ * Reusable season multi-select component.
  * Use this for filtering data by one or more seasons.
  * Seasons are always sorted ascending (oldest first) for consistency.
+ *
+ * @param variant - 'buttons' shows all options as toggleable buttons (default),
+ *                  'dropdown' shows a compact dropdown with checkboxes
  */
 export const SeasonMultiSelect: React.FC<SeasonMultiSelectProps> = ({
   value,
@@ -32,10 +38,31 @@ export const SeasonMultiSelect: React.FC<SeasonMultiSelectProps> = ({
   label = 'Seasons',
   helpText = 'Select one or more seasons',
   className,
+  variant = 'buttons',
 }) => {
   // Sort seasons ascending (oldest first) for consistent display
   const sortedSeasons = [...availableSeasons].sort((a, b) => a - b);
   const options = sortedSeasons.map((season) => ({
+    value: season,
+    label: `Season ${season}`,
+  }));
+
+  if (variant === 'dropdown') {
+    return (
+      <MultiSelectDropdown
+        label={label}
+        options={options}
+        value={value}
+        onChange={onChange}
+        placeholder="All Seasons"
+        helpText={helpText}
+        className={className}
+      />
+    );
+  }
+
+  // Button variant - use shorter labels
+  const buttonOptions = sortedSeasons.map((season) => ({
     value: season,
     label: `${season}`,
   }));
@@ -43,7 +70,7 @@ export const SeasonMultiSelect: React.FC<SeasonMultiSelectProps> = ({
   return (
     <MultiSelectButtons
       label={label}
-      options={options}
+      options={buttonOptions}
       value={value}
       onChange={onChange}
       helpText={helpText}

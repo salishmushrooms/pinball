@@ -18,9 +18,9 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div className={cn('text-center py-12', className)}>
-      {icon && <div className="flex justify-center mb-4 text-gray-400">{icon}</div>}
-      <h3 className="text-lg font-medium text-gray-900 mb-2">{title}</h3>
-      {description && <div className="text-gray-600 mb-6">{description}</div>}
+      {icon && <div className="flex justify-center mb-4" style={{ color: 'var(--text-muted)' }}>{icon}</div>}
+      <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--text-primary)' }}>{title}</h3>
+      {description && <div className="mb-6" style={{ color: 'var(--text-secondary)' }}>{description}</div>}
       {action && <div className="flex justify-center">{action}</div>}
     </div>
   );

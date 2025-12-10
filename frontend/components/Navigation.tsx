@@ -16,12 +16,12 @@ export default function Navigation() {
   ];
 
   return (
-    <nav className="bg-gray-900 text-white shadow-lg">
+    <nav className="shadow-lg" style={{ backgroundColor: '#111827', color: '#ffffff' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex">
             <Link href="/" className="flex items-center">
-              <span className="text-xl font-bold">MNP Analyzer</span>
+              <span className="text-xl font-bold" style={{ color: '#ffffff' }}>MNP Analyzer</span>
             </Link>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               {navItems.map((item) => {
@@ -30,11 +30,11 @@ export default function Navigation() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                      isActive
-                        ? 'border-blue-500 text-white'
-                        : 'border-transparent text-gray-300 hover:border-gray-300 hover:text-white'
-                    }`}
+                    className="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                    style={{
+                      borderColor: isActive ? '#3b82f6' : 'transparent',
+                      color: isActive ? '#ffffff' : '#d1d5db',
+                    }}
                   >
                     {item.label}
                   </Link>

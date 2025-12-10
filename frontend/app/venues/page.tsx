@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Venue } from '@/lib/types';
+import { VenueWithStats } from '@/lib/types';
 import {
   Card,
   PageHeader,
@@ -11,11 +10,10 @@ import {
   Alert,
   LoadingSpinner,
   EmptyState,
-  Table,
 } from '@/components/ui';
 
 export default function VenuesPage() {
-  const [venues, setVenues] = useState<Venue[]>([]);
+  const [venues, setVenues] = useState<VenueWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,7 +21,7 @@ export default function VenuesPage() {
   useEffect(() => {
     async function fetchVenues() {
       try {
-        const data = await api.getVenues({ limit: 500 });
+        const data = await api.getVenuesWithStats({ limit: 500 });
         setVenues(data.venues);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch venues');
@@ -79,36 +77,102 @@ export default function VenuesPage() {
           </Card.Content>
         </Card>
       ) : (
-        <Card>
-          <Card.Content>
-            <Table>
-              <Table.Header>
-                <Table.Row hoverable={false}>
-                  <Table.Head>Venue Name</Table.Head>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {filteredVenues.map((venue) => (
-                  <Table.Row key={venue.venue_key}>
-                    <Table.Cell>
-                      <Link
-                        href={`/venues/${venue.venue_key}`}
-                        className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                      >
-                        {venue.venue_name}
-                      </Link>
-                    </Table.Cell>
-                  </Table.Row>
-                ))}
-              </Table.Body>
-            </Table>
-          </Card.Content>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredVenues.map((venue) => (
+            <VenueCard key={venue.venue_key} venue={venue} />
+          ))}
+        </div>
       )}
 
-      <div className="text-center text-sm text-gray-600">
+      <div className="text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
         Showing {filteredVenues.length} of {venues.length} venue{venues.length !== 1 ? 's' : ''}
       </div>
     </div>
+  );
+}
+
+interface VenueCardProps {
+  venue: VenueWithStats;
+}
+
+function VenueCard({ venue }: VenueCardProps) {
+  return (
+    <Card variant="interactive" href={`/venues/${venue.venue_key}`}>
+      <Card.Content className="p-5">
+        <div className="space-y-3">
+          {/* Venue Name */}
+          <h3
+            className="text-lg font-semibold truncate"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            {venue.venue_name}
+          </h3>
+
+          {/* Stats Row */}
+          <div className="flex items-center gap-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
+            {/* Machine Count */}
+            <div className="flex items-center gap-1.5">
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+                />
+              </svg>
+              <span>
+                {venue.machine_count > 0
+                  ? `${venue.machine_count} machine${venue.machine_count !== 1 ? 's' : ''}`
+                  : 'No machine data'}
+              </span>
+            </div>
+          </div>
+
+          {/* Home Teams */}
+          {venue.home_teams.length > 0 && (
+            <div className="pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+              <div
+                className="text-xs font-medium mb-1.5 uppercase tracking-wide"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                Home Team{venue.home_teams.length > 1 ? 's' : ''}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {venue.home_teams.map((team) => (
+                  <span
+                    key={team.team_key}
+                    className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                    style={{
+                      backgroundColor: 'var(--card-bg-secondary)',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    {team.team_name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* No home teams indicator */}
+          {venue.home_teams.length === 0 && (
+            <div className="pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+              <span
+                className="text-xs italic"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                No home teams
+              </span>
+            </div>
+          )}
+        </div>
+      </Card.Content>
+    </Card>
   );
 }
