@@ -1,7 +1,7 @@
 # MNP Analyzer Design System
 
-**Version:** 1.0
-**Last Updated:** 2025-11-26
+**Version:** 1.1
+**Last Updated:** 2025-12-11
 **Status:** In Development
 
 ---
@@ -243,7 +243,14 @@ className="grid grid-cols-1 md:grid-cols-3 gap-4"
 ├── LoadingSpinner.tsx    # Loading states
 ├── PageHeader.tsx        # Page title + description
 ├── StatCard.tsx          # Numeric stat display
-└── EmptyState.tsx        # No data placeholder
+├── EmptyState.tsx        # No data placeholder
+├── FilterPanel.tsx       # Collapsible filter container
+├── Collapsible.tsx       # Expandable content sections
+├── Tabs.tsx              # Tab navigation component
+├── MultiSelect.tsx       # Multi-option selection
+├── MultiSelectDropdown.tsx # Dropdown multi-select
+├── TruncatedText.tsx     # Text truncation with tooltip
+└── ContentContainer.tsx  # Width constraint for tables
 ```
 
 ### Component Specifications
@@ -480,7 +487,173 @@ className="grid grid-cols-1 md:grid-cols-3 gap-4"
 
 ---
 
+#### 11. TruncatedText
+
+**Purpose:** Truncate long text (like machine names) with ellipsis and tooltip
+**Use Case:** Tables on mobile where column width is limited
+
+```tsx
+import { TruncatedText } from '@/components/ui';
+
+// Default: truncates on mobile only (max 120px), full on desktop
+<TruncatedText>Medieval Madness</TruncatedText>
+
+// Custom max-width (always truncates at this width)
+<TruncatedText maxWidth={100}>
+  The Addams Family
+</TruncatedText>
+
+// Disable tooltip
+<TruncatedText showTooltip={false}>
+  Some text
+</TruncatedText>
+```
+
+**Styling:**
+- Default mobile max-width: `120px`
+- Desktop: No truncation (full width)
+- Uses CSS `truncate` class (text-overflow: ellipsis)
+- Shows native browser tooltip on hover with full text
+
+---
+
+#### 12. ContentContainer
+
+**Purpose:** Constrain content/table width on desktop to reduce excessive whitespace
+**Use Case:** Tables with few columns that look too stretched on wide screens
+
+```tsx
+import { ContentContainer } from '@/components/ui';
+
+// Narrow table (2 columns like percentile summary)
+<ContentContainer size="sm">
+  <Card>
+    <Table>...</Table>
+  </Card>
+</ContentContainer>
+
+// Standard table (3-4 columns like rankings)
+<ContentContainer size="md">
+  <Card>
+    <Table>...</Table>
+  </Card>
+</ContentContainer>
+
+// Wide table (5+ columns)
+<ContentContainer size="lg">
+  <Card>
+    <Table>...</Table>
+  </Card>
+</ContentContainer>
+```
+
+**Size Options:**
+| Size | Max Width | Use Case |
+|------|-----------|----------|
+| `sm` | 672px (max-w-2xl) | Narrow tables (2 columns), forms |
+| `md` | 768px (max-w-3xl) | Standard tables (3-4 columns) |
+| `lg` | 896px (max-w-4xl) | Wide tables (4-5 columns) |
+| `xl` | 1024px (max-w-5xl) | Very wide tables (5+ columns) |
+| `full` | 100% | Full width (charts, complex layouts) |
+
+**When to Use:**
+- Tables with 2-4 columns that stretch too wide on desktop
+- Ranking tables (Top 5 Scores, Top Players)
+- Summary tables (Score Distribution)
+- List pages with simple tables
+
+**When NOT to Use:**
+- Charts and visualizations (use `full` or omit)
+- Complex tables with many columns
+- Full-width content that benefits from space
+
+---
+
+#### 13. FilterPanel
+
+**Purpose:** Collapsible container for page filters
+**Features:** Active filter count badge, clear all button
+
+```tsx
+<FilterPanel
+  title="Filters"
+  collapsible={true}
+  defaultOpen={false}
+  activeFilterCount={3}
+  showClearAll={true}
+  onClearAll={() => resetFilters()}
+>
+  {/* Filter controls */}
+</FilterPanel>
+```
+
+---
+
 ## Patterns
+
+### Filter Pattern
+
+**Standard filter configuration for all pages:**
+
+1. **Use FilterPanel** with `collapsible={true}` and `defaultOpen={false}` (collapsed by default)
+2. **Use dropdown variants** for all multi-select filters (not inline checkboxes)
+3. **Use consistent filter components:**
+   - `SeasonMultiSelect` with `variant="dropdown"` for season selection
+   - `VenueSelect` or `VenueMultiSelect` for venue filtering
+   - `TeamMultiSelect` for team filtering
+4. **Show active filter count** to indicate when filters are applied
+5. **Include "Clear All"** button when filters are active
+
+```tsx
+import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
+import { VenueSelect } from '@/components/VenueMultiSelect';
+import { TeamMultiSelect } from '@/components/TeamMultiSelect';
+
+<FilterPanel
+  title="Filters"
+  collapsible={true}
+  defaultOpen={false}
+  activeFilterCount={activeFilterCount}
+  showClearAll={activeFilterCount > 0}
+  onClearAll={clearFilters}
+>
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <SeasonMultiSelect
+      value={selectedSeasons}
+      onChange={setSelectedSeasons}
+      availableSeasons={availableSeasons}
+      variant="dropdown"
+    />
+    <VenueSelect
+      value={selectedVenue}
+      onChange={setSelectedVenue}
+      venues={venues}
+    />
+    <TeamMultiSelect
+      teams={teams}
+      value={selectedTeams}
+      onChange={setSelectedTeams}
+    />
+  </div>
+</FilterPanel>
+```
+
+**Available Filter Components:**
+
+| Component | Purpose | Props |
+|-----------|---------|-------|
+| `SeasonMultiSelect` | Multi-season selection | `value`, `onChange`, `availableSeasons`, `variant="dropdown"` |
+| `VenueSelect` | Single venue selection | `value`, `onChange`, `venues`, `includeAllOption` |
+| `VenueMultiSelect` | Multi-venue selection | `value`, `onChange`, `venues` |
+| `TeamMultiSelect` | Multi-team selection | `value`, `onChange`, `teams` |
+
+**Why Dropdowns?**
+- **Space efficient:** Collapsed by default, takes minimal vertical space
+- **Consistent UI:** All filters look and behave the same way
+- **Scalable:** Works well with many options (teams, venues)
+- **Mobile friendly:** Dropdown menus work well on touch devices
+
+---
 
 ### Page Layout Pattern
 
@@ -574,6 +747,79 @@ For individual item detail pages:
   </Card>
 </div>
 ```
+
+### Responsive Table Pattern (Mobile Cards)
+
+**Problem:** Tables with many columns or long text (like machine names) don't fit well on mobile screens.
+
+**Solution:** Use a dual-layout approach: stacked cards on mobile, standard tables on desktop.
+
+```tsx
+{/* Mobile view - stacked cards */}
+<div className="sm:hidden space-y-3">
+  {items.map((item) => (
+    <div
+      key={item.id}
+      className="border rounded-lg p-3"
+      style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg-secondary)' }}
+    >
+      {/* Header row with main identifier and key stat */}
+      <div className="flex justify-between items-start mb-2">
+        <Link href={`/items/${item.key}`} className="font-medium text-blue-600">
+          {item.name}
+        </Link>
+        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          {item.count} games
+        </span>
+      </div>
+      {/* Stats grid - 2 or 3 columns */}
+      <div className="grid grid-cols-3 gap-2 text-sm">
+        <div>
+          <span style={{ color: 'var(--text-muted)' }}>Win: </span>
+          <span style={{ color: 'var(--text-primary)' }}>{item.winPct}%</span>
+        </div>
+        <div>
+          <span style={{ color: 'var(--text-muted)' }}>Med: </span>
+          <span style={{ color: 'var(--text-primary)' }}>{item.median}</span>
+        </div>
+        <div>
+          <span style={{ color: 'var(--text-muted)' }}>Best: </span>
+          <span style={{ color: 'var(--text-primary)' }}>{item.best}</span>
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
+
+{/* Desktop view - standard table */}
+<div className="hidden sm:block">
+  <Table>
+    {/* Full table with all columns */}
+  </Table>
+</div>
+```
+
+**Mobile Card Guidelines:**
+- Use `sm:hidden` for mobile cards, `hidden sm:block` for desktop tables
+- Card header: Primary identifier (linked) + one key stat on the right
+- Stats grid: Use 2-3 columns for secondary data
+- Label style: `color: var(--text-muted)` for labels
+- Value style: `color: var(--text-primary)` for values
+- Use short labels on mobile: "Win:" instead of "Win Percentage:"
+- Border and background use CSS variables for dark mode support
+
+**When to Use This Pattern:**
+- Tables with 5+ columns
+- Tables with long text content (machine names, venue names)
+- Tables where horizontal scrolling would be a poor experience
+- Data tables on detail pages (team detail, player detail, venue detail)
+
+**Pages Using This Pattern:**
+- `/teams/[team_key]` - Machine Statistics, Team Roster
+- `/players/[player_key]` - Machine Statistics
+- `/venues/[venue_key]` - Machines table
+
+---
 
 ### Form Pattern
 

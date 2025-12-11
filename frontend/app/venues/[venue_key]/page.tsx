@@ -15,9 +15,12 @@ import {
   Table,
   Badge,
   StatCard,
+  FilterPanel,
+  ContentContainer,
 } from '@/components/ui';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
-import { SUPPORTED_SEASONS, filterSupportedSeasons } from '@/lib/utils';
+import { TeamMultiSelect } from '@/components/TeamMultiSelect';
+import { SUPPORTED_SEASONS, filterSupportedSeasons, formatScore } from '@/lib/utils';
 
 export default function VenueDetailPage() {
   const params = useParams();
@@ -32,7 +35,7 @@ export default function VenueDetailPage() {
 
   // Filter states
   const [currentOnly, setCurrentOnly] = useState(true);
-  const [selectedTeam, setSelectedTeam] = useState<string>('');
+  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
   const [scoresFrom, setScoresFrom] = useState<'venue' | 'all'>('venue');
   const [sortBy, setSortBy] = useState<'name' | 'games'>('games');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -67,7 +70,7 @@ export default function VenueDetailPage() {
           api.getVenue(venueKey),
           api.getVenueMachines(venueKey, {
             current_only: currentOnly,
-            team_key: selectedTeam || undefined,
+            team_key: selectedTeams.length > 0 ? selectedTeams[0] : undefined,
             scores_from: scoresFrom,
             seasons: seasons.length > 0 ? seasons : undefined,
           }),
@@ -82,7 +85,7 @@ export default function VenueDetailPage() {
     }
 
     fetchVenueData();
-  }, [venueKey, currentOnly, selectedTeam, scoresFrom, seasons]);
+  }, [venueKey, currentOnly, selectedTeams, scoresFrom, seasons]);
 
   // Sort machines based on sortBy state and direction
   const sortedMachines = [...machines].sort((a, b) => {
@@ -147,209 +150,103 @@ export default function VenueDetailPage() {
       </div>
 
       {/* Filter Controls */}
-      <Card>
-        <Card.Header>
-          <Card.Title>Filters</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <div className="space-y-4">
-            {/* Season Filter */}
+      <FilterPanel
+        title="Filters"
+        collapsible={true}
+        defaultOpen={false}
+        activeFilterCount={
+          (seasons.length > 0 && seasons.length < availableSeasons.length ? 1 : 0) +
+          (!currentOnly ? 1 : 0) +
+          (selectedTeams.length > 0 ? 1 : 0)
+        }
+        showClearAll={true}
+        onClearAll={() => {
+          setSeasons(availableSeasons);
+          setCurrentOnly(true);
+          setSelectedTeams([]);
+          setScoresFrom('venue');
+        }}
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <SeasonMultiSelect
               value={seasons}
               onChange={setSeasons}
               availableSeasons={availableSeasons}
-              helpText="Select one or more seasons to aggregate statistics"
+              variant="dropdown"
             />
 
-            {/* Machine Filter */}
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={currentOnly}
-                  onChange={(e) => setCurrentOnly(e.target.checked)}
-                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                />
-                <span className="text-sm font-medium text-gray-700">
-                  Show current machines only
-                </span>
+            <TeamMultiSelect
+              teams={Array.from(new Map(teams.map((team) => [team.team_key, team])).values())}
+              value={selectedTeams}
+              onChange={setSelectedTeams}
+              label="Team"
+            />
+
+            <div>
+              <label
+                className="block text-sm font-medium mb-1"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                Machine Status
               </label>
-              <div className="text-sm text-gray-500">
-                ({machines.length} machine{machines.length !== 1 ? 's' : ''})
+              <Select
+                value={currentOnly ? 'current' : 'all'}
+                onChange={(e) => setCurrentOnly(e.target.value === 'current')}
+                options={[
+                  { value: 'current', label: 'Current Machines Only' },
+                  { value: 'all', label: 'All Machines (Including Past)' },
+                ]}
+              />
+            </div>
+          </div>
+
+          {/* View Mode Toggle - Only show when team is selected */}
+          {selectedTeams.length > 0 && (
+            <div
+              className="border-t pt-4"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              <label
+                className="block text-sm font-medium mb-3"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                Statistics Source
+              </label>
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    value="venue"
+                    checked={scoresFrom === 'venue'}
+                    onChange={(e) => setScoresFrom(e.target.value as 'venue')}
+                    className="h-4 w-4 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                    style={{ borderColor: 'var(--input-border)' }}
+                  />
+                  <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
+                    Scores at this venue only
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    value="all"
+                    checked={scoresFrom === 'all'}
+                    onChange={(e) => setScoresFrom(e.target.value as 'all')}
+                    className="h-4 w-4 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                    style={{ borderColor: 'var(--input-border)' }}
+                  />
+                  <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
+                    All scores on these machines (scouting mode)
+                  </span>
+                </label>
               </div>
             </div>
-
-            {/* Team Filter */}
-            <Select
-              label="Filter by Team (optional)"
-              value={selectedTeam}
-              onChange={(e) => setSelectedTeam(e.target.value)}
-              className="max-w-md"
-              options={[
-                { value: '', label: 'All Teams' },
-                ...Array.from(new Map(teams.map((team) => [team.team_key, team])).values())
-                  .map((team) => ({
-                    value: team.team_key,
-                    label: team.team_name,
-                  })),
-              ]}
-            />
-
-            {/* View Mode Toggle - Only show when team is selected */}
-            {selectedTeam && (
-              <div className="border-t border-gray-200 pt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Statistics Source
-                </label>
-                <div className="space-y-2">
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="radio"
-                      value="venue"
-                      checked={scoresFrom === 'venue'}
-                      onChange={(e) => setScoresFrom(e.target.value as 'venue')}
-                      className="mt-1 h-4 w-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-blue-500"
-                    />
-                    <div className="flex-1">
-                      <span className="text-sm font-medium text-gray-900">
-                        Scores at this venue only
-                      </span>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Show {teams.find((t) => t.team_key === selectedTeam)?.team_name}'s
-                        performance on these machines when played at {venue.venue_name}
-                      </p>
-                    </div>
-                  </label>
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="radio"
-                      value="all"
-                      checked={scoresFrom === 'all'}
-                      onChange={(e) => setScoresFrom(e.target.value as 'all')}
-                      className="mt-1 h-4 w-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-blue-500"
-                    />
-                    <div className="flex-1">
-                      <span className="text-sm font-medium text-gray-900">
-                        All scores on these machines
-                      </span>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Show {teams.find((t) => t.team_key === selectedTeam)?.team_name}'s
-                        total experience on these machines across all venues (useful for scouting)
-                      </p>
-                    </div>
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {/* Info messages */}
-            {currentOnly && (
-              <p className="text-xs text-gray-500">
-                Current machines are determined from the most recent match at this venue
-              </p>
-            )}
-          </div>
-        </Card.Content>
-      </Card>
-
-      {/* Machines Table */}
-      <Card>
-        <Card.Header>
-          <Card.Title>
-            {currentOnly ? 'Current Machines' : 'All Machines'}
-            {selectedTeam && (
-              <span className="text-base font-normal text-gray-600 ml-2">
-                - {teams.find((t) => t.team_key === selectedTeam)?.team_name} Stats
-              </span>
-            )}
-          </Card.Title>
-        </Card.Header>
-        <Card.Content>
-          {machines.length === 0 ? (
-            <EmptyState
-              title="No machines found"
-              description={
-                <>
-                  {currentOnly && (
-                    <p className="text-sm mt-2">
-                      Try unchecking "Show current machines only" to see all machines
-                      that have been played at this venue.
-                    </p>
-                  )}
-                  {selectedTeam && (
-                    <p className="text-sm mt-2">
-                      This team may not have played any games {scoresFrom === 'venue' ? 'at this venue' : 'on these machines'}.
-                    </p>
-                  )}
-                </>
-              }
-            />
-          ) : (
-            <Table>
-              <Table.Header>
-                <Table.Row hoverable={false}>
-                  <Table.Head
-                    sortable
-                    onSort={() => handleSort('name')}
-                    sortDirection={sortBy === 'name' ? sortDirection : null}
-                  >
-                    Machine
-                  </Table.Head>
-                  <Table.Head
-                    className="text-right"
-                    sortable
-                    onSort={() => handleSort('games')}
-                    sortDirection={sortBy === 'games' ? sortDirection : null}
-                  >
-                    {selectedTeam ? 'Games Played' : 'Total Scores'}
-                  </Table.Head>
-                  <Table.Head className="text-right">Players</Table.Head>
-                  <Table.Head className="text-right">Median Score</Table.Head>
-                  <Table.Head className="text-right">Max Score</Table.Head>
-                  {!currentOnly && (
-                    <Table.Head className="text-center">Current</Table.Head>
-                  )}
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {sortedMachines.map((machine) => (
-                  <Table.Row key={machine.machine_key}>
-                    <Table.Cell>
-                      <Link
-                        href={`/machines/${machine.machine_key}`}
-                        className="text-blue-600 hover:text-blue-800 font-medium"
-                      >
-                        {machine.machine_name}
-                      </Link>
-                    </Table.Cell>
-                    <Table.Cell className="text-right">
-                      {machine.total_scores.toLocaleString()}
-                    </Table.Cell>
-                    <Table.Cell className="text-right text-gray-600">
-                      {machine.unique_players}
-                    </Table.Cell>
-                    <Table.Cell className="text-right">
-                      {machine.median_score.toLocaleString()}
-                    </Table.Cell>
-                    <Table.Cell className="text-right font-medium text-green-600">
-                      {machine.max_score.toLocaleString()}
-                    </Table.Cell>
-                    {!currentOnly && (
-                      <Table.Cell className="text-center">
-                        <Badge variant={machine.is_current ? 'success' : 'default'}>
-                          {machine.is_current ? 'Current' : 'Past'}
-                        </Badge>
-                      </Table.Cell>
-                    )}
-                  </Table.Row>
-                ))}
-              </Table.Body>
-            </Table>
           )}
-        </Card.Content>
-      </Card>
+        </div>
+      </FilterPanel>
 
-      {/* Stats Summary */}
+      {/* Summary Statistics - moved above machines table */}
       {machines.length > 0 && (
         <Card>
           <Card.Header>
@@ -362,31 +259,179 @@ export default function VenueDetailPage() {
                 value={machines.length}
               />
               <StatCard
-                label={selectedTeam ? 'Total Games' : 'Total Scores'}
+                label={selectedTeams.length > 0 ? 'Total Games' : 'Total Scores'}
                 value={machines.reduce((sum, m) => sum + m.total_scores, 0).toLocaleString()}
               />
               <StatCard
-                label={selectedTeam ? 'Team Members' : 'Unique Players'}
+                label={selectedTeams.length > 0 ? 'Team Members' : 'Unique Players'}
                 value={Math.max(...machines.map((m) => m.unique_players))}
               />
               <StatCard
-                label={`Avg ${selectedTeam ? 'Games' : 'Scores'}/Machine`}
+                label={`Avg ${selectedTeams.length > 0 ? 'Games' : 'Scores'}/Machine`}
                 value={Math.round(
                   machines.reduce((sum, m) => sum + m.total_scores, 0) /
                     machines.length
                 ).toLocaleString()}
               />
             </div>
-            {selectedTeam && scoresFrom === 'all' && (
+            {selectedTeams.length > 0 && scoresFrom === 'all' && (
               <Alert variant="info" title="Scouting Mode" className="mt-4">
-                These statistics show {teams.find((t) => t.team_key === selectedTeam)?.team_name}'s
+                These statistics show {teams.find((t) => t.team_key === selectedTeams[0])?.team_name}'s
                 total experience on machines currently at {venue.venue_name}, including games played at other venues.
-                This helps identify which machines this team has the most practice on.
               </Alert>
             )}
           </Card.Content>
         </Card>
       )}
+
+      {/* Machines Table */}
+      <ContentContainer size="lg">
+        <Card>
+          <Card.Header>
+            <Card.Title>
+              {currentOnly ? 'Current Machines' : 'All Machines'}
+              {selectedTeams.length > 0 && (
+                <span className="text-base font-normal ml-2" style={{ color: 'var(--text-muted)' }}>
+                  - {teams.find((t) => t.team_key === selectedTeams[0])?.team_name} Stats
+                </span>
+              )}
+            </Card.Title>
+          </Card.Header>
+          <Card.Content>
+            {machines.length === 0 ? (
+              <EmptyState
+                title="No machines found"
+                description={
+                  <>
+                    {currentOnly && (
+                      <p className="text-sm mt-2">
+                        Try selecting "All Machines" to see machines
+                        that have been played at this venue in the past.
+                      </p>
+                    )}
+                    {selectedTeams.length > 0 && (
+                      <p className="text-sm mt-2">
+                        This team may not have played any games {scoresFrom === 'venue' ? 'at this venue' : 'on these machines'}.
+                      </p>
+                    )}
+                  </>
+                }
+              />
+            ) : (
+              <>
+                {/* Mobile view - stacked cards */}
+                <div className="sm:hidden space-y-3">
+                  {sortedMachines.map((machine) => (
+                    <div
+                      key={machine.machine_key}
+                      className="border rounded-lg p-3"
+                      style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg-secondary)' }}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <Link
+                          href={`/machines/${machine.machine_key}`}
+                          className="font-medium text-blue-600 hover:text-blue-800"
+                        >
+                          {machine.machine_name}
+                        </Link>
+                        {!currentOnly && (
+                          <Badge variant={machine.is_current ? 'success' : 'default'} className="text-xs">
+                            {machine.is_current ? 'Current' : 'Past'}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span style={{ color: 'var(--text-muted)' }}>
+                            {selectedTeams.length > 0 ? 'Games: ' : 'Scores: '}
+                          </span>
+                          <span style={{ color: 'var(--text-primary)' }}>{machine.total_scores}</span>
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--text-muted)' }}>Players: </span>
+                          <span style={{ color: 'var(--text-primary)' }}>{machine.unique_players}</span>
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--text-muted)' }}>Median: </span>
+                          <span style={{ color: 'var(--text-primary)' }}>{formatScore(machine.median_score)}</span>
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--text-muted)' }}>Max: </span>
+                          <span className="text-green-600 font-medium">{formatScore(machine.max_score)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop view - table */}
+                <div className="hidden sm:block">
+                  <Table>
+                    <Table.Header>
+                      <Table.Row hoverable={false}>
+                        <Table.Head
+                          sortable
+                          onSort={() => handleSort('name')}
+                          sortDirection={sortBy === 'name' ? sortDirection : null}
+                        >
+                          Machine
+                        </Table.Head>
+                        <Table.Head
+                          className="text-right"
+                          sortable
+                          onSort={() => handleSort('games')}
+                          sortDirection={sortBy === 'games' ? sortDirection : null}
+                        >
+                          {selectedTeams.length > 0 ? 'Games' : 'Scores'}
+                        </Table.Head>
+                        <Table.Head className="text-right">Players</Table.Head>
+                        <Table.Head className="text-right">Median</Table.Head>
+                        <Table.Head className="text-right">Max</Table.Head>
+                        {!currentOnly && (
+                          <Table.Head className="text-center">Status</Table.Head>
+                        )}
+                      </Table.Row>
+                    </Table.Header>
+                    <Table.Body>
+                      {sortedMachines.map((machine) => (
+                        <Table.Row key={machine.machine_key}>
+                          <Table.Cell>
+                            <Link
+                              href={`/machines/${machine.machine_key}`}
+                              className="text-blue-600 hover:text-blue-800 font-medium"
+                            >
+                              {machine.machine_name}
+                            </Link>
+                          </Table.Cell>
+                          <Table.Cell className="text-right">
+                            {machine.total_scores.toLocaleString()}
+                          </Table.Cell>
+                          <Table.Cell className="text-right text-gray-500">
+                            {machine.unique_players}
+                          </Table.Cell>
+                          <Table.Cell className="text-right">
+                            {formatScore(machine.median_score)}
+                          </Table.Cell>
+                          <Table.Cell className="text-right font-medium text-green-600">
+                            {formatScore(machine.max_score)}
+                          </Table.Cell>
+                          {!currentOnly && (
+                            <Table.Cell className="text-center">
+                              <Badge variant={machine.is_current ? 'success' : 'default'}>
+                                {machine.is_current ? 'Current' : 'Past'}
+                              </Badge>
+                            </Table.Cell>
+                          )}
+                        </Table.Row>
+                      ))}
+                    </Table.Body>
+                  </Table>
+                </div>
+              </>
+            )}
+          </Card.Content>
+        </Card>
+      </ContentContainer>
     </div>
   );
 }

@@ -18,7 +18,7 @@ import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
 import { MatchplaySection } from '@/components/MatchplaySection';
 import { useDebouncedEffect } from '@/lib/hooks';
-import { SUPPORTED_SEASONS, filterSupportedSeasons } from '@/lib/utils';
+import { SUPPORTED_SEASONS, filterSupportedSeasons, formatScore } from '@/lib/utils';
 
 export default function PlayerDetailPage() {
   const params = useParams();
@@ -357,86 +357,146 @@ export default function PlayerDetailPage() {
               No machine statistics found for the selected filters.
             </Alert>
           ) : (
-            <Table>
-              <Table.Header>
-                <Table.Row hoverable={false}>
-                  <Table.Head>Machine</Table.Head>
-                  <Table.Head
-                    sortable
-                    onSort={() => handleSort('games_played')}
-                    sortDirection={sortBy === 'games_played' ? sortDirection : null}
-                  >
-                    Games
-                  </Table.Head>
-                  <Table.Head
-                    sortable
-                    onSort={() => handleSort('win_percentage')}
-                    sortDirection={sortBy === 'win_percentage' ? sortDirection : null}
-                  >
-                    Win %
-                  </Table.Head>
-                  <Table.Head
-                    sortable
-                    onSort={() => handleSort('avg_percentile')}
-                    sortDirection={sortBy === 'avg_percentile' ? sortDirection : null}
-                  >
-                    Percentile
-                  </Table.Head>
-                  <Table.Head>Median Score</Table.Head>
-                  <Table.Head>Best Score</Table.Head>
-                  <Table.Head className="text-center">Chart</Table.Head>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
+            <>
+              {/* Mobile view - stacked cards */}
+              <div className="sm:hidden space-y-3">
                 {machineStats.map((stat, idx) => (
-                  <Table.Row key={idx}>
-                    <Table.Cell>
+                  <div
+                    key={idx}
+                    className="border rounded-lg p-3"
+                    style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg-secondary)' }}
+                  >
+                    <div className="flex justify-between items-start mb-2">
                       <Link
                         href={`/machines/${stat.machine_key}`}
-                        className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                        className="font-medium text-blue-600 hover:text-blue-800"
                       >
                         {stat.machine_name}
                       </Link>
-                    </Table.Cell>
-                    <Table.Cell>
-                      {stat.games_played}
-                    </Table.Cell>
-                    <Table.Cell>
-                      {stat.win_percentage !== null ? `${stat.win_percentage.toFixed(1)}%` : 'N/A'}
-                    </Table.Cell>
-                    <Table.Cell>
-                      {stat.avg_percentile !== null ? stat.avg_percentile.toFixed(1) : 'N/A'}
-                    </Table.Cell>
-                    <Table.Cell>
-                      {stat.median_score.toLocaleString(undefined, {
-                        maximumFractionDigits: 0,
-                      })}
-                    </Table.Cell>
-                    <Table.Cell>
-                      {stat.best_score.toLocaleString()}
-                    </Table.Cell>
-                    <Table.Cell className="text-center">
                       <button
                         onClick={() => handleMachineSelect(stat.machine_key)}
-                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                        className={`px-2 py-1 rounded text-xs font-medium ${
                           selectedMachine === stat.machine_key
                             ? 'bg-blue-600 text-white'
-                            : 'hover:opacity-80'
+                            : ''
                         }`}
                         style={
                           selectedMachine === stat.machine_key
                             ? undefined
-                            : { backgroundColor: 'var(--card-bg-secondary)', color: 'var(--text-secondary)' }
+                            : { backgroundColor: 'var(--card-bg)', color: 'var(--text-secondary)' }
                         }
-                        title="View score progression chart"
                       >
                         📊
                       </button>
-                    </Table.Cell>
-                  </Table.Row>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span style={{ color: 'var(--text-muted)' }}>Games: </span>
+                        <span style={{ color: 'var(--text-primary)' }}>{stat.games_played}</span>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)' }}>Win: </span>
+                        <span style={{ color: 'var(--text-primary)' }}>
+                          {stat.win_percentage !== null ? `${stat.win_percentage.toFixed(0)}%` : 'N/A'}
+                        </span>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)' }}>%ile: </span>
+                        <span style={{ color: 'var(--text-primary)' }}>
+                          {stat.avg_percentile !== null ? stat.avg_percentile.toFixed(0) : 'N/A'}
+                        </span>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)' }}>Best: </span>
+                        <span style={{ color: 'var(--text-primary)' }}>{formatScore(stat.best_score)}</span>
+                      </div>
+                    </div>
+                  </div>
                 ))}
-              </Table.Body>
-            </Table>
+              </div>
+
+              {/* Desktop view - table */}
+              <div className="hidden sm:block">
+                <Table>
+                  <Table.Header>
+                    <Table.Row hoverable={false}>
+                      <Table.Head>Machine</Table.Head>
+                      <Table.Head
+                        sortable
+                        onSort={() => handleSort('games_played')}
+                        sortDirection={sortBy === 'games_played' ? sortDirection : null}
+                      >
+                        Games
+                      </Table.Head>
+                      <Table.Head
+                        sortable
+                        onSort={() => handleSort('win_percentage')}
+                        sortDirection={sortBy === 'win_percentage' ? sortDirection : null}
+                      >
+                        Win %
+                      </Table.Head>
+                      <Table.Head
+                        sortable
+                        onSort={() => handleSort('avg_percentile')}
+                        sortDirection={sortBy === 'avg_percentile' ? sortDirection : null}
+                      >
+                        %ile
+                      </Table.Head>
+                      <Table.Head>Median</Table.Head>
+                      <Table.Head>Best</Table.Head>
+                      <Table.Head className="text-center">Chart</Table.Head>
+                    </Table.Row>
+                  </Table.Header>
+                  <Table.Body>
+                    {machineStats.map((stat, idx) => (
+                      <Table.Row key={idx}>
+                        <Table.Cell>
+                          <Link
+                            href={`/machines/${stat.machine_key}`}
+                            className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                          >
+                            {stat.machine_name}
+                          </Link>
+                        </Table.Cell>
+                        <Table.Cell>
+                          {stat.games_played}
+                        </Table.Cell>
+                        <Table.Cell>
+                          {stat.win_percentage !== null ? `${stat.win_percentage.toFixed(1)}%` : 'N/A'}
+                        </Table.Cell>
+                        <Table.Cell>
+                          {stat.avg_percentile !== null ? stat.avg_percentile.toFixed(1) : 'N/A'}
+                        </Table.Cell>
+                        <Table.Cell>
+                          {formatScore(stat.median_score)}
+                        </Table.Cell>
+                        <Table.Cell>
+                          {formatScore(stat.best_score)}
+                        </Table.Cell>
+                        <Table.Cell className="text-center">
+                          <button
+                            onClick={() => handleMachineSelect(stat.machine_key)}
+                            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                              selectedMachine === stat.machine_key
+                                ? 'bg-blue-600 text-white'
+                                : 'hover:opacity-80'
+                            }`}
+                            style={
+                              selectedMachine === stat.machine_key
+                                ? undefined
+                                : { backgroundColor: 'var(--card-bg-secondary)', color: 'var(--text-secondary)' }
+                            }
+                            title="View score progression chart"
+                          >
+                            📊
+                          </button>
+                        </Table.Cell>
+                      </Table.Row>
+                    ))}
+                  </Table.Body>
+                </Table>
+              </div>
+            </>
           )}
 
           <div
