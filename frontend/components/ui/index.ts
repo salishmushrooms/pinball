@@ -23,3 +23,5 @@ export type { MultiSelectDropdownOption, MultiSelectDropdownProps } from './Mult
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs';
 export { Collapsible } from './Collapsible';
 export { FilterPanel } from './FilterPanel';
+export { TruncatedText } from './TruncatedText';
+export { ContentContainer } from './ContentContainer';

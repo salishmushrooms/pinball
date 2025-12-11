@@ -1,12 +1,17 @@
 import React from 'react';
 import { MultiSelectDropdown } from './ui/MultiSelectDropdown';
 import { Select } from './ui';
-import { Venue } from '@/lib/types';
+
+/** Minimum venue type required for venue selection components */
+interface VenueOption {
+  venue_key: string;
+  venue_name: string;
+}
 
 interface VenueMultiSelectProps {
   value: string[];
   onChange: (value: string[]) => void;
-  venues: Venue[];
+  venues: VenueOption[];
   label?: string;
   helpText?: string;
   className?: string;
@@ -15,7 +20,7 @@ interface VenueMultiSelectProps {
 interface VenueSelectProps {
   value: string;
   onChange: (value: string) => void;
-  venues: Venue[];
+  venues: VenueOption[];
   label?: string;
   helpText?: string;
   className?: string;
