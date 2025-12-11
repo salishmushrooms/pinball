@@ -87,11 +87,11 @@ export default function Home() {
         </Card>
       )}
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card variant="interactive" href="/players">
           <Card.Content>
             <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-              Browse Players
+              Players
             </h3>
             <p style={{ color: 'var(--text-secondary)' }}>
               Search and analyze player performance across machines and venues
@@ -99,10 +99,21 @@ export default function Home() {
           </Card.Content>
         </Card>
 
+        <Card variant="interactive" href="/teams">
+          <Card.Content>
+            <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+              Teams
+            </h3>
+            <p style={{ color: 'var(--text-secondary)' }}>
+              View team rosters, performance, and season standings
+            </p>
+          </Card.Content>
+        </Card>
+
         <Card variant="interactive" href="/machines">
           <Card.Content>
             <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-              Browse Machines
+              Machines
             </h3>
             <p style={{ color: 'var(--text-secondary)' }}>
               Explore machine statistics and percentile distributions
@@ -113,7 +124,7 @@ export default function Home() {
         <Card variant="interactive" href="/venues">
           <Card.Content>
             <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-              Browse Venues
+              Venues
             </h3>
             <p style={{ color: 'var(--text-secondary)' }}>
               View venue locations and their current machine lineups
@@ -124,10 +135,10 @@ export default function Home() {
         <Card variant="interactive" href="/matchups">
           <Card.Content>
             <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-              Matchup Analysis
+              Matchups
             </h3>
             <p style={{ color: 'var(--text-secondary)' }}>
-              Analyze team vs team matchups with score predictions and strategies
+              Analyze team vs team matchups with predictions
             </p>
           </Card.Content>
         </Card>

@@ -71,6 +71,7 @@ cache/
 data/
 *.csv
 !config/*.json
+machine_score_stats.json
 
 # Analysis results
 results/

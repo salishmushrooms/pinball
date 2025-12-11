@@ -13,6 +13,7 @@ import {
   EmptyState,
   Table,
   FilterPanel,
+  ContentContainer,
 } from '@/components/ui';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
@@ -114,8 +115,9 @@ export default function MachinesPage() {
     }
   }
 
-  // Sort machines
-  const sortedMachines = [...machines].sort((a, b) => {
+  // Filter out machines with zero scores, then sort
+  const filteredMachines = machines.filter((m) => (m.game_count ?? 0) > 0);
+  const sortedMachines = [...filteredMachines].sort((a, b) => {
     let comparison = 0;
     if (sortField === 'machine_name') {
       comparison = a.machine_name.localeCompare(b.machine_name);
@@ -132,22 +134,45 @@ export default function MachinesPage() {
         description="Browse pinball machines and view performance statistics"
       />
 
-      <Card>
-        <Card.Content>
-          <Input
-            label="Search by Name or Machine Key"
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Type machine name or key (e.g., 'Medieval Madness' or 'MM')..."
-            helpText="Tip: Try searching by abbreviations like 'TOTAN', 'MM', 'AFM', etc."
-          />
-        </Card.Content>
-      </Card>
+      {/* Sticky search bar on mobile for better UX while typing */}
+      <div className="sticky top-0 z-10 -mx-4 px-4 py-2 md:static md:mx-0 md:px-0 md:py-0" style={{ backgroundColor: 'var(--bg-primary)' }}>
+        <Card>
+          <Card.Content>
+            <div className="space-y-2">
+              <Input
+                label="Search by Name or Machine Key"
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Type machine name or key (e.g., 'Medieval Madness' or 'MM')..."
+                helpText="Tip: Try searching by abbreviations like 'TOTAN', 'MM', 'AFM', etc."
+              />
+              {/* Inline results count - shows immediately as user types */}
+              <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+                {loading ? (
+                  <span className="flex items-center gap-1">
+                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Searching...
+                  </span>
+                ) : (
+                  <span>
+                    {filteredMachines.length} machine{filteredMachines.length !== 1 ? 's' : ''} found
+                    {activeFilterCount > 0 && ' (filtered)'}
+                  </span>
+                )}
+              </div>
+            </div>
+          </Card.Content>
+        </Card>
+      </div>
 
       <FilterPanel
         title="Filters"
         collapsible={true}
+        defaultOpen={false}
         activeFilterCount={activeFilterCount}
         showClearAll={activeFilterCount > 0}
         onClearAll={clearFilters}
@@ -198,60 +223,56 @@ export default function MachinesPage() {
       )}
 
       {!loading && machines.length > 0 && (
-        <Card>
-          <Card.Content>
-            <Table>
-              <Table.Header>
-                <Table.Row hoverable={false}>
-                  <Table.Head
-                    sortable
-                    onSort={() => handleSort('machine_name')}
-                    sortDirection={sortField === 'machine_name' ? sortDirection : null}
-                  >
-                    Machine Name
-                  </Table.Head>
-                  <Table.Head
-                    className="text-right"
-                    sortable
-                    onSort={() => handleSort('game_count')}
-                    sortDirection={sortField === 'game_count' ? sortDirection : null}
-                  >
-                    Scores
-                  </Table.Head>
-                  <Table.Head className="text-right">Median Score</Table.Head>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {sortedMachines.map((machine) => (
-                  <Table.Row key={machine.machine_key}>
-                    <Table.Cell>
-                      <Link
-                        href={`/machines/${machine.machine_key}`}
-                        className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                      >
-                        {machine.machine_name}
-                      </Link>
-                    </Table.Cell>
-                    <Table.Cell className="text-right text-sm text-gray-600">
-                      {machine.game_count?.toLocaleString() ?? '-'}
-                    </Table.Cell>
-                    <Table.Cell className="text-right text-sm text-gray-600">
-                      {formatScore(machine.median_score)}
-                    </Table.Cell>
+        <ContentContainer size="md">
+          <Card>
+            <Card.Content>
+              <Table>
+                <Table.Header>
+                  <Table.Row hoverable={false}>
+                    <Table.Head
+                      sortable
+                      onSort={() => handleSort('machine_name')}
+                      sortDirection={sortField === 'machine_name' ? sortDirection : null}
+                    >
+                      Machine Name
+                    </Table.Head>
+                    <Table.Head
+                      className="text-right"
+                      sortable
+                      onSort={() => handleSort('game_count')}
+                      sortDirection={sortField === 'game_count' ? sortDirection : null}
+                    >
+                      Scores
+                    </Table.Head>
+                    <Table.Head className="text-right">Median Score</Table.Head>
                   </Table.Row>
-                ))}
-              </Table.Body>
-            </Table>
-          </Card.Content>
-        </Card>
+                </Table.Header>
+                <Table.Body>
+                  {sortedMachines.map((machine) => (
+                    <Table.Row key={machine.machine_key}>
+                      <Table.Cell>
+                        <Link
+                          href={`/machines/${machine.machine_key}`}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                        >
+                          {machine.machine_name}
+                        </Link>
+                      </Table.Cell>
+                      <Table.Cell className="text-right text-sm text-gray-600">
+                        {machine.game_count?.toLocaleString() ?? '-'}
+                      </Table.Cell>
+                      <Table.Cell className="text-right text-sm text-gray-600">
+                        {formatScore(machine.median_score)}
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table>
+            </Card.Content>
+          </Card>
+        </ContentContainer>
       )}
 
-      {!loading && machines.length > 0 && (
-        <div className="text-center text-sm text-gray-600">
-          Showing {machines.length} machine{machines.length !== 1 ? 's' : ''}
-          {activeFilterCount > 0 && ' (filtered)'}
-        </div>
-      )}
     </div>
   );
 }

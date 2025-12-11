@@ -110,7 +110,7 @@ export default function PlayersPage() {
                 <Table.Row key={player.player_key}>
                   <Table.Cell>
                     <Link
-                      href={`/players/${player.player_key}`}
+                      href={`/players/${encodeURIComponent(player.player_key)}`}
                       className="font-medium"
                       style={{ color: 'var(--text-link)' }}
                     >

@@ -10,7 +10,7 @@ import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
 import { useDebouncedEffect } from '@/lib/hooks';
 import { Table, Card, PageHeader, FilterPanel, Alert, LoadingSpinner } from '@/components/ui';
-import { SUPPORTED_SEASONS, filterSupportedSeasons } from '@/lib/utils';
+import { SUPPORTED_SEASONS, filterSupportedSeasons, formatScore } from '@/lib/utils';
 
 export default function TeamDetailPage() {
   const params = useParams();
@@ -317,73 +317,115 @@ export default function TeamDetailPage() {
               No machine statistics found for the selected filters.
             </Alert>
           ) : (
-            <Table>
-              <Table.Header>
-                <Table.Row hoverable={false}>
-                  <Table.Head
-                    sortable
-                    onSort={() => handleSort('machine_name')}
-                    sortDirection={sortBy === 'machine_name' ? sortDirection : null}
-                  >
-                    Machine
-                  </Table.Head>
-                  <Table.Head
-                    sortable
-                    onSort={() => handleSort('games_played')}
-                    sortDirection={sortBy === 'games_played' ? sortDirection : null}
-                  >
-                    Games
-                  </Table.Head>
-                  <Table.Head
-                    sortable
-                    onSort={() => handleSort('win_percentage')}
-                    sortDirection={sortBy === 'win_percentage' ? sortDirection : null}
-                  >
-                    Win %
-                  </Table.Head>
-                  <Table.Head
-                    sortable
-                    onSort={() => handleSort('median_score')}
-                    sortDirection={sortBy === 'median_score' ? sortDirection : null}
-                  >
-                    Median Score
-                  </Table.Head>
-                  <Table.Head
-                    sortable
-                    onSort={() => handleSort('best_score')}
-                    sortDirection={sortBy === 'best_score' ? sortDirection : null}
-                  >
-                    Best Score
-                  </Table.Head>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
+            <>
+              {/* Mobile view - stacked cards */}
+              <div className="sm:hidden space-y-3">
                 {machineStats.map((stat, idx) => (
-                  <Table.Row key={idx}>
-                    <Table.Cell>
+                  <div
+                    key={idx}
+                    className="border rounded-lg p-3"
+                    style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg-secondary)' }}
+                  >
+                    <div className="flex justify-between items-start mb-2">
                       <Link
                         href={`/machines/${stat.machine_key}`}
-                        className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                        className="font-medium text-blue-600 hover:text-blue-800"
                       >
                         {stat.machine_name}
                       </Link>
-                    </Table.Cell>
-                    <Table.Cell>{stat.games_played}</Table.Cell>
-                    <Table.Cell>
-                      {typeof stat.win_percentage === 'number' ? `${stat.win_percentage.toFixed(1)}%` : 'N/A'}
-                    </Table.Cell>
-                    <Table.Cell>
-                      {stat.median_score?.toLocaleString(undefined, {
-                        maximumFractionDigits: 0,
-                      }) || 'N/A'}
-                    </Table.Cell>
-                    <Table.Cell>
-                      {stat.best_score?.toLocaleString() || 'N/A'}
-                    </Table.Cell>
-                  </Table.Row>
+                      <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                        {stat.games_played} games
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                      <div>
+                        <span style={{ color: 'var(--text-muted)' }}>Win: </span>
+                        <span style={{ color: 'var(--text-primary)' }}>
+                          {typeof stat.win_percentage === 'number' ? `${stat.win_percentage.toFixed(0)}%` : 'N/A'}
+                        </span>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)' }}>Med: </span>
+                        <span style={{ color: 'var(--text-primary)' }}>{formatScore(stat.median_score)}</span>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)' }}>Best: </span>
+                        <span style={{ color: 'var(--text-primary)' }}>{formatScore(stat.best_score)}</span>
+                      </div>
+                    </div>
+                  </div>
                 ))}
-              </Table.Body>
-            </Table>
+              </div>
+
+              {/* Desktop view - table */}
+              <div className="hidden sm:block">
+                <Table>
+                  <Table.Header>
+                    <Table.Row hoverable={false}>
+                      <Table.Head
+                        sortable
+                        onSort={() => handleSort('machine_name')}
+                        sortDirection={sortBy === 'machine_name' ? sortDirection : null}
+                      >
+                        Machine
+                      </Table.Head>
+                      <Table.Head
+                        sortable
+                        onSort={() => handleSort('games_played')}
+                        sortDirection={sortBy === 'games_played' ? sortDirection : null}
+                      >
+                        Games
+                      </Table.Head>
+                      <Table.Head
+                        sortable
+                        onSort={() => handleSort('win_percentage')}
+                        sortDirection={sortBy === 'win_percentage' ? sortDirection : null}
+                      >
+                        Win %
+                      </Table.Head>
+                      <Table.Head
+                        sortable
+                        onSort={() => handleSort('median_score')}
+                        sortDirection={sortBy === 'median_score' ? sortDirection : null}
+                      >
+                        Median
+                      </Table.Head>
+                      <Table.Head
+                        sortable
+                        onSort={() => handleSort('best_score')}
+                        sortDirection={sortBy === 'best_score' ? sortDirection : null}
+                      >
+                        Best
+                      </Table.Head>
+                    </Table.Row>
+                  </Table.Header>
+                  <Table.Body>
+                    {machineStats.map((stat, idx) => (
+                      <Table.Row key={idx}>
+                        <Table.Cell>
+                          <Link
+                            href={`/machines/${stat.machine_key}`}
+                            className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                          >
+                            {stat.machine_name}
+                          </Link>
+                        </Table.Cell>
+                        <Table.Cell>{stat.games_played}</Table.Cell>
+                        <Table.Cell>
+                          {typeof stat.win_percentage === 'number' ? `${stat.win_percentage.toFixed(1)}%` : 'N/A'}
+                        </Table.Cell>
+                        <Table.Cell>
+                          {formatScore(stat.median_score)}
+                        </Table.Cell>
+                        <Table.Cell>
+                          {formatScore(stat.best_score)}
+                        </Table.Cell>
+                      </Table.Row>
+                    ))}
+                  </Table.Body>
+                </Table>
+              </div>
+            </>
           )}
 
           <div
@@ -410,91 +452,158 @@ export default function TeamDetailPage() {
               No players found for the selected filters.
             </Alert>
           ) : (
-            <Table>
-              <Table.Header>
-                <Table.Row hoverable={false}>
-                  <Table.Head
-                    sortable
-                    onSort={() => handleRosterSort('player_name')}
-                    sortDirection={rosterSortBy === 'player_name' ? rosterSortDirection : null}
-                  >
-                    Player
-                  </Table.Head>
-                  <Table.Head
-                    sortable
-                    onSort={() => handleRosterSort('current_ipr')}
-                    sortDirection={rosterSortBy === 'current_ipr' ? rosterSortDirection : null}
-                  >
-                    IPR
-                  </Table.Head>
-                  <Table.Head>MP Rating</Table.Head>
-                  <Table.Head
-                    sortable
-                    onSort={() => handleRosterSort('games_played')}
-                    sortDirection={rosterSortBy === 'games_played' ? rosterSortDirection : null}
-                  >
-                    Games
-                  </Table.Head>
-                  <Table.Head
-                    sortable
-                    onSort={() => handleRosterSort('win_percentage')}
-                    sortDirection={rosterSortBy === 'win_percentage' ? rosterSortDirection : null}
-                  >
-                    Win %
-                  </Table.Head>
-                  <Table.Head>Most Played Machine</Table.Head>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
+            <>
+              {/* Mobile view - stacked cards */}
+              <div className="sm:hidden space-y-3">
                 {sortedPlayers.map((player) => {
                   const mpRating = matchplayRatings[player.player_key];
                   return (
-                    <Table.Row key={player.player_key}>
-                      <Table.Cell>
+                    <div
+                      key={player.player_key}
+                      className="border rounded-lg p-3"
+                      style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg-secondary)' }}
+                    >
+                      <div className="flex justify-between items-start mb-2">
                         <Link
-                          href={`/players/${player.player_key}`}
-                          className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                          href={`/players/${encodeURIComponent(player.player_key)}`}
+                          className="font-medium text-blue-600 hover:text-blue-800"
                         >
                           {player.player_name}
                         </Link>
-                      </Table.Cell>
-                      <Table.Cell>{player.current_ipr || 'N/A'}</Table.Cell>
-                      <Table.Cell>
-                        {mpRating ? (
-                          <a
-                            href={mpRating.profile_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800"
-                            title={`Matchplay: ${mpRating.matchplay_name}`}
-                          >
-                            {mpRating.rating ?? '—'}
-                          </a>
-                        ) : (
-                          <span style={{ color: 'var(--text-muted)' }}>—</span>
+                        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                          IPR: {player.current_ipr || 'N/A'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span style={{ color: 'var(--text-muted)' }}>Games: </span>
+                          <span style={{ color: 'var(--text-primary)' }}>{player.games_played}</span>
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--text-muted)' }}>Win: </span>
+                          <span style={{ color: 'var(--text-primary)' }}>
+                            {player.win_percentage !== null ? `${player.win_percentage.toFixed(0)}%` : 'N/A'}
+                          </span>
+                        </div>
+                        {mpRating && (
+                          <div>
+                            <span style={{ color: 'var(--text-muted)' }}>MP: </span>
+                            <a
+                              href={mpRating.profile_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600"
+                            >
+                              {mpRating.rating ?? '—'}
+                            </a>
+                          </div>
                         )}
-                      </Table.Cell>
-                      <Table.Cell>{player.games_played}</Table.Cell>
-                      <Table.Cell>
-                        {player.win_percentage !== null ? `${player.win_percentage.toFixed(1)}%` : 'N/A'}
-                      </Table.Cell>
-                      <Table.Cell>
-                        {player.most_played_machine_name ? (
-                          <Link
-                            href={`/machines/${player.most_played_machine_key}`}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            {player.most_played_machine_name} ({player.most_played_machine_games})
-                          </Link>
-                        ) : (
-                          'N/A'
+                        {player.most_played_machine_name && (
+                          <div className="col-span-2">
+                            <span style={{ color: 'var(--text-muted)' }}>Top: </span>
+                            <Link
+                              href={`/machines/${player.most_played_machine_key}`}
+                              className="text-blue-600"
+                            >
+                              {player.most_played_machine_name}
+                            </Link>
+                          </div>
                         )}
-                      </Table.Cell>
-                    </Table.Row>
+                      </div>
+                    </div>
                   );
                 })}
-              </Table.Body>
-            </Table>
+              </div>
+
+              {/* Desktop view - table */}
+              <div className="hidden sm:block">
+                <Table>
+                  <Table.Header>
+                    <Table.Row hoverable={false}>
+                      <Table.Head
+                        sortable
+                        onSort={() => handleRosterSort('player_name')}
+                        sortDirection={rosterSortBy === 'player_name' ? rosterSortDirection : null}
+                      >
+                        Player
+                      </Table.Head>
+                      <Table.Head
+                        sortable
+                        onSort={() => handleRosterSort('current_ipr')}
+                        sortDirection={rosterSortBy === 'current_ipr' ? rosterSortDirection : null}
+                      >
+                        IPR
+                      </Table.Head>
+                      <Table.Head>MP</Table.Head>
+                      <Table.Head
+                        sortable
+                        onSort={() => handleRosterSort('games_played')}
+                        sortDirection={rosterSortBy === 'games_played' ? rosterSortDirection : null}
+                      >
+                        Games
+                      </Table.Head>
+                      <Table.Head
+                        sortable
+                        onSort={() => handleRosterSort('win_percentage')}
+                        sortDirection={rosterSortBy === 'win_percentage' ? rosterSortDirection : null}
+                      >
+                        Win %
+                      </Table.Head>
+                      <Table.Head>Top Machine</Table.Head>
+                    </Table.Row>
+                  </Table.Header>
+                  <Table.Body>
+                    {sortedPlayers.map((player) => {
+                      const mpRating = matchplayRatings[player.player_key];
+                      return (
+                        <Table.Row key={player.player_key}>
+                          <Table.Cell>
+                            <Link
+                              href={`/players/${encodeURIComponent(player.player_key)}`}
+                              className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                            >
+                              {player.player_name}
+                            </Link>
+                          </Table.Cell>
+                          <Table.Cell>{player.current_ipr || 'N/A'}</Table.Cell>
+                          <Table.Cell>
+                            {mpRating ? (
+                              <a
+                                href={mpRating.profile_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800"
+                                title={`Matchplay: ${mpRating.matchplay_name}`}
+                              >
+                                {mpRating.rating ?? '—'}
+                              </a>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)' }}>—</span>
+                            )}
+                          </Table.Cell>
+                          <Table.Cell>{player.games_played}</Table.Cell>
+                          <Table.Cell>
+                            {player.win_percentage !== null ? `${player.win_percentage.toFixed(1)}%` : 'N/A'}
+                          </Table.Cell>
+                          <Table.Cell>
+                            {player.most_played_machine_name ? (
+                              <Link
+                                href={`/machines/${player.most_played_machine_key}`}
+                                className="text-blue-600 hover:text-blue-800"
+                              >
+                                {player.most_played_machine_name}
+                              </Link>
+                            ) : (
+                              'N/A'
+                            )}
+                          </Table.Cell>
+                        </Table.Row>
+                      );
+                    })}
+                  </Table.Body>
+                </Table>
+              </div>
+            </>
           )}
 
           <div
