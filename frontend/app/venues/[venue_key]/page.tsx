@@ -382,7 +382,7 @@ export default function VenueDetailPage() {
                         </div>
                         <div>
                           <span style={{ color: 'var(--text-muted)' }}>Max: </span>
-                          <span className="text-green-600 font-medium">{formatScore(machine.max_score)}</span>
+                          <span style={{ color: 'var(--text-primary)' }}>{formatScore(machine.max_score)}</span>
                         </div>
                       </div>
                     </div>
