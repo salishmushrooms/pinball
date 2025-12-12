@@ -405,8 +405,34 @@ export default function MachineDetailPage() {
             <Card.Title>Score Distribution Chart</Card.Title>
           </Card.Header>
           <Card.Content>
-          <div className="relative w-full h-64 sm:h-80 md:h-96">
-            <svg width="100%" height="100%" viewBox="0 0 800 500" className="border border-gray-200 rounded">
+          {/* Legend - placed outside SVG for better responsiveness */}
+          <div className="flex flex-wrap gap-4 mb-4 text-sm sm:text-base">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-0.5 border-t-2 border-dashed border-blue-500"></div>
+              <span className="text-gray-700">50th (Median)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-0.5 border-t-2 border-dashed border-emerald-500"></div>
+              <span className="text-gray-700">75th %ile</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-0.5 border-t-2 border-dashed border-amber-500"></div>
+              <span className="text-gray-700">90th %ile</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500 opacity-40"></div>
+              <span className="text-gray-700">Outliers</span>
+            </div>
+          </div>
+          <div className="relative w-full" style={{ minHeight: '400px' }}>
+            <svg
+              width="100%"
+              height="100%"
+              viewBox="0 0 800 520"
+              className="border border-gray-200 rounded"
+              preserveAspectRatio="xMidYMid meet"
+              style={{ minHeight: '400px' }}
+            >
               {/* Calculate score range for y-axis */}
               {(() => {
                 // Focus on 25th-95th percentile range (most useful data)
@@ -419,6 +445,14 @@ export default function MachineDetailPage() {
                 const minScore = Math.max(0, p25 - yPadding); // Never go below 0
                 const maxScore = p95 + yPadding;
 
+                // Chart area - adjusted for larger labels
+                const chartLeft = 100;
+                const chartRight = 780;
+                const chartTop = 30;
+                const chartBottom = 450;
+                const chartWidth = chartRight - chartLeft;
+                const chartHeight = chartBottom - chartTop;
+
                 // Y-axis labels (scores) - 6 evenly spaced ticks
                 const yTicks = Array.from({ length: 6 }, (_, i) => {
                   const score = minScore + ((maxScore - minScore) * i / 5);
@@ -429,11 +463,11 @@ export default function MachineDetailPage() {
                   <>
                     {/* Y-axis grid lines and labels */}
                     {yTicks.map((score, i) => {
-                      const y = 50 + (400 * (5 - i) / 5);
+                      const y = chartBottom - (chartHeight * i / 5);
                       return (
                         <g key={`y-${i}`}>
-                          <line x1="80" y1={y} x2="780" y2={y} stroke="#e5e7eb" strokeWidth="1" />
-                          <text x="70" y={y + 4} textAnchor="end" fontSize="11" fill="#6b7280">
+                          <line x1={chartLeft} y1={y} x2={chartRight} y2={y} stroke="#e5e7eb" strokeWidth="1" />
+                          <text x={chartLeft - 10} y={y + 5} textAnchor="end" fontSize="16" fill="#4b5563" fontWeight="500">
                             {formatScore(score)}
                           </text>
                         </g>
@@ -442,11 +476,11 @@ export default function MachineDetailPage() {
 
                     {/* X-axis labels (percentiles) - focus on useful range */}
                     {[0, 25, 50, 75, 90, 100].map((percentile) => {
-                      const x = 80 + (percentile / 100) * 700;
+                      const x = chartLeft + (percentile / 100) * chartWidth;
                       return (
                         <g key={`x-${percentile}`}>
-                          <line x1={x} y1="50" x2={x} y2="450" stroke="#e5e7eb" strokeWidth="1" />
-                          <text x={x} y="470" textAnchor="middle" fontSize="12" fill="#6b7280">
+                          <line x1={x} y1={chartTop} x2={x} y2={chartBottom} stroke="#e5e7eb" strokeWidth="1" />
+                          <text x={x} y={chartBottom + 25} textAnchor="middle" fontSize="16" fill="#4b5563" fontWeight="500">
                             {percentile}%
                           </text>
                         </g>
@@ -454,19 +488,19 @@ export default function MachineDetailPage() {
                     })}
 
                     {/* Percentile reference lines */}
-                    <line x1={80 + (50 / 100) * 700} y1="50" x2={80 + (50 / 100) * 700} y2="450" stroke="#3b82f6" strokeWidth="2" strokeDasharray="5,5" />
-                    <line x1={80 + (75 / 100) * 700} y1="50" x2={80 + (75 / 100) * 700} y2="450" stroke="#10b981" strokeWidth="2" strokeDasharray="5,5" />
-                    <line x1={80 + (90 / 100) * 700} y1="50" x2={80 + (90 / 100) * 700} y2="450" stroke="#f59e0b" strokeWidth="2" strokeDasharray="5,5" />
+                    <line x1={chartLeft + (50 / 100) * chartWidth} y1={chartTop} x2={chartLeft + (50 / 100) * chartWidth} y2={chartBottom} stroke="#3b82f6" strokeWidth="2.5" strokeDasharray="8,6" />
+                    <line x1={chartLeft + (75 / 100) * chartWidth} y1={chartTop} x2={chartLeft + (75 / 100) * chartWidth} y2={chartBottom} stroke="#10b981" strokeWidth="2.5" strokeDasharray="8,6" />
+                    <line x1={chartLeft + (90 / 100) * chartWidth} y1={chartTop} x2={chartLeft + (90 / 100) * chartWidth} y2={chartBottom} stroke="#f59e0b" strokeWidth="2.5" strokeDasharray="8,6" />
 
                     {/* Scatter points */}
                     {scores.map((scoreData) => {
                       const percentile = calculatePercentile(scoreData.score, stats.sortedScores);
-                      const x = 80 + (percentile / 100) * 700;
+                      const x = chartLeft + (percentile / 100) * chartWidth;
 
                       // Clamp y values to visible range
                       const clampedScore = Math.max(minScore, Math.min(maxScore, scoreData.score));
                       const normalizedScore = (clampedScore - minScore) / (maxScore - minScore);
-                      const y = 450 - (normalizedScore * 400);
+                      const y = chartBottom - (normalizedScore * chartHeight);
 
                       // Highlight outliers that are outside the visible range
                       const isOutlier = scoreData.score < minScore || scoreData.score > maxScore;
@@ -476,7 +510,7 @@ export default function MachineDetailPage() {
                           key={scoreData.score_id}
                           cx={x}
                           cy={y}
-                          r="3"
+                          r="4"
                           fill={isOutlier ? "#ef4444" : "#6366f1"}
                           opacity={isOutlier ? "0.4" : "0.6"}
                         >
@@ -486,38 +520,23 @@ export default function MachineDetailPage() {
                     })}
 
                     {/* Axes */}
-                    <line x1="80" y1="450" x2="780" y2="450" stroke="#374151" strokeWidth="2" />
-                    <line x1="80" y1="50" x2="80" y2="450" stroke="#374151" strokeWidth="2" />
+                    <line x1={chartLeft} y1={chartBottom} x2={chartRight} y2={chartBottom} stroke="#374151" strokeWidth="2" />
+                    <line x1={chartLeft} y1={chartTop} x2={chartLeft} y2={chartBottom} stroke="#374151" strokeWidth="2" />
 
-                    {/* Labels */}
-                    <text x="430" y="490" textAnchor="middle" fontSize="14" fill="#374151" fontWeight="bold">
+                    {/* Axis Labels */}
+                    <text x={(chartLeft + chartRight) / 2} y="505" textAnchor="middle" fontSize="18" fill="#1f2937" fontWeight="600">
                       Percentile
                     </text>
-                    <text x="30" y="250" textAnchor="middle" fontSize="14" fill="#374151" fontWeight="bold" transform="rotate(-90 30 250)">
+                    <text x="35" y={(chartTop + chartBottom) / 2} textAnchor="middle" fontSize="18" fill="#1f2937" fontWeight="600" transform={`rotate(-90 35 ${(chartTop + chartBottom) / 2})`}>
                       Score
                     </text>
-
-                    {/* Legend */}
-                    <g transform="translate(580, 20)">
-                      <line x1="0" y1="0" x2="20" y2="0" stroke="#3b82f6" strokeWidth="2" strokeDasharray="5,5" />
-                      <text x="25" y="4" fontSize="11" fill="#374151">50th (Median)</text>
-
-                      <line x1="0" y1="15" x2="20" y2="15" stroke="#10b981" strokeWidth="2" strokeDasharray="5,5" />
-                      <text x="25" y="19" fontSize="11" fill="#374151">75th %ile</text>
-
-                      <line x1="0" y1="30" x2="20" y2="30" stroke="#f59e0b" strokeWidth="2" strokeDasharray="5,5" />
-                      <text x="25" y="34" fontSize="11" fill="#374151">90th %ile</text>
-
-                      <circle cx="10" cy="48" r="3" fill="#ef4444" opacity="0.4" />
-                      <text x="25" y="51" fontSize="11" fill="#374151">Outliers</text>
-                    </g>
                   </>
                 );
               })()}
             </svg>
           </div>
-            <p className="text-sm text-gray-600 mt-2">
-              Showing {scores.length} score{scores.length !== 1 ? 's' : ''} focused on 25th-95th percentile range. Outliers shown in red. Hover over points for player details.
+            <p className="text-sm text-gray-600 mt-3">
+              Showing {scores.length} score{scores.length !== 1 ? 's' : ''} focused on 25th-95th percentile range. Outliers shown in red.
             </p>
           </Card.Content>
         </Card>
