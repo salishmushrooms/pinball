@@ -31,6 +31,16 @@ export interface SeasonsResponse {
   count: number;
 }
 
+export interface SeasonStatus {
+  season: number;
+  status: 'upcoming' | 'in_progress' | 'completed' | 'unknown';
+  message: string;
+  first_week_date: string | null;
+  last_week_date: string | null;
+  total_matches: number;
+  upcoming_matches: number;
+}
+
 // Player Types
 export interface Player {
   player_key: string;
