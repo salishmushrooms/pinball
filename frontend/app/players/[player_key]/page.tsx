@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Player, PlayerMachineStat, Venue, PlayerMachineScoreHistory } from '@/lib/types';
+import { PlayerDetail, PlayerMachineStat, Venue, PlayerMachineScoreHistory } from '@/lib/types';
 import {
   Card,
   PageHeader,
@@ -25,7 +25,7 @@ export default function PlayerDetailPage() {
   const params = useParams();
   const playerKey = params.player_key as string;
 
-  const [player, setPlayer] = useState<Player | null>(null);
+  const [player, setPlayer] = useState<PlayerDetail | null>(null);
   const [machineStats, setMachineStats] = useState<PlayerMachineStat[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [availableSeasons, setAvailableSeasons] = useState<number[]>([]);
@@ -310,9 +310,24 @@ export default function PlayerDetailPage() {
           ← Back to Players
         </Link>
         <PageHeader title={player.name} />
-        <p className="text-sm text-gray-600 mt-1">
-          IPR: {player.current_ipr ? Math.round(player.current_ipr) : 'N/A'}
-        </p>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+          <span>IPR: {player.current_ipr ? Math.round(player.current_ipr) : 'N/A'}</span>
+          {player.current_team_key && player.current_team_name && (
+            <>
+              <span>•</span>
+              <span>
+                Team:{' '}
+                <Link
+                  href={`/teams/${player.current_team_key}`}
+                  className="hover:underline"
+                  style={{ color: 'var(--text-link)' }}
+                >
+                  {player.current_team_name}
+                </Link>
+              </span>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Matchplay.events Integration */}

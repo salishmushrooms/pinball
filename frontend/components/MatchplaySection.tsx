@@ -82,6 +82,12 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
       const linkResponse = await api.linkMatchplayPlayer(playerKey, matchplayUserId);
       console.log('Link succeeded:', linkResponse);
 
+      // Both "linked" and "already_linked" are success states
+      // The latter handles race conditions where link was created by concurrent request
+      if (linkResponse.status === 'already_linked') {
+        console.log('Player was already linked (possibly from another tab/request)');
+      }
+
       // Update state directly with the response - don't re-fetch as there may be a race condition
       setLookupResult({
         mnp_player: { key: playerKey, name: playerName },
@@ -100,9 +106,12 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
       }
     } catch (err) {
       console.log('Link error:', err);
-      // Handle 409 as success - player is already linked
+      // Handle 409 as conflict with DIFFERENT account (not the same link)
       if (err instanceof Error && err.message.includes('409')) {
-        console.log('409 detected, treating as already linked, refreshing...');
+        // This is a true conflict - player or matchplay account linked to someone else
+        console.log('409 detected - conflict with different account');
+        setError('This player or Matchplay account is already linked to a different account');
+        // Refresh to show current state
         await fetchMatchplayData();
         return;
       }
@@ -118,12 +127,25 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
     setUnlinking(true);
     setError(null);
     try {
-      await api.unlinkMatchplayPlayer(playerKey);
+      const result = await api.unlinkMatchplayPlayer(playerKey);
       setStats(null);
-      // Refresh lookup data
+      // Both "unlinked" and "already_unlinked" are success states
+      // The latter handles race conditions gracefully
+      if (result.status === 'already_unlinked') {
+        console.log('Player was already unlinked (possibly from another tab/request)');
+      }
+      // Refresh lookup data to show unlinked state
       await fetchMatchplayData();
     } catch (err) {
+      // Even if we get an error, refresh state to show current reality
+      console.error('Unlink error:', err);
       setError(err instanceof Error ? err.message : 'Failed to unlink player');
+      // Attempt to refresh anyway to sync UI with actual state
+      try {
+        await fetchMatchplayData();
+      } catch {
+        // Ignore secondary errors
+      }
     } finally {
       setUnlinking(false);
     }

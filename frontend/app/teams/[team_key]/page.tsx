@@ -10,7 +10,7 @@ import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
 import { useDebouncedEffect } from '@/lib/hooks';
 import { Table, Card, PageHeader, FilterPanel, Alert, LoadingSpinner } from '@/components/ui';
-import { SUPPORTED_SEASONS, filterSupportedSeasons, formatScore } from '@/lib/utils';
+import { SUPPORTED_SEASONS, filterSupportedSeasons, formatScore, cn } from '@/lib/utils';
 
 export default function TeamDetailPage() {
   const params = useParams();
@@ -42,6 +42,10 @@ export default function TeamDetailPage() {
   // Sorting for Team Roster (client-side)
   const [rosterSortBy, setRosterSortBy] = useState<'player_name' | 'current_ipr' | 'games_played' | 'win_percentage'>('games_played');
   const [rosterSortDirection, setRosterSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  // Collapsible section states
+  const [rosterOpen, setRosterOpen] = useState(true);
+  const [machinesOpen, setMachinesOpen] = useState(true);
 
   useEffect(() => {
     fetchVenues();
@@ -296,6 +300,214 @@ export default function TeamDetailPage() {
         </div>
       </FilterPanel>
 
+      {/* Team Roster Section - Collapsible */}
+      <div
+        className="border rounded-lg"
+        style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg)' }}
+      >
+        <button
+          onClick={() => setRosterOpen(!rosterOpen)}
+          className="w-full px-6 py-4 flex items-center justify-between transition-colors hover:opacity-80"
+        >
+          <div className="flex items-center gap-3">
+            <h2
+              className="text-xl font-semibold"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              Team Roster
+            </h2>
+            <span
+              className="text-sm"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              ({players.length} player{players.length !== 1 ? 's' : ''})
+            </span>
+          </div>
+          <svg
+            className={cn(
+              'w-5 h-5 transition-transform',
+              rosterOpen && 'transform rotate-180'
+            )}
+            style={{ color: 'var(--text-muted)' }}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </button>
+
+        {rosterOpen && (
+          <div className="px-6 pb-6 border-t" style={{ borderColor: 'var(--border)' }}>
+            {players.length === 0 ? (
+              <div className="pt-4">
+                <Alert variant="warning">
+                  No players found for the selected filters.
+                </Alert>
+              </div>
+            ) : (
+              <>
+                {/* Mobile view - stacked cards */}
+                <div className="sm:hidden space-y-3 pt-4">
+                  {sortedPlayers.map((player) => {
+                    const mpRating = matchplayRatings[player.player_key];
+                    return (
+                      <div
+                        key={player.player_key}
+                        className="border rounded-lg p-3"
+                        style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg-secondary)' }}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <Link
+                            href={`/players/${encodeURIComponent(player.player_key)}`}
+                            className="font-medium text-blue-600 hover:text-blue-800"
+                          >
+                            {player.player_name}
+                          </Link>
+                          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                            IPR: {player.current_ipr || 'N/A'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span style={{ color: 'var(--text-muted)' }}>Games: </span>
+                            <span style={{ color: 'var(--text-primary)' }}>{player.games_played}</span>
+                          </div>
+                          <div>
+                            <span style={{ color: 'var(--text-muted)' }}>Win: </span>
+                            <span style={{ color: 'var(--text-primary)' }}>
+                              {player.win_percentage !== null ? `${player.win_percentage.toFixed(0)}%` : 'N/A'}
+                            </span>
+                          </div>
+                          {mpRating && (
+                            <div>
+                              <span style={{ color: 'var(--text-muted)' }}>MP: </span>
+                              <a
+                                href={mpRating.profile_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600"
+                              >
+                                {mpRating.rating ?? '—'}
+                              </a>
+                            </div>
+                          )}
+                          {player.most_played_machine_name && (
+                            <div className="col-span-2">
+                              <span style={{ color: 'var(--text-muted)' }}>Top: </span>
+                              <Link
+                                href={`/machines/${player.most_played_machine_key}`}
+                                className="text-blue-600"
+                              >
+                                {player.most_played_machine_name}
+                              </Link>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop view - table */}
+                <div className="hidden sm:block pt-4">
+                  <Table>
+                    <Table.Header>
+                      <Table.Row hoverable={false}>
+                        <Table.Head
+                          sortable
+                          onSort={() => handleRosterSort('player_name')}
+                          sortDirection={rosterSortBy === 'player_name' ? rosterSortDirection : null}
+                        >
+                          Player
+                        </Table.Head>
+                        <Table.Head
+                          sortable
+                          onSort={() => handleRosterSort('current_ipr')}
+                          sortDirection={rosterSortBy === 'current_ipr' ? rosterSortDirection : null}
+                        >
+                          IPR
+                        </Table.Head>
+                        <Table.Head>MP</Table.Head>
+                        <Table.Head
+                          sortable
+                          onSort={() => handleRosterSort('games_played')}
+                          sortDirection={rosterSortBy === 'games_played' ? rosterSortDirection : null}
+                        >
+                          Games
+                        </Table.Head>
+                        <Table.Head
+                          sortable
+                          onSort={() => handleRosterSort('win_percentage')}
+                          sortDirection={rosterSortBy === 'win_percentage' ? rosterSortDirection : null}
+                        >
+                          Win %
+                        </Table.Head>
+                        <Table.Head>Top Machine</Table.Head>
+                      </Table.Row>
+                    </Table.Header>
+                    <Table.Body>
+                      {sortedPlayers.map((player) => {
+                        const mpRating = matchplayRatings[player.player_key];
+                        return (
+                          <Table.Row key={player.player_key}>
+                            <Table.Cell>
+                              <Link
+                                href={`/players/${encodeURIComponent(player.player_key)}`}
+                                className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                              >
+                                {player.player_name}
+                              </Link>
+                            </Table.Cell>
+                            <Table.Cell>{player.current_ipr || 'N/A'}</Table.Cell>
+                            <Table.Cell>
+                              {mpRating ? (
+                                <a
+                                  href={mpRating.profile_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800"
+                                  title={`Matchplay: ${mpRating.matchplay_name}`}
+                                >
+                                  {mpRating.rating ?? '—'}
+                                </a>
+                              ) : (
+                                <span style={{ color: 'var(--text-muted)' }}>—</span>
+                              )}
+                            </Table.Cell>
+                            <Table.Cell>{player.games_played}</Table.Cell>
+                            <Table.Cell>
+                              {player.win_percentage !== null ? `${player.win_percentage.toFixed(1)}%` : 'N/A'}
+                            </Table.Cell>
+                            <Table.Cell>
+                              {player.most_played_machine_name ? (
+                                <Link
+                                  href={`/machines/${player.most_played_machine_key}`}
+                                  className="text-blue-600 hover:text-blue-800"
+                                >
+                                  {player.most_played_machine_name}
+                                </Link>
+                              ) : (
+                                'N/A'
+                              )}
+                            </Table.Cell>
+                          </Table.Row>
+                        );
+                      })}
+                    </Table.Body>
+                  </Table>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Machine Statistics Section */}
       <Card>
         <Card.Content>
@@ -433,184 +645,6 @@ export default function TeamDetailPage() {
             style={{ color: 'var(--text-muted)' }}
           >
             Showing {machineStats.length} machine{machineStats.length !== 1 ? 's' : ''}
-          </div>
-        </Card.Content>
-      </Card>
-
-      {/* Team Roster Section */}
-      <Card>
-        <Card.Content>
-          <h2
-            className="text-xl font-semibold mb-4"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            Team Roster
-          </h2>
-
-          {players.length === 0 ? (
-            <Alert variant="warning">
-              No players found for the selected filters.
-            </Alert>
-          ) : (
-            <>
-              {/* Mobile view - stacked cards */}
-              <div className="sm:hidden space-y-3">
-                {sortedPlayers.map((player) => {
-                  const mpRating = matchplayRatings[player.player_key];
-                  return (
-                    <div
-                      key={player.player_key}
-                      className="border rounded-lg p-3"
-                      style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg-secondary)' }}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <Link
-                          href={`/players/${encodeURIComponent(player.player_key)}`}
-                          className="font-medium text-blue-600 hover:text-blue-800"
-                        >
-                          {player.player_name}
-                        </Link>
-                        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                          IPR: {player.current_ipr || 'N/A'}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <span style={{ color: 'var(--text-muted)' }}>Games: </span>
-                          <span style={{ color: 'var(--text-primary)' }}>{player.games_played}</span>
-                        </div>
-                        <div>
-                          <span style={{ color: 'var(--text-muted)' }}>Win: </span>
-                          <span style={{ color: 'var(--text-primary)' }}>
-                            {player.win_percentage !== null ? `${player.win_percentage.toFixed(0)}%` : 'N/A'}
-                          </span>
-                        </div>
-                        {mpRating && (
-                          <div>
-                            <span style={{ color: 'var(--text-muted)' }}>MP: </span>
-                            <a
-                              href={mpRating.profile_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600"
-                            >
-                              {mpRating.rating ?? '—'}
-                            </a>
-                          </div>
-                        )}
-                        {player.most_played_machine_name && (
-                          <div className="col-span-2">
-                            <span style={{ color: 'var(--text-muted)' }}>Top: </span>
-                            <Link
-                              href={`/machines/${player.most_played_machine_key}`}
-                              className="text-blue-600"
-                            >
-                              {player.most_played_machine_name}
-                            </Link>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Desktop view - table */}
-              <div className="hidden sm:block">
-                <Table>
-                  <Table.Header>
-                    <Table.Row hoverable={false}>
-                      <Table.Head
-                        sortable
-                        onSort={() => handleRosterSort('player_name')}
-                        sortDirection={rosterSortBy === 'player_name' ? rosterSortDirection : null}
-                      >
-                        Player
-                      </Table.Head>
-                      <Table.Head
-                        sortable
-                        onSort={() => handleRosterSort('current_ipr')}
-                        sortDirection={rosterSortBy === 'current_ipr' ? rosterSortDirection : null}
-                      >
-                        IPR
-                      </Table.Head>
-                      <Table.Head>MP</Table.Head>
-                      <Table.Head
-                        sortable
-                        onSort={() => handleRosterSort('games_played')}
-                        sortDirection={rosterSortBy === 'games_played' ? rosterSortDirection : null}
-                      >
-                        Games
-                      </Table.Head>
-                      <Table.Head
-                        sortable
-                        onSort={() => handleRosterSort('win_percentage')}
-                        sortDirection={rosterSortBy === 'win_percentage' ? rosterSortDirection : null}
-                      >
-                        Win %
-                      </Table.Head>
-                      <Table.Head>Top Machine</Table.Head>
-                    </Table.Row>
-                  </Table.Header>
-                  <Table.Body>
-                    {sortedPlayers.map((player) => {
-                      const mpRating = matchplayRatings[player.player_key];
-                      return (
-                        <Table.Row key={player.player_key}>
-                          <Table.Cell>
-                            <Link
-                              href={`/players/${encodeURIComponent(player.player_key)}`}
-                              className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                            >
-                              {player.player_name}
-                            </Link>
-                          </Table.Cell>
-                          <Table.Cell>{player.current_ipr || 'N/A'}</Table.Cell>
-                          <Table.Cell>
-                            {mpRating ? (
-                              <a
-                                href={mpRating.profile_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-800"
-                                title={`Matchplay: ${mpRating.matchplay_name}`}
-                              >
-                                {mpRating.rating ?? '—'}
-                              </a>
-                            ) : (
-                              <span style={{ color: 'var(--text-muted)' }}>—</span>
-                            )}
-                          </Table.Cell>
-                          <Table.Cell>{player.games_played}</Table.Cell>
-                          <Table.Cell>
-                            {player.win_percentage !== null ? `${player.win_percentage.toFixed(1)}%` : 'N/A'}
-                          </Table.Cell>
-                          <Table.Cell>
-                            {player.most_played_machine_name ? (
-                              <Link
-                                href={`/machines/${player.most_played_machine_key}`}
-                                className="text-blue-600 hover:text-blue-800"
-                              >
-                                {player.most_played_machine_name}
-                              </Link>
-                            ) : (
-                              'N/A'
-                            )}
-                          </Table.Cell>
-                        </Table.Row>
-                      );
-                    })}
-                  </Table.Body>
-                </Table>
-              </div>
-            </>
-          )}
-
-          <div
-            className="mt-4 text-sm"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            Showing {players.length} player{players.length !== 1 ? 's' : ''}
           </div>
         </Card.Content>
       </Card>

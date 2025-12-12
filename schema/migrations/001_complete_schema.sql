@@ -64,19 +64,19 @@ COMMENT ON COLUMN team_aliases.team_key IS 'Current/canonical team key';
 COMMENT ON COLUMN team_aliases.alias_name IS 'Previous team name for reference';
 COMMENT ON COLUMN team_aliases.seasons_active IS 'Seasons when this alias was used (comma-separated)';
 
--- Venues table (no state default - MNP = Monday Night Pinball, not Minnesota)
+-- Venues table
 CREATE TABLE venues (
     venue_key VARCHAR(10) PRIMARY KEY,
     venue_name VARCHAR(255) NOT NULL,
     address TEXT,
-    city VARCHAR(100),
-    state VARCHAR(2),
+    neighborhood VARCHAR(100),
     active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 COMMENT ON TABLE venues IS 'Venue information';
 COMMENT ON COLUMN venues.venue_key IS '3-4 letter venue code (e.g., T4B, JUP)';
+COMMENT ON COLUMN venues.neighborhood IS 'Seattle neighborhood (e.g., Ballard, Capitol Hill)';
 
 -- Machines table
 CREATE TABLE machines (
