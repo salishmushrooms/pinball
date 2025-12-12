@@ -113,7 +113,7 @@ def read_root():
 
     # Query actual database statistics
     data_summary = {
-        "description": "Monday Night Pinball Seasons 18-22 data",
+        "description": "Monday Night Pinball Seasons 20-22 data",
         "players": 0,
         "machines": 0,
         "venues": 0,
