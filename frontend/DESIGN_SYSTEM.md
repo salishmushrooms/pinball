@@ -589,6 +589,48 @@ import { ContentContainer } from '@/components/ui';
 
 ---
 
+#### 14. Modal
+
+**Purpose:** Overlay dialog for focused content (charts, forms, confirmations)
+**Features:** Escape key closes, click outside closes, prevents body scroll
+
+```tsx
+import { Modal } from '@/components/ui';
+
+<Modal
+  isOpen={isOpen}
+  onClose={() => setIsOpen(false)}
+  title="Modal Title"
+  size="lg"
+>
+  {/* Modal content */}
+</Modal>
+```
+
+**Size Options:**
+| Size | Max Width | Use Case |
+|------|-----------|----------|
+| `sm` | 448px | Confirmations, simple forms |
+| `md` | 512px | Standard dialogs (default) |
+| `lg` | 672px | Forms with more fields |
+| `xl` | 896px | Charts, complex content |
+| `full` | 95vw | Large data displays |
+
+**Props:**
+- `isOpen`: boolean - Controls visibility
+- `onClose`: () => void - Called when modal should close
+- `title`: string (optional) - Header title
+- `size`: 'sm' | 'md' | 'lg' | 'xl' | 'full' - Modal width
+- `showCloseButton`: boolean (default: true) - Show X button
+
+**Use Cases:**
+- Score progression charts on player pages
+- Confirmation dialogs
+- Detail views that don't need a new page
+- Forms that overlay current content
+
+---
+
 ## Patterns
 
 ### Filter Pattern
