@@ -333,7 +333,33 @@ def get_player(player_key: str):
     if not players:
         raise HTTPException(status_code=404, detail=f"Player '{player_key}' not found")
 
-    return PlayerDetail(**players[0])
+    player = players[0]
+
+    # Get current team from most recent season's scores (non-substitute appearances)
+    current_team_query = """
+        SELECT s.team_key, t.team_name
+        FROM scores s
+        JOIN teams t ON s.team_key = t.team_key AND s.season = t.season
+        WHERE s.player_key = :player_key
+          AND s.season = :last_season
+          AND s.is_substitute = false
+        GROUP BY s.team_key, t.team_name
+        ORDER BY COUNT(*) DESC
+        LIMIT 1
+    """
+    team_result = execute_query(current_team_query, {
+        'player_key': player_key,
+        'last_season': player['last_seen_season']
+    })
+
+    if team_result:
+        player['current_team_key'] = team_result[0]['team_key']
+        player['current_team_name'] = team_result[0]['team_name']
+    else:
+        player['current_team_key'] = None
+        player['current_team_name'] = None
+
+    return PlayerDetail(**player)
 
 
 @router.get(

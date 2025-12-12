@@ -52,6 +52,8 @@ export interface PlayerDetail extends Player {
   games_played?: number;
   total_matches?: number;
   total_games?: number;
+  current_team_key?: string | null;
+  current_team_name?: string | null;
 }
 
 export interface PlayerMachineStat {
