@@ -473,7 +473,7 @@ export default function PlayerDetailPage() {
                           {stat.games_played}
                         </Table.Cell>
                         <Table.Cell>
-                          {stat.win_percentage !== null ? `${stat.win_percentage.toFixed(1)}%` : 'N/A'}
+                          {stat.win_percentage !== null ? `${stat.win_percentage.toFixed(0)}%` : 'N/A'}
                         </Table.Cell>
                         <Table.Cell>
                           {stat.avg_percentile !== null ? stat.avg_percentile.toFixed(1) : 'N/A'}

@@ -288,7 +288,7 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
                         <Table.Cell>{machine.wins}</Table.Cell>
                         <Table.Cell>
                           {machine.win_percentage != null
-                            ? `${machine.win_percentage.toFixed(1)}%`
+                            ? `${machine.win_percentage.toFixed(0)}%`
                             : 'N/A'}
                         </Table.Cell>
                       </Table.Row>
