@@ -25,3 +25,4 @@ export { Collapsible } from './Collapsible';
 export { FilterPanel } from './FilterPanel';
 export { TruncatedText } from './TruncatedText';
 export { ContentContainer } from './ContentContainer';
+export { Modal } from './Modal';

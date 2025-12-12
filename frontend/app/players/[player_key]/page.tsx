@@ -12,6 +12,7 @@ import {
   LoadingSpinner,
   Table,
   FilterPanel,
+  Modal,
 } from '@/components/ui';
 import PlayerMachineProgressionChart from '@/components/PlayerMachineProgressionChart';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
@@ -38,9 +39,11 @@ export default function PlayerDetailPage() {
 
   // Chart-related state
   const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
+  const [selectedMachineName, setSelectedMachineName] = useState<string>('');
   const [scoreHistory, setScoreHistory] = useState<PlayerMachineScoreHistory | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
   const [chartError, setChartError] = useState<string | null>(null);
+  const [chartModalOpen, setChartModalOpen] = useState(false);
 
   useEffect(() => {
     fetchVenues();
@@ -151,8 +154,10 @@ export default function PlayerDetailPage() {
     }
   }
 
-  function handleMachineSelect(machineKey: string) {
+  function handleMachineSelect(machineKey: string, machineName: string) {
     setSelectedMachine(machineKey);
+    setSelectedMachineName(machineName);
+    setChartModalOpen(true);
     fetchScoreHistory(machineKey);
   }
 
@@ -374,17 +379,10 @@ export default function PlayerDetailPage() {
                         {stat.machine_name}
                       </Link>
                       <button
-                        onClick={() => handleMachineSelect(stat.machine_key)}
-                        className={`px-2 py-1 rounded text-xs font-medium ${
-                          selectedMachine === stat.machine_key
-                            ? 'bg-blue-600 text-white'
-                            : ''
-                        }`}
-                        style={
-                          selectedMachine === stat.machine_key
-                            ? undefined
-                            : { backgroundColor: 'var(--card-bg)', color: 'var(--text-secondary)' }
-                        }
+                        onClick={() => handleMachineSelect(stat.machine_key, stat.machine_name)}
+                        className="px-4 py-2.5 rounded-lg text-base font-medium transition-colors hover:opacity-80 active:scale-95"
+                        style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-secondary)' }}
+                        aria-label={`View chart for ${stat.machine_name}`}
                       >
                         📊
                       </button>
@@ -401,10 +399,8 @@ export default function PlayerDetailPage() {
                         </span>
                       </div>
                       <div>
-                        <span style={{ color: 'var(--text-muted)' }}>%ile: </span>
-                        <span style={{ color: 'var(--text-primary)' }}>
-                          {stat.avg_percentile !== null ? stat.avg_percentile.toFixed(0) : 'N/A'}
-                        </span>
+                        <span style={{ color: 'var(--text-muted)' }}>Med: </span>
+                        <span style={{ color: 'var(--text-primary)' }}>{formatScore(stat.median_score)}</span>
                       </div>
                       <div>
                         <span style={{ color: 'var(--text-muted)' }}>Best: </span>
@@ -475,17 +471,9 @@ export default function PlayerDetailPage() {
                         </Table.Cell>
                         <Table.Cell className="text-center">
                           <button
-                            onClick={() => handleMachineSelect(stat.machine_key)}
-                            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                              selectedMachine === stat.machine_key
-                                ? 'bg-blue-600 text-white'
-                                : 'hover:opacity-80'
-                            }`}
-                            style={
-                              selectedMachine === stat.machine_key
-                                ? undefined
-                                : { backgroundColor: 'var(--card-bg-secondary)', color: 'var(--text-secondary)' }
-                            }
+                            onClick={() => handleMachineSelect(stat.machine_key, stat.machine_name)}
+                            className="px-3 py-1 rounded text-xs font-medium transition-colors hover:opacity-80"
+                            style={{ backgroundColor: 'var(--card-bg-secondary)', color: 'var(--text-secondary)' }}
                             title="View score progression chart"
                           >
                             📊
@@ -513,35 +501,35 @@ export default function PlayerDetailPage() {
         </Card.Content>
       </Card>
 
-      {/* Score Progression Chart */}
-      {selectedMachine && (
-        <Card>
-          <Card.Header>
-            <Card.Title>Score Progression for {selectedMachine}</Card.Title>
-          </Card.Header>
-          <Card.Content>
-            {chartLoading ? (
-              <LoadingSpinner text="Loading score history..." />
-            ) : chartError ? (
-              <Alert variant="error" title="Error">
-                {chartError}
-              </Alert>
-            ) : scoreHistory ? (
-              <div>
-                <p
-                  className="text-sm mb-4"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  Loaded {scoreHistory.total_games} games
-                </p>
-                <PlayerMachineProgressionChart data={scoreHistory} />
-              </div>
-            ) : (
-              <p style={{ color: 'var(--text-muted)' }}>No data loaded</p>
-            )}
-          </Card.Content>
-        </Card>
-      )}
+      {/* Score Progression Chart Modal */}
+      <Modal
+        isOpen={chartModalOpen}
+        onClose={() => setChartModalOpen(false)}
+        title={`Score Progression: ${selectedMachineName}`}
+        size="xl"
+      >
+        {chartLoading ? (
+          <div className="py-8">
+            <LoadingSpinner text="Loading score history..." />
+          </div>
+        ) : chartError ? (
+          <Alert variant="error" title="Error">
+            {chartError}
+          </Alert>
+        ) : scoreHistory ? (
+          <div>
+            <p
+              className="text-sm mb-4"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              {scoreHistory.total_games} games recorded
+            </p>
+            <PlayerMachineProgressionChart data={scoreHistory} />
+          </div>
+        ) : (
+          <p style={{ color: 'var(--text-muted)' }}>No data loaded</p>
+        )}
+      </Modal>
     </div>
   );
 }
