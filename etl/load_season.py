@@ -8,6 +8,7 @@ Usage:
 """
 
 import argparse
+import json
 import logging
 import sys
 from pathlib import Path
@@ -99,9 +100,29 @@ def load_season_data(season: int):
         all_venues = {}
         all_venue_machines = []
 
+        # Load venue metadata from venues.json
+        venues_json_path = config.DATA_PATH / "venues.json"
+        venue_metadata = {}
+        if venues_json_path.exists():
+            with open(venues_json_path, 'r') as f:
+                venues_data = json.load(f)
+                for venue_key, venue_info in venues_data.items():
+                    venue_metadata[venue_key] = {
+                        'address': venue_info.get('address', ''),
+                        'neighborhood': venue_info.get('neighborhood', '')
+                    }
+            logger.info(f"  Loaded metadata for {len(venue_metadata)} venues from venues.json")
+
         for match in matches:
             venue = match_parser.extract_venue_from_match(match)
-            all_venues[venue['venue_key']] = venue
+            venue_key = venue['venue_key']
+
+            # Enrich with metadata from venues.json
+            if venue_key in venue_metadata:
+                venue['address'] = venue_metadata[venue_key].get('address')
+                venue['neighborhood'] = venue_metadata[venue_key].get('neighborhood')
+
+            all_venues[venue_key] = venue
 
             venue_machines = match_parser.extract_venue_machines(match)
             all_venue_machines.extend(venue_machines)
