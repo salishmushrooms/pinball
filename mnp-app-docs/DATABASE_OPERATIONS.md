@@ -269,4 +269,77 @@ pg_dump "postgresql://..." > backup_$(date +%Y%m%d).sql
 
 ---
 
-**Last Updated:** 2025-12-08
+## Matchups Page and Season Transitions
+
+The **Matchups** page (`/matchups`) provides match analysis for upcoming games. It automatically handles season transitions:
+
+### How It Works
+
+1. **Season Status Detection:**
+   - The API endpoint `/seasons/{season}/status` determines if a season is:
+     - `upcoming`: Season hasn't started yet (before first week's date)
+     - `in_progress`: Season is currently active (between first and last week dates)
+     - `completed`: Season has ended (after last week's date)
+
+2. **User Experience:**
+   - **During season:** Users can select matches and analyze team performance
+   - **Off-season:** Users see a friendly message: "Season X has completed. Check back for Season X+1!"
+   - Users can still browse completed match data even when the season is over
+
+### When a New Season Starts
+
+The matchups page will automatically work with the new season once the data is loaded:
+
+1. **Update the mnp-data-archive submodule** with new season data:
+   ```bash
+   cd mnp-data-archive
+   git pull origin main
+   cd ..
+   ```
+
+2. **Run the ETL pipeline** for the new season:
+   ```bash
+   python etl/run_full_pipeline.py --seasons 23
+   ```
+
+3. **Export and import to production** (see "Adding a New Season" above)
+
+4. **The matchups page will automatically:**
+   - Detect the new season based on database data
+   - Show the correct status (upcoming/in_progress) based on dates in `season.json`
+   - Display matches for the new season
+
+### Season Data Requirements
+
+For the matchups page to work properly, you need:
+
+- `mnp-data-archive/season-{N}/season.json` - Contains schedule with week dates
+- `mnp-data-archive/season-{N}/matches/*.json` - Match data files (for machine lineups)
+- Database tables populated via ETL:
+  - `teams` - Team information for the season
+  - `players` - Player data
+  - `scores` - Historical score data for predictions
+
+### Testing Season Status
+
+You can test the season status endpoint directly:
+```bash
+curl "https://pinball-production.up.railway.app/seasons/22/status"
+```
+
+Expected response:
+```json
+{
+  "season": 22,
+  "status": "completed",
+  "message": "Season 22 has completed. Check back for Season 23!",
+  "first_week_date": "2025-09-08",
+  "last_week_date": "2025-12-08",
+  "total_matches": 191,
+  "upcoming_matches": 0
+}
+```
+
+---
+
+**Last Updated:** 2025-12-12
