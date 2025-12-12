@@ -195,10 +195,18 @@ class VenueBase(BaseModel):
     neighborhood: Optional[str] = None
 
 
+class VenueHomeTeam(BaseModel):
+    """Team that uses this venue as home"""
+    team_key: str
+    team_name: str
+    season: int
+
+
 class VenueDetail(VenueBase):
     """Detailed venue information"""
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    home_teams: List[VenueHomeTeam] = Field(default_factory=list, description="Teams that use this venue as home")
 
     class Config:
         from_attributes = True
@@ -210,13 +218,6 @@ class VenueList(BaseModel):
     total: int
     limit: int
     offset: int
-
-
-class VenueHomeTeam(BaseModel):
-    """Team that uses this venue as home"""
-    team_key: str
-    team_name: str
-    season: int
 
 
 class VenueWithStats(VenueBase):

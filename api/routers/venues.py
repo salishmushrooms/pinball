@@ -237,7 +237,20 @@ def get_venue(venue_key: str):
     if not venues:
         raise HTTPException(status_code=404, detail=f"Venue '{venue_key}' not found")
 
-    return VenueDetail(**venues[0])
+    # Get home teams for this venue (from most recent season)
+    season_query = "SELECT MAX(season) as max_season FROM teams"
+    season_result = execute_query(season_query, {})
+    season = season_result[0]['max_season'] if season_result and season_result[0]['max_season'] else 22
+
+    home_teams_query = """
+        SELECT team_key, team_name, season
+        FROM teams
+        WHERE home_venue_key = :venue_key AND season = :season
+    """
+    home_teams_result = execute_query(home_teams_query, {'venue_key': venue_key, 'season': season})
+    home_teams = [VenueHomeTeam(**team) for team in home_teams_result]
+
+    return VenueDetail(**venues[0], home_teams=home_teams)
 
 
 @router.get(

@@ -249,8 +249,15 @@ export interface Venue {
   state: string | null;
 }
 
+export interface VenueHomeTeam {
+  team_key: string;
+  team_name: string;
+  season: number;
+}
+
 export interface VenueDetail extends Venue {
   address: string | null;
+  home_teams: VenueHomeTeam[];
 }
 
 export interface VenueListResponse {
@@ -258,12 +265,6 @@ export interface VenueListResponse {
   total: number;
   limit: number;
   offset: number;
-}
-
-export interface VenueHomeTeam {
-  team_key: string;
-  team_name: string;
-  season: number;
 }
 
 export interface VenueWithStats extends Venue {

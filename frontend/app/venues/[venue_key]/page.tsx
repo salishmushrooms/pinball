@@ -144,6 +144,31 @@ export default function VenueDetailPage() {
               {venue.address && (
                 <div className="text-sm text-gray-500 mt-1">{venue.address}</div>
               )}
+              {venue.home_teams && venue.home_teams.length > 0 && (
+                <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
+                  <div
+                    className="text-xs font-medium mb-2 uppercase tracking-wide"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    Home Team{venue.home_teams.length > 1 ? 's' : ''}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {venue.home_teams.map((team) => (
+                      <Link
+                        key={team.team_key}
+                        href={`/teams/${team.team_key}`}
+                        className="inline-flex items-center px-3 py-1 rounded text-sm font-medium transition-colors hover:bg-blue-100 hover:text-blue-700"
+                        style={{
+                          backgroundColor: 'var(--card-bg-secondary)',
+                          color: 'var(--text-secondary)',
+                        }}
+                      >
+                        {team.team_name}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           }
         />
