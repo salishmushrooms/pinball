@@ -482,7 +482,7 @@ export default function TeamDetailPage() {
                             </Table.Cell>
                             <Table.Cell>{player.games_played}</Table.Cell>
                             <Table.Cell>
-                              {player.win_percentage !== null ? `${player.win_percentage.toFixed(1)}%` : 'N/A'}
+                              {player.win_percentage !== null ? `${player.win_percentage.toFixed(0)}%` : 'N/A'}
                             </Table.Cell>
                             <Table.Cell>
                               {player.most_played_machine_name ? (
@@ -624,7 +624,7 @@ export default function TeamDetailPage() {
                         </Table.Cell>
                         <Table.Cell>{stat.games_played}</Table.Cell>
                         <Table.Cell>
-                          {typeof stat.win_percentage === 'number' ? `${stat.win_percentage.toFixed(1)}%` : 'N/A'}
+                          {typeof stat.win_percentage === 'number' ? `${stat.win_percentage.toFixed(0)}%` : 'N/A'}
                         </Table.Cell>
                         <Table.Cell>
                           {formatScore(stat.median_score)}
