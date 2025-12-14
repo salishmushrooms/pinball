@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { api } from '@/lib/api';
-import { PlayerDetail, PlayerMachineStat, Venue, PlayerMachineScoreHistory } from '@/lib/types';
+import { PlayerMachineStat, PlayerMachineScoreHistory } from '@/lib/types';
 import {
   Card,
   PageHeader,
@@ -18,20 +17,20 @@ import PlayerMachineProgressionChart from '@/components/PlayerMachineProgression
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
 import { MatchplaySection } from '@/components/MatchplaySection';
-import { useDebouncedEffect } from '@/lib/hooks';
 import { SUPPORTED_SEASONS, filterSupportedSeasons, formatScore } from '@/lib/utils';
+import {
+  usePlayer,
+  usePlayerMachineStats,
+  usePlayerMachineScoreHistory,
+  useVenues,
+  usePlayers,
+} from '@/lib/queries';
 
 export default function PlayerDetailPage() {
   const params = useParams();
   const playerKey = params.player_key as string;
 
-  const [player, setPlayer] = useState<PlayerDetail | null>(null);
-  const [machineStats, setMachineStats] = useState<PlayerMachineStat[]>([]);
-  const [venues, setVenues] = useState<Venue[]>([]);
-  const [availableSeasons, setAvailableSeasons] = useState<number[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [fetching, setFetching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Filter state
   const [sortBy, setSortBy] = useState<'avg_percentile' | 'games_played' | 'avg_score' | 'win_percentage'>('games_played');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [seasonsFilter, setSeasonsFilter] = useState<number[]>([22]);
@@ -40,125 +39,86 @@ export default function PlayerDetailPage() {
   // Chart-related state
   const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
   const [selectedMachineName, setSelectedMachineName] = useState<string>('');
-  const [scoreHistory, setScoreHistory] = useState<PlayerMachineScoreHistory | null>(null);
-  const [chartLoading, setChartLoading] = useState(false);
-  const [chartError, setChartError] = useState<string | null>(null);
   const [chartModalOpen, setChartModalOpen] = useState(false);
 
-  useEffect(() => {
-    fetchVenues();
-    fetchAvailableSeasons();
-  }, []);
+  // React Query hooks - data fetching with automatic caching
+  const {
+    data: player,
+    isLoading: playerLoading,
+    error: playerError,
+  } = usePlayer(playerKey);
 
-  // Debounced effect for filter changes (waits 500ms after last change)
-  useDebouncedEffect(() => {
-    if (!playerKey) return;
+  const {
+    data: statsData,
+    isFetching: statsFetching,
+    error: statsError,
+  } = usePlayerMachineStats(playerKey, {
+    seasons: seasonsFilter.length > 0 ? seasonsFilter : undefined,
+    venue_key: venueFilter || undefined,
+    min_games: 1,
+    sort_by: sortBy,
+    sort_order: sortDirection,
+    limit: 100,
+  });
 
-    setFetching(true);
-    fetchPlayerData();
-  }, 500, [playerKey, sortBy, sortDirection, seasonsFilter, venueFilter]);
+  const { data: venuesData } = useVenues({ limit: 500 });
+  const venues = venuesData?.venues || [];
 
-  // Refresh chart when filters change (if a machine is already selected)
-  useDebouncedEffect(() => {
-    if (!playerKey || !selectedMachine) return;
+  const { data: playersData } = usePlayers({ limit: 500 });
 
-    fetchScoreHistory(selectedMachine);
-  }, 500, [seasonsFilter, venueFilter]);
+  // Score history for chart modal
+  const {
+    data: scoreHistory,
+    isLoading: chartLoading,
+    error: chartErrorData,
+  } = usePlayerMachineScoreHistory(
+    playerKey,
+    selectedMachine || '',
+    {
+      venue_key: venueFilter || undefined,
+      seasons: seasonsFilter.length > 0 ? seasonsFilter : undefined,
+    },
+    { enabled: !!selectedMachine && chartModalOpen }
+  );
 
-  async function fetchVenues() {
-    try {
-      const venuesData = await api.getVenues({ limit: 500 });
-      setVenues(venuesData.venues);
-    } catch (err) {
-      console.error('Failed to fetch venues:', err);
+  const chartError = chartErrorData instanceof Error ? chartErrorData.message : null;
+
+  // Derive available seasons from players data
+  const availableSeasons = useMemo(() => {
+    if (!playersData?.players) return [...SUPPORTED_SEASONS];
+
+    const seasons = new Set<number>();
+    playersData.players.forEach(p => {
+      if (p.first_seen_season) seasons.add(p.first_seen_season);
+      if (p.last_seen_season) seasons.add(p.last_seen_season);
+    });
+
+    return filterSupportedSeasons(Array.from(seasons));
+  }, [playersData]);
+
+  // Process machine stats with aggregation if multiple seasons
+  const machineStats = useMemo(() => {
+    if (!statsData?.stats) return [];
+
+    if (seasonsFilter.length !== 1) {
+      return aggregateStatsByMachine(statsData.stats);
+    } else {
+      return sortAggregatedStats(statsData.stats, sortBy, sortDirection);
     }
-  }
+  }, [statsData, seasonsFilter, sortBy, sortDirection]);
 
-  async function fetchAvailableSeasons() {
-    try {
-      // Fetch all players to extract unique seasons from the database
-      const playersData = await api.getPlayers({ limit: 500 });
-      const seasons = new Set<number>();
-
-      // Extract seasons from first_seen_season and last_seen_season
-      playersData.players.forEach(p => {
-        if (p.first_seen_season) seasons.add(p.first_seen_season);
-        if (p.last_seen_season) seasons.add(p.last_seen_season);
-      });
-
-      // Filter to only supported seasons (SeasonMultiSelect component handles sorting internally)
-      setAvailableSeasons(filterSupportedSeasons(Array.from(seasons)));
-    } catch (err) {
-      console.error('Failed to fetch seasons:', err);
-      // Fallback to supported seasons if fetch fails (SeasonMultiSelect sorts internally)
-      setAvailableSeasons([...SUPPORTED_SEASONS]);
-    }
-  }
-
-  async function fetchPlayerData() {
-    // Only set loading true on initial load, use fetching for subsequent updates
-    if (!player) {
-      setLoading(true);
-    }
-    setError(null);
-
-    try {
-      const [playerData, statsData] = await Promise.all([
-        api.getPlayer(playerKey),
-        api.getPlayerMachineStats(playerKey, {
-          seasons: seasonsFilter.length > 0 ? seasonsFilter : undefined,
-          venue_key: venueFilter || undefined,
-          min_games: 1,
-          sort_by: sortBy,
-          sort_order: sortDirection,
-          limit: 100,
-        }),
-      ]);
-
-      setPlayer(playerData);
-
-      // If multiple seasons selected, aggregate stats by machine
-      if (seasonsFilter.length !== 1) {
-        const aggregated = aggregateStatsByMachine(statsData.stats);
-        setMachineStats(aggregated);
-      } else {
-        // Apply client-side sorting for single season data
-        const sorted = sortAggregatedStats(statsData.stats, sortBy, sortDirection);
-        setMachineStats(sorted);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch player data');
-    } finally {
-      setLoading(false);
-      setFetching(false);
-    }
-  }
-
-  async function fetchScoreHistory(machineKey: string) {
-    setChartLoading(true);
-    setChartError(null);
-    try {
-      const history = await api.getPlayerMachineScoreHistory(
-        playerKey,
-        machineKey,
-        {
-          venue_key: venueFilter || undefined,
-          seasons: seasonsFilter.length > 0 ? seasonsFilter : undefined,
-        }
-      );
-      setScoreHistory(history);
-    } catch (err) {
-      setChartError(err instanceof Error ? err.message : 'Failed to fetch score history');
-    } finally {
-      setChartLoading(false);
-    }
-  }
+  // Combine loading and error states
+  const loading = playerLoading;
+  const fetching = statsFetching;
+  const error = playerError instanceof Error ? playerError.message :
+    statsError instanceof Error ? statsError.message : null;
 
   function handleMachineSelect(machineKey: string, machineName: string) {
     setSelectedMachine(machineKey);
     setSelectedMachineName(machineName);
     setChartModalOpen(true);
-    fetchScoreHistory(machineKey);
+    // React Query will automatically fetch score history when modal opens
+    // due to the enabled condition on usePlayerMachineScoreHistory
   }
 
   function aggregateStatsByMachine(stats: PlayerMachineStat[]): PlayerMachineStat[] {
