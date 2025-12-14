@@ -294,12 +294,12 @@ export default function MachineDetailPage() {
         </ContentContainer>
       )}
 
-      {/* Top Players */}
+      {/* Frequent Players */}
       {scores.length > 0 && (
         <ContentContainer size="md">
           <Card>
             <Card.Header>
-              <Card.Title>Top Players</Card.Title>
+              <Card.Title>Frequent Players</Card.Title>
             </Card.Header>
             <Card.Content>
               <p className="text-sm text-gray-600 mb-4">
@@ -405,20 +405,8 @@ export default function MachineDetailPage() {
             <Card.Title>Score Distribution Chart</Card.Title>
           </Card.Header>
           <Card.Content>
-          {/* Legend - placed outside SVG for better responsiveness */}
-          <div className="flex flex-wrap gap-4 mb-4 text-sm sm:text-base">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-0.5 border-t-2 border-dashed border-blue-500"></div>
-              <span className="text-gray-700">50th (Median)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-0.5 border-t-2 border-dashed border-emerald-500"></div>
-              <span className="text-gray-700">75th %ile</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-0.5 border-t-2 border-dashed border-amber-500"></div>
-              <span className="text-gray-700">90th %ile</span>
-            </div>
+          {/* Legend - positioned top right to match where outliers appear on chart */}
+          <div className="flex justify-end mb-4 text-sm sm:text-base">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-red-500 opacity-40"></div>
               <span className="text-gray-700">Outliers</span>
