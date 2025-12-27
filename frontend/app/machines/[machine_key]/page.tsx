@@ -13,10 +13,12 @@ import {
   LoadingSpinner,
   StatCard,
   Table,
-  MultiSelect,
   FilterPanel,
+  ContentContainer,
 } from '@/components/ui';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
+import { VenueSelect } from '@/components/VenueMultiSelect';
+import { TeamMultiSelect } from '@/components/TeamMultiSelect';
 import { SUPPORTED_SEASONS, filterSupportedSeasons } from '@/lib/utils';
 
 export default function MachineDetailPage() {
@@ -213,7 +215,7 @@ export default function MachineDetailPage() {
       <FilterPanel
         title="Filters"
         collapsible={true}
-        defaultOpen={true}
+        defaultOpen={false}
         activeFilterCount={
           (selectedSeasons.length > 0 && selectedSeasons.length < availableSeasons.length ? 1 : 0) +
           (selectedVenue !== 'all' ? 1 : 0) +
@@ -226,204 +228,174 @@ export default function MachineDetailPage() {
           setSelectedTeams([]);
         }}
       >
-        <div className="space-y-6">
-          {/* Season Filter */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <SeasonMultiSelect
             value={selectedSeasons}
             onChange={setSelectedSeasons}
             availableSeasons={availableSeasons}
-            helpText="Select one or more seasons to filter scores"
+            variant="dropdown"
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Venue Filter */}
-            <Select
-              label="Venue"
-              value={selectedVenue}
-              onChange={(e) => setSelectedVenue(e.target.value)}
-              options={[
-                { value: 'all', label: `All Venues (${machine.total_scores} scores)` },
-                ...venues.map((venue) => ({
-                  value: venue.venue_key,
-                  label: `${venue.venue_name} (${venue.score_count} scores)`,
-                })),
-              ]}
-            />
+          <VenueSelect
+            value={selectedVenue === 'all' ? '' : selectedVenue}
+            onChange={(value) => setSelectedVenue(value || 'all')}
+            venues={venues}
+            label="Venue"
+          />
 
-            {/* Team Filter */}
-            <div>
-              <MultiSelect
-                label="Teams (select multiple)"
-                options={teams.map((team) => ({
-                  value: team.team_key,
-                  label: `${team.team_name} (${team.score_count} scores)`,
-                }))}
-                value={selectedTeams}
-                onChange={setSelectedTeams}
-                helpText={selectedTeams.length > 0 ? `${selectedTeams.length} team${selectedTeams.length !== 1 ? 's' : ''} selected` : undefined}
-              />
-              {selectedTeams.length > 0 && (
-                <button
-                  onClick={() => setSelectedTeams([])}
-                  className="mt-2 text-sm text-blue-600 hover:text-blue-800"
-                >
-                  Clear all teams
-                </button>
-              )}
-            </div>
-          </div>
+          <TeamMultiSelect
+            teams={teams}
+            value={selectedTeams}
+            onChange={setSelectedTeams}
+          />
         </div>
       </FilterPanel>
 
       {/* Top 5 Scores */}
       {scores.length > 0 && (
-        <Card>
-          <Card.Header>
-            <Card.Title>Top 5 Scores</Card.Title>
-          </Card.Header>
-          <Card.Content>
-            <Table>
-              <Table.Header>
-                <Table.Row hoverable={false}>
-                  <Table.Head>Rank</Table.Head>
-                  <Table.Head>Player Name</Table.Head>
-                  <Table.Head className="text-right">Score</Table.Head>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {[...scores]
-                  .sort((a, b) => b.score - a.score)
-                  .slice(0, 5)
-                  .map((scoreData, index) => (
-                    <Table.Row key={scoreData.score_id}>
-                      <Table.Cell className="font-medium">#{index + 1}</Table.Cell>
-                      <Table.Cell>
-                        <Link
-                          href={`/players/${scoreData.player_key}`}
-                          className="text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                          {scoreData.player_name || scoreData.player_key}
-                        </Link>
-                      </Table.Cell>
-                      <Table.Cell className="text-right">
-                        {scoreData.score.toLocaleString()}
-                      </Table.Cell>
-                    </Table.Row>
-                  ))}
-              </Table.Body>
-            </Table>
-          </Card.Content>
-        </Card>
-      )}
-
-      {/* Top Players */}
-      {scores.length > 0 && (
-        <Card>
-          <Card.Header>
-            <Card.Title>Top Players</Card.Title>
-          </Card.Header>
-          <Card.Content>
-            <p className="text-sm text-gray-600 mb-4">
-              Players with the most scores on this machine (given current filters)
-            </p>
-            <Table>
-              <Table.Header>
-                <Table.Row hoverable={false}>
-                  <Table.Head>Rank</Table.Head>
-                  <Table.Head>Player Name</Table.Head>
-                  <Table.Head className="text-right">Total Scores</Table.Head>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {(() => {
-                  // Group scores by player and count
-                  const playerScoreCounts = scores.reduce((acc, scoreData) => {
-                    const key = scoreData.player_key;
-                    if (!acc[key]) {
-                      acc[key] = {
-                        player_key: scoreData.player_key,
-                        player_name: scoreData.player_name || scoreData.player_key,
-                        count: 0,
-                      };
-                    }
-                    acc[key].count++;
-                    return acc;
-                  }, {} as Record<string, { player_key: string; player_name: string; count: number }>);
-
-                  // Convert to array and sort by count descending, limit to top 10
-                  return Object.values(playerScoreCounts)
-                    .sort((a, b) => b.count - a.count)
-                    .slice(0, 10)
-                    .map((player, index) => (
-                      <Table.Row key={player.player_key}>
+        <ContentContainer size="md">
+          <Card>
+            <Card.Header>
+              <Card.Title>Top 5 Scores</Card.Title>
+            </Card.Header>
+            <Card.Content>
+              <Table>
+                <Table.Header>
+                  <Table.Row hoverable={false}>
+                    <Table.Head>Rank</Table.Head>
+                    <Table.Head>Player Name</Table.Head>
+                    <Table.Head className="text-right">Score</Table.Head>
+                  </Table.Row>
+                </Table.Header>
+                <Table.Body>
+                  {[...scores]
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, 5)
+                    .map((scoreData, index) => (
+                      <Table.Row key={scoreData.score_id}>
                         <Table.Cell className="font-medium">#{index + 1}</Table.Cell>
                         <Table.Cell>
                           <Link
-                            href={`/players/${player.player_key}`}
+                            href={`/players/${encodeURIComponent(scoreData.player_key)}`}
                             className="text-blue-600 hover:text-blue-800 font-medium"
                           >
-                            {player.player_name}
+                            {scoreData.player_name || scoreData.player_key}
                           </Link>
                         </Table.Cell>
                         <Table.Cell className="text-right">
-                          {player.count}
+                          {formatScore(scoreData.score)}
                         </Table.Cell>
                       </Table.Row>
-                    ));
-                })()}
-              </Table.Body>
-            </Table>
-          </Card.Content>
-        </Card>
+                    ))}
+                </Table.Body>
+              </Table>
+            </Card.Content>
+          </Card>
+        </ContentContainer>
+      )}
+
+      {/* Frequent Players */}
+      {scores.length > 0 && (
+        <ContentContainer size="md">
+          <Card>
+            <Card.Header>
+              <Card.Title>Frequent Players</Card.Title>
+            </Card.Header>
+            <Card.Content>
+              <p className="text-sm text-gray-600 mb-4">
+                Players with the most scores on this machine (given current filters)
+              </p>
+              <Table>
+                <Table.Header>
+                  <Table.Row hoverable={false}>
+                    <Table.Head>Rank</Table.Head>
+                    <Table.Head>Player Name</Table.Head>
+                    <Table.Head className="text-right">Total Scores</Table.Head>
+                  </Table.Row>
+                </Table.Header>
+                <Table.Body>
+                  {(() => {
+                    // Group scores by player and count
+                    const playerScoreCounts = scores.reduce((acc, scoreData) => {
+                      const key = scoreData.player_key;
+                      if (!acc[key]) {
+                        acc[key] = {
+                          player_key: scoreData.player_key,
+                          player_name: scoreData.player_name || scoreData.player_key,
+                          count: 0,
+                        };
+                      }
+                      acc[key].count++;
+                      return acc;
+                    }, {} as Record<string, { player_key: string; player_name: string; count: number }>);
+
+                    // Convert to array and sort by count descending, limit to top 10
+                    return Object.values(playerScoreCounts)
+                      .sort((a, b) => b.count - a.count)
+                      .slice(0, 10)
+                      .map((player, index) => (
+                        <Table.Row key={player.player_key}>
+                          <Table.Cell className="font-medium">#{index + 1}</Table.Cell>
+                          <Table.Cell>
+                            <Link
+                              href={`/players/${encodeURIComponent(player.player_key)}`}
+                              className="text-blue-600 hover:text-blue-800 font-medium"
+                            >
+                              {player.player_name}
+                            </Link>
+                          </Table.Cell>
+                          <Table.Cell className="text-right">
+                            {player.count}
+                          </Table.Cell>
+                        </Table.Row>
+                      ));
+                  })()}
+                </Table.Body>
+              </Table>
+            </Card.Content>
+          </Card>
+        </ContentContainer>
       )}
 
       {/* Summary Table */}
       {stats && (
-        <Card>
-          <Card.Header>
-            <Card.Title>Score Distribution Summary</Card.Title>
-          </Card.Header>
-          <Card.Content>
-            <Table>
-              <Table.Header>
-                <Table.Row hoverable={false}>
-                  <Table.Head>Percentile</Table.Head>
-                  <Table.Head className="text-right">Score</Table.Head>
-                  <Table.Head className="text-right">Formatted</Table.Head>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                <Table.Row>
-                  <Table.Cell className="font-medium">Median (50th)</Table.Cell>
-                  <Table.Cell className="text-right">
-                    {stats.p50.toLocaleString()}
-                  </Table.Cell>
-                  <Table.Cell className="text-right text-gray-600">
-                    {formatScore(stats.p50)}
-                  </Table.Cell>
-                </Table.Row>
-                <Table.Row>
-                  <Table.Cell className="font-medium">75th</Table.Cell>
-                  <Table.Cell className="text-right">
-                    {stats.p75.toLocaleString()}
-                  </Table.Cell>
-                  <Table.Cell className="text-right text-gray-600">
-                    {formatScore(stats.p75)}
-                  </Table.Cell>
-                </Table.Row>
-                <Table.Row>
-                  <Table.Cell className="font-medium">90th</Table.Cell>
-                  <Table.Cell className="text-right">
-                    {stats.p90.toLocaleString()}
-                  </Table.Cell>
-                  <Table.Cell className="text-right text-gray-600">
-                    {formatScore(stats.p90)}
-                  </Table.Cell>
-                </Table.Row>
-              </Table.Body>
-            </Table>
-          </Card.Content>
-        </Card>
+        <ContentContainer size="sm">
+          <Card>
+            <Card.Header>
+              <Card.Title>Score Distribution Summary</Card.Title>
+            </Card.Header>
+            <Card.Content>
+              <Table>
+                <Table.Header>
+                  <Table.Row hoverable={false}>
+                    <Table.Head>Percentile</Table.Head>
+                    <Table.Head className="text-right">Score</Table.Head>
+                  </Table.Row>
+                </Table.Header>
+                <Table.Body>
+                  <Table.Row>
+                    <Table.Cell className="font-medium">Median (50th)</Table.Cell>
+                    <Table.Cell className="text-right">
+                      {formatScore(stats.p50)}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="font-medium">75th</Table.Cell>
+                    <Table.Cell className="text-right">
+                      {formatScore(stats.p75)}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="font-medium">90th</Table.Cell>
+                    <Table.Cell className="text-right">
+                      {formatScore(stats.p90)}
+                    </Table.Cell>
+                  </Table.Row>
+                </Table.Body>
+              </Table>
+            </Card.Content>
+          </Card>
+        </ContentContainer>
       )}
 
       {/* Scatter Plot */}
@@ -433,8 +405,22 @@ export default function MachineDetailPage() {
             <Card.Title>Score Distribution Chart</Card.Title>
           </Card.Header>
           <Card.Content>
-          <div className="relative w-full" style={{ height: '500px' }}>
-            <svg width="100%" height="100%" viewBox="0 0 800 500" className="border border-gray-200 rounded">
+          {/* Legend - positioned top right to match where outliers appear on chart */}
+          <div className="flex justify-end mb-4 text-sm sm:text-base">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500 opacity-40"></div>
+              <span className="text-gray-700">Outliers</span>
+            </div>
+          </div>
+          <div className="relative w-full" style={{ minHeight: '400px' }}>
+            <svg
+              width="100%"
+              height="100%"
+              viewBox="0 0 800 520"
+              className="border border-gray-200 rounded"
+              preserveAspectRatio="xMidYMid meet"
+              style={{ minHeight: '400px' }}
+            >
               {/* Calculate score range for y-axis */}
               {(() => {
                 // Focus on 25th-95th percentile range (most useful data)
@@ -447,6 +433,14 @@ export default function MachineDetailPage() {
                 const minScore = Math.max(0, p25 - yPadding); // Never go below 0
                 const maxScore = p95 + yPadding;
 
+                // Chart area - adjusted for larger labels
+                const chartLeft = 100;
+                const chartRight = 780;
+                const chartTop = 30;
+                const chartBottom = 450;
+                const chartWidth = chartRight - chartLeft;
+                const chartHeight = chartBottom - chartTop;
+
                 // Y-axis labels (scores) - 6 evenly spaced ticks
                 const yTicks = Array.from({ length: 6 }, (_, i) => {
                   const score = minScore + ((maxScore - minScore) * i / 5);
@@ -457,11 +451,11 @@ export default function MachineDetailPage() {
                   <>
                     {/* Y-axis grid lines and labels */}
                     {yTicks.map((score, i) => {
-                      const y = 50 + (400 * (5 - i) / 5);
+                      const y = chartBottom - (chartHeight * i / 5);
                       return (
                         <g key={`y-${i}`}>
-                          <line x1="80" y1={y} x2="780" y2={y} stroke="#e5e7eb" strokeWidth="1" />
-                          <text x="70" y={y + 4} textAnchor="end" fontSize="11" fill="#6b7280">
+                          <line x1={chartLeft} y1={y} x2={chartRight} y2={y} stroke="#e5e7eb" strokeWidth="1" />
+                          <text x={chartLeft - 10} y={y + 5} textAnchor="end" fontSize="16" fill="#4b5563" fontWeight="500">
                             {formatScore(score)}
                           </text>
                         </g>
@@ -470,11 +464,11 @@ export default function MachineDetailPage() {
 
                     {/* X-axis labels (percentiles) - focus on useful range */}
                     {[0, 25, 50, 75, 90, 100].map((percentile) => {
-                      const x = 80 + (percentile / 100) * 700;
+                      const x = chartLeft + (percentile / 100) * chartWidth;
                       return (
                         <g key={`x-${percentile}`}>
-                          <line x1={x} y1="50" x2={x} y2="450" stroke="#e5e7eb" strokeWidth="1" />
-                          <text x={x} y="470" textAnchor="middle" fontSize="12" fill="#6b7280">
+                          <line x1={x} y1={chartTop} x2={x} y2={chartBottom} stroke="#e5e7eb" strokeWidth="1" />
+                          <text x={x} y={chartBottom + 25} textAnchor="middle" fontSize="16" fill="#4b5563" fontWeight="500">
                             {percentile}%
                           </text>
                         </g>
@@ -482,19 +476,19 @@ export default function MachineDetailPage() {
                     })}
 
                     {/* Percentile reference lines */}
-                    <line x1={80 + (50 / 100) * 700} y1="50" x2={80 + (50 / 100) * 700} y2="450" stroke="#3b82f6" strokeWidth="2" strokeDasharray="5,5" />
-                    <line x1={80 + (75 / 100) * 700} y1="50" x2={80 + (75 / 100) * 700} y2="450" stroke="#10b981" strokeWidth="2" strokeDasharray="5,5" />
-                    <line x1={80 + (90 / 100) * 700} y1="50" x2={80 + (90 / 100) * 700} y2="450" stroke="#f59e0b" strokeWidth="2" strokeDasharray="5,5" />
+                    <line x1={chartLeft + (50 / 100) * chartWidth} y1={chartTop} x2={chartLeft + (50 / 100) * chartWidth} y2={chartBottom} stroke="#3b82f6" strokeWidth="2.5" strokeDasharray="8,6" />
+                    <line x1={chartLeft + (75 / 100) * chartWidth} y1={chartTop} x2={chartLeft + (75 / 100) * chartWidth} y2={chartBottom} stroke="#10b981" strokeWidth="2.5" strokeDasharray="8,6" />
+                    <line x1={chartLeft + (90 / 100) * chartWidth} y1={chartTop} x2={chartLeft + (90 / 100) * chartWidth} y2={chartBottom} stroke="#f59e0b" strokeWidth="2.5" strokeDasharray="8,6" />
 
                     {/* Scatter points */}
                     {scores.map((scoreData) => {
                       const percentile = calculatePercentile(scoreData.score, stats.sortedScores);
-                      const x = 80 + (percentile / 100) * 700;
+                      const x = chartLeft + (percentile / 100) * chartWidth;
 
                       // Clamp y values to visible range
                       const clampedScore = Math.max(minScore, Math.min(maxScore, scoreData.score));
                       const normalizedScore = (clampedScore - minScore) / (maxScore - minScore);
-                      const y = 450 - (normalizedScore * 400);
+                      const y = chartBottom - (normalizedScore * chartHeight);
 
                       // Highlight outliers that are outside the visible range
                       const isOutlier = scoreData.score < minScore || scoreData.score > maxScore;
@@ -504,7 +498,7 @@ export default function MachineDetailPage() {
                           key={scoreData.score_id}
                           cx={x}
                           cy={y}
-                          r="3"
+                          r="4"
                           fill={isOutlier ? "#ef4444" : "#6366f1"}
                           opacity={isOutlier ? "0.4" : "0.6"}
                         >
@@ -514,38 +508,23 @@ export default function MachineDetailPage() {
                     })}
 
                     {/* Axes */}
-                    <line x1="80" y1="450" x2="780" y2="450" stroke="#374151" strokeWidth="2" />
-                    <line x1="80" y1="50" x2="80" y2="450" stroke="#374151" strokeWidth="2" />
+                    <line x1={chartLeft} y1={chartBottom} x2={chartRight} y2={chartBottom} stroke="#374151" strokeWidth="2" />
+                    <line x1={chartLeft} y1={chartTop} x2={chartLeft} y2={chartBottom} stroke="#374151" strokeWidth="2" />
 
-                    {/* Labels */}
-                    <text x="430" y="490" textAnchor="middle" fontSize="14" fill="#374151" fontWeight="bold">
+                    {/* Axis Labels */}
+                    <text x={(chartLeft + chartRight) / 2} y="505" textAnchor="middle" fontSize="18" fill="#1f2937" fontWeight="600">
                       Percentile
                     </text>
-                    <text x="30" y="250" textAnchor="middle" fontSize="14" fill="#374151" fontWeight="bold" transform="rotate(-90 30 250)">
+                    <text x="35" y={(chartTop + chartBottom) / 2} textAnchor="middle" fontSize="18" fill="#1f2937" fontWeight="600" transform={`rotate(-90 35 ${(chartTop + chartBottom) / 2})`}>
                       Score
                     </text>
-
-                    {/* Legend */}
-                    <g transform="translate(580, 20)">
-                      <line x1="0" y1="0" x2="20" y2="0" stroke="#3b82f6" strokeWidth="2" strokeDasharray="5,5" />
-                      <text x="25" y="4" fontSize="11" fill="#374151">50th (Median)</text>
-
-                      <line x1="0" y1="15" x2="20" y2="15" stroke="#10b981" strokeWidth="2" strokeDasharray="5,5" />
-                      <text x="25" y="19" fontSize="11" fill="#374151">75th %ile</text>
-
-                      <line x1="0" y1="30" x2="20" y2="30" stroke="#f59e0b" strokeWidth="2" strokeDasharray="5,5" />
-                      <text x="25" y="34" fontSize="11" fill="#374151">90th %ile</text>
-
-                      <circle cx="10" cy="48" r="3" fill="#ef4444" opacity="0.4" />
-                      <text x="25" y="51" fontSize="11" fill="#374151">Outliers</text>
-                    </g>
                   </>
                 );
               })()}
             </svg>
           </div>
-            <p className="text-sm text-gray-600 mt-2">
-              Showing {scores.length} score{scores.length !== 1 ? 's' : ''} focused on 25th-95th percentile range. Outliers shown in red. Hover over points for player details.
+            <p className="text-sm text-gray-600 mt-3">
+              Showing {scores.length} score{scores.length !== 1 ? 's' : ''} focused on 25th-95th percentile range. Outliers shown in red.
             </p>
           </Card.Content>
         </Card>

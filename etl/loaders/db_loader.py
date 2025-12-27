@@ -30,18 +30,18 @@ class DatabaseLoader:
         with self.db.engine.begin() as conn:
             for venue in venues:
                 conn.execute(text("""
-                    INSERT INTO venues (venue_key, venue_name, city, state, active)
-                    VALUES (:venue_key, :venue_name, :city, :state, :active)
+                    INSERT INTO venues (venue_key, venue_name, address, neighborhood, active)
+                    VALUES (:venue_key, :venue_name, :address, :neighborhood, :active)
                     ON CONFLICT (venue_key) DO UPDATE SET
                         venue_name = EXCLUDED.venue_name,
-                        city = EXCLUDED.city,
-                        state = EXCLUDED.state,
+                        address = COALESCE(EXCLUDED.address, venues.address),
+                        neighborhood = COALESCE(EXCLUDED.neighborhood, venues.neighborhood),
                         active = EXCLUDED.active
                 """), {
                     'venue_key': venue['venue_key'],
                     'venue_name': venue['venue_name'],
-                    'city': venue.get('city'),
-                    'state': venue.get('state'),
+                    'address': venue.get('address'),
+                    'neighborhood': venue.get('neighborhood'),
                     'active': venue.get('active', True)
                 })
                 count += 1

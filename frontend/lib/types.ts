@@ -31,6 +31,16 @@ export interface SeasonsResponse {
   count: number;
 }
 
+export interface SeasonStatus {
+  season: number;
+  status: 'upcoming' | 'in_progress' | 'completed' | 'unknown';
+  message: string;
+  first_week_date: string | null;
+  last_week_date: string | null;
+  total_matches: number;
+  upcoming_matches: number;
+}
+
 // Player Types
 export interface Player {
   player_key: string;
@@ -52,6 +62,8 @@ export interface PlayerDetail extends Player {
   games_played?: number;
   total_matches?: number;
   total_games?: number;
+  current_team_key?: string | null;
+  current_team_name?: string | null;
 }
 
 export interface PlayerMachineStat {
@@ -247,8 +259,15 @@ export interface Venue {
   state: string | null;
 }
 
+export interface VenueHomeTeam {
+  team_key: string;
+  team_name: string;
+  season: number;
+}
+
 export interface VenueDetail extends Venue {
   address: string | null;
+  home_teams: VenueHomeTeam[];
 }
 
 export interface VenueListResponse {
@@ -256,12 +275,6 @@ export interface VenueListResponse {
   total: number;
   limit: number;
   offset: number;
-}
-
-export interface VenueHomeTeam {
-  team_key: string;
-  team_name: string;
-  season: number;
 }
 
 export interface VenueWithStats extends Venue {

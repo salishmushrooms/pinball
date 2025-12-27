@@ -189,7 +189,8 @@ async def link_player_to_matchplay(player_key: str, request: MatchplayLinkReques
 
     # Check if already linked
     existing_query = """
-        SELECT id FROM matchplay_player_mappings
+        SELECT id, mnp_player_key, matchplay_user_id, matchplay_name, ifpa_id, match_method, created_at, last_synced
+        FROM matchplay_player_mappings
         WHERE mnp_player_key = :player_key OR matchplay_user_id = :matchplay_user_id
     """
     existing = execute_query(existing_query, {
@@ -198,10 +199,29 @@ async def link_player_to_matchplay(player_key: str, request: MatchplayLinkReques
     })
 
     if existing:
-        raise HTTPException(
-            status_code=409,
-            detail="Player or Matchplay user is already linked"
-        )
+        row = existing[0]
+        # Check if this is the EXACT same link being requested (idempotent case)
+        if row['mnp_player_key'] == player_key and row['matchplay_user_id'] == request.matchplay_user_id:
+            # Return success - link already exists with same mapping
+            logger.info(f"Link already exists for MNP player '{player_key}' to Matchplay user {request.matchplay_user_id}")
+            mapping = MatchplayPlayerMapping(
+                id=row['id'],
+                mnp_player_key=row['mnp_player_key'],
+                matchplay_user_id=row['matchplay_user_id'],
+                matchplay_name=row['matchplay_name'],
+                ifpa_id=row['ifpa_id'],
+                match_method=row['match_method'],
+                created_at=row['created_at'],
+                last_synced=row['last_synced']
+            )
+            return MatchplayLinkResponse(status="already_linked", mapping=mapping)
+        else:
+            # Conflict: Either player is linked to different matchplay user,
+            # or matchplay user is linked to different player
+            raise HTTPException(
+                status_code=409,
+                detail="Player or Matchplay user is already linked to a different account"
+            )
 
     # Fetch Matchplay user info to store name
     client = MatchplayClient()
@@ -290,47 +310,47 @@ async def unlink_player_from_matchplay(player_key: str):
     Remove the link between an MNP player and their Matchplay profile.
 
     This also removes any cached Matchplay data for the player.
+
+    Note: This endpoint is idempotent - calling it when no link exists
+    returns success (already_unlinked) rather than 404 to handle race conditions
+    gracefully.
     """
-    # Check if link exists
-    existing_query = """
-        SELECT matchplay_user_id FROM matchplay_player_mappings
-        WHERE mnp_player_key = :player_key
-    """
-    existing = execute_query(existing_query, {'player_key': player_key})
-
-    if not existing:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No Matchplay link found for player '{player_key}'"
-        )
-
-    matchplay_user_id = existing[0]['matchplay_user_id']
-
-    # Delete related data (cascade should handle this, but be explicit)
+    # Use a single transaction with DELETE ... RETURNING to atomically
+    # check existence and delete in one operation (prevents race conditions)
     with get_db_connection() as conn:
-        # Delete machine stats
-        conn.execute(text("""
-            DELETE FROM matchplay_player_machine_stats
-            WHERE matchplay_user_id = :matchplay_user_id
-        """), {'matchplay_user_id': matchplay_user_id})
-
-        # Delete ratings
-        conn.execute(text("""
-            DELETE FROM matchplay_ratings
-            WHERE matchplay_user_id = :matchplay_user_id
-        """), {'matchplay_user_id': matchplay_user_id})
-
-        # Delete mapping
-        conn.execute(text("""
+        # First, try to delete and get the matchplay_user_id in one atomic operation
+        result = conn.execute(text("""
             DELETE FROM matchplay_player_mappings
             WHERE mnp_player_key = :player_key
+            RETURNING matchplay_user_id
         """), {'player_key': player_key})
 
-        conn.commit()
+        deleted_row = result.fetchone()
 
-    logger.info(f"Unlinked MNP player '{player_key}' from Matchplay")
+        if deleted_row:
+            matchplay_user_id = deleted_row[0]
 
-    return {"status": "unlinked", "player_key": player_key}
+            # Delete related cached data (cascade should handle this, but be explicit)
+            # These may already be gone due to ON DELETE CASCADE, which is fine
+            conn.execute(text("""
+                DELETE FROM matchplay_player_machine_stats
+                WHERE matchplay_user_id = :matchplay_user_id
+            """), {'matchplay_user_id': matchplay_user_id})
+
+            conn.execute(text("""
+                DELETE FROM matchplay_ratings
+                WHERE matchplay_user_id = :matchplay_user_id
+            """), {'matchplay_user_id': matchplay_user_id})
+
+            conn.commit()
+            logger.info(f"Unlinked MNP player '{player_key}' from Matchplay user {matchplay_user_id}")
+            return {"status": "unlinked", "player_key": player_key}
+        else:
+            # No link existed - this is fine, return success (idempotent)
+            # This handles race conditions where two unlink requests arrive simultaneously
+            conn.rollback()
+            logger.info(f"Unlink called for MNP player '{player_key}' but no link existed (already unlinked)")
+            return {"status": "already_unlinked", "player_key": player_key}
 
 
 @router.get(
@@ -595,7 +615,8 @@ async def get_players_matchplay_ratings(
         }
 
         # Try to fetch rating from API (with rate limiting awareness)
-        if client.is_configured() and client.rate_limit_remaining and client.rate_limit_remaining > 2:
+        # Note: rate_limit_remaining is None until first API call, so allow that case
+        if client.is_configured() and (client.rate_limit_remaining is None or client.rate_limit_remaining > 2):
             try:
                 profile = await client.get_user_profile(matchplay_user_id)
                 if profile:
