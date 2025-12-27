@@ -4,6 +4,7 @@ import {
   ApiInfo,
   HealthCheck,
   SeasonsResponse,
+  SeasonStatus,
   Player,
   PlayerDetail,
   PlayerListResponse,
@@ -309,6 +310,13 @@ export const api = {
   },
 
   // Season Schedule Endpoints
+
+  /**
+   * Get season status (upcoming, in_progress, completed)
+   */
+  getSeasonStatus: (season: number): Promise<SeasonStatus> => {
+    return fetchAPI<SeasonStatus>(`/seasons/${season}/status`);
+  },
 
   /**
    * Get complete season schedule from season.json
