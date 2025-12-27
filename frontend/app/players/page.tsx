@@ -19,8 +19,13 @@ export default function PlayersPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Live search - fetch as user types
+  // Live search - fetch as user types (only when search term is not empty)
   useEffect(() => {
+    if (!searchTerm.trim()) {
+      setPlayers([]);
+      return;
+    }
+
     const timer = setTimeout(() => {
       fetchPlayers();
     }, 300); // 300ms debounce
@@ -29,16 +34,18 @@ export default function PlayersPage() {
   }, [searchTerm]);
 
   async function fetchPlayers() {
+    if (!searchTerm.trim()) {
+      setPlayers([]);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const params: any = {
+      const response = await api.getPlayers({
         limit: 100,
-      };
-
-      if (searchTerm) params.search = searchTerm;
-
-      const response = await api.getPlayers(params);
+        search: searchTerm,
+      });
       setPlayers(response.players);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch players');
@@ -83,8 +90,20 @@ export default function PlayersPage() {
         </Alert>
       )}
 
-      {/* Empty State */}
-      {!loading && !error && players.length === 0 && searchTerm && (
+      {/* Initial State - no search yet */}
+      {!loading && !error && players.length === 0 && !searchTerm.trim() && (
+        <Card>
+          <Card.Content>
+            <EmptyState
+              title="Search for players"
+              description="Enter a name above to search for players."
+            />
+          </Card.Content>
+        </Card>
+      )}
+
+      {/* Empty State - no results found */}
+      {!loading && !error && players.length === 0 && searchTerm.trim() && (
         <Card>
           <Card.Content>
             <EmptyState
@@ -110,7 +129,7 @@ export default function PlayersPage() {
                 <Table.Row key={player.player_key}>
                   <Table.Cell>
                     <Link
-                      href={`/players/${player.player_key}`}
+                      href={`/players/${encodeURIComponent(player.player_key)}`}
                       className="font-medium"
                       style={{ color: 'var(--text-link)' }}
                     >

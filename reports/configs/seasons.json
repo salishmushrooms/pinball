@@ -1,6 +1,0 @@
-{
-  "season": "21",
-  "description": "Current season to analyze",
-  "available_seasons": ["14", "15", "16", "17", "18", "19", "20", "21"],
-  "notes": "Change the 'season' value to analyze different seasons"
-}

@@ -15,7 +15,6 @@ export default function TeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const CURRENT_SEASON = 22;
 
   useEffect(() => {
     fetchTeams();
@@ -29,8 +28,14 @@ export default function TeamsPage() {
         limit: 500, // API maximum limit
       });
 
-      // Filter to current season only
-      const currentSeasonTeams = data.teams.filter(team => team.season === CURRENT_SEASON);
+      // Find the most recent season
+      const maxSeason = Math.max(...data.teams.map(t => t.season));
+
+      // Filter to only teams from the most recent season, sorted by name
+      const currentSeasonTeams = data.teams
+        .filter(team => team.season === maxSeason)
+        .sort((a, b) => a.team_name.localeCompare(b.team_name));
+
       setTeams(currentSeasonTeams);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch teams');
@@ -94,7 +99,7 @@ export default function TeamsPage() {
           </div>
 
           <div className="text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Showing {teams.length} team{teams.length !== 1 ? 's' : ''} (Season {CURRENT_SEASON})
+            Showing {teams.length} team{teams.length !== 1 ? 's' : ''} (Season {teams[0]?.season})
           </div>
         </>
       )}

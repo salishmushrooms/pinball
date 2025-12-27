@@ -9,6 +9,7 @@ import {
   MachinePickFrequency,
   ScheduleMatch,
   MatchplayRatingInfo,
+  SeasonStatus,
 } from '@/lib/types';
 import {
   Card,
@@ -28,6 +29,7 @@ import { filterSupportedSeasons } from '@/lib/utils';
 
 export default function MatchupsPage() {
   const [currentSeason, setCurrentSeason] = useState<number | null>(null);
+  const [seasonStatus, setSeasonStatus] = useState<SeasonStatus | null>(null);
   const [matches, setMatches] = useState<ScheduleMatch[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<string>('');
   const [matchup, setMatchup] = useState<MatchupAnalysis | null>(null);
@@ -46,6 +48,15 @@ export default function MatchupsPage() {
         const supportedSeasons = filterSupportedSeasons(seasonsData.seasons);
         const latestSeason = supportedSeasons.length > 0 ? Math.max(...supportedSeasons) : 22;
         setCurrentSeason(latestSeason);
+
+        // Check season status to see if it's completed
+        try {
+          const status = await api.getSeasonStatus(latestSeason);
+          setSeasonStatus(status);
+        } catch (statusErr) {
+          console.warn('Failed to fetch season status:', statusErr);
+          // Continue without status - matches will still load
+        }
 
         // Load matches for the current season
         const matchesData = await api.getSeasonMatches(latestSeason);
@@ -129,6 +140,10 @@ export default function MatchupsPage() {
     return acc;
   }, {} as Record<string, ScheduleMatch[]>);
 
+  // Check if season is completed (off-season)
+  const isOffSeason = seasonStatus?.status === 'completed';
+  const isUpcoming = seasonStatus?.status === 'upcoming';
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -136,12 +151,41 @@ export default function MatchupsPage() {
         description="Select a scheduled match to analyze team vs team performance at the venue"
       />
 
+      {/* Off-Season Message */}
+      {isOffSeason && (
+        <Alert variant="info" title={`Season ${currentSeason} Complete`}>
+          <p className="mb-2">
+            {seasonStatus?.message || `Season ${currentSeason} has ended.`}
+          </p>
+          <p className="text-sm">
+            Check back when Season {(currentSeason || 22) + 1} begins for updated matchup analysis.
+            In the meantime, you can explore player stats, team performance, and historical data
+            using the other pages.
+          </p>
+        </Alert>
+      )}
+
+      {/* Upcoming Season Message */}
+      {isUpcoming && (
+        <Alert variant="info" title={`Season ${currentSeason} Coming Soon`}>
+          <p className="mb-2">
+            {seasonStatus?.message || `Season ${currentSeason} hasn't started yet.`}
+          </p>
+          <p className="text-sm">
+            Matchup analysis will be available once the season begins.
+            You can still browse historical data from previous seasons.
+          </p>
+        </Alert>
+      )}
+
       {/* Selection Form */}
       <Card>
         <Card.Header>
           <Card.Title>Select Match</Card.Title>
           <p className="text-sm text-gray-500 mt-1">
-            Choose from the official league schedule
+            {isOffSeason
+              ? 'Browse completed matches from the season'
+              : 'Choose from the official league schedule'}
           </p>
         </Card.Header>
         <Card.Content>

@@ -129,6 +129,10 @@ def calculate_win_percentage_for_player(
     - Rounds 1 & 4 (doubles): Even positions vs odd positions (2 opponents each)
     - Rounds 2 & 3 (singles): 1 opponent
 
+    This implementation uses a batch query approach to avoid N+1 queries.
+    Instead of querying opponent scores for each player score individually,
+    we fetch all relevant round data in a single query.
+
     Args:
         player_key: Player's unique key
         seasons: Optional list of seasons to filter
@@ -137,95 +141,85 @@ def calculate_win_percentage_for_player(
     Returns:
         Dict mapping machine_key to win percentage (0-100)
     """
-    # Build WHERE clause for filtering
-    where_clauses = ["s.player_key = :player_key"]
+    # Build WHERE clause for filtering player's games
+    where_clauses = ["ps.player_key = :player_key"]
     params = {'player_key': player_key}
 
     if seasons is not None and len(seasons) > 0:
         placeholders = ','.join([f':season{i}' for i in range(len(seasons))])
-        where_clauses.append(f"s.season IN ({placeholders})")
+        where_clauses.append(f"ps.season IN ({placeholders})")
         for i, season in enumerate(seasons):
             params[f'season{i}'] = season
 
     if venue_key is not None:
-        where_clauses.append("s.venue_key = :venue_key")
+        where_clauses.append("ps.venue_key = :venue_key")
         params['venue_key'] = venue_key
 
     where_clause = " AND ".join(where_clauses)
 
-    # Fetch all scores for this player with match context
-    query = f"""
+    # Single batch query: fetch player's scores along with all scores from the same rounds
+    # This eliminates N+1 by joining player scores with all round scores in one query
+    batch_query = f"""
+        WITH player_games AS (
+            SELECT
+                ps.score_id,
+                ps.machine_key,
+                ps.score AS player_score,
+                ps.match_key,
+                ps.round_number,
+                ps.player_position AS player_pos
+            FROM scores ps
+            WHERE {where_clause}
+        )
         SELECT
-            s.score_id,
-            s.machine_key,
-            s.score,
-            s.match_key,
-            s.round_number,
-            s.player_position,
-            s.team_key
-        FROM scores s
-        WHERE {where_clause}
-        ORDER BY s.match_key, s.round_number
+            pg.machine_key,
+            pg.player_score,
+            pg.match_key,
+            pg.round_number,
+            pg.player_pos,
+            rs.player_position AS other_pos,
+            rs.score AS other_score
+        FROM player_games pg
+        JOIN scores rs ON
+            rs.match_key = pg.match_key
+            AND rs.round_number = pg.round_number
+            AND rs.machine_key = pg.machine_key
+            AND rs.player_position != pg.player_pos
+        ORDER BY pg.match_key, pg.round_number, pg.player_pos
     """
 
-    player_scores = execute_query(query, params)
+    all_comparisons = execute_query(batch_query, params)
 
-    # For each score, we need to fetch opponent scores from same match/round
+    # Process all comparisons in memory
     machine_wins = defaultdict(lambda: {'wins': 0, 'total': 0})
 
-    for score_record in player_scores:
-        machine_key = score_record['machine_key']
-        match_key = score_record['match_key']
-        round_number = score_record['round_number']
-        player_position = score_record['player_position']
-        player_score = score_record['score']
-        player_team = score_record['team_key']
+    for row in all_comparisons:
+        machine_key = row['machine_key']
+        player_score = row['player_score']
+        round_number = row['round_number']
+        player_pos = row['player_pos']
+        other_pos = row['other_pos']
+        other_score = row['other_score']
 
-        # Fetch all scores from this match/round/machine
-        round_query = """
-            SELECT player_position, score, team_key
-            FROM scores
-            WHERE match_key = :match_key
-            AND round_number = :round_number
-            AND machine_key = :machine_key
-            ORDER BY player_position
-        """
-        round_scores = execute_query(round_query, {
-            'match_key': match_key,
-            'round_number': round_number,
-            'machine_key': machine_key
-        })
-
-        # Determine opponents based on round type and position
-        # Rounds 1 & 4 are doubles (4 players): positions 1&3 vs 2&4
-        # Rounds 2 & 3 are singles (2 players): position 1 vs 2
+        # Determine if this is an opponent based on round type and position
         is_doubles = round_number in [1, 4]
 
-        opponent_scores = []
-        for rs in round_scores:
-            # Skip the player themselves
-            if rs['player_position'] == player_position:
-                continue
+        is_opponent = False
+        if is_doubles:
+            # 4-player rounds: positions 1&3 vs 2&4
+            # Odd positions (1, 3) are teammates, even positions (2, 4) are teammates
+            player_is_odd = player_pos % 2 == 1
+            other_is_odd = other_pos % 2 == 1
+            # They're opponents if one is odd and the other is even
+            is_opponent = player_is_odd != other_is_odd
+        else:
+            # 2-player rounds: position 1 vs 2
+            # Anyone in the round who isn't the player is an opponent
+            is_opponent = True
 
-            # Determine if this is an opponent based on position
-            if is_doubles:
-                # 4-player rounds: positions 1&3 vs 2&4
-                # Odd positions (1, 3) are teammates, even positions (2, 4) are teammates
-                player_is_odd = player_position % 2 == 1
-                other_is_odd = rs['player_position'] % 2 == 1
-
-                # They're opponents if one is odd and the other is even
-                if player_is_odd != other_is_odd:
-                    opponent_scores.append(rs['score'])
-            else:
-                # 2-player rounds: position 1 vs 2
-                # Anyone in the round who isn't the player is an opponent
-                opponent_scores.append(rs['score'])
-
-        # Compare player's score to each opponent
-        for opp_score in opponent_scores:
+        if is_opponent:
             machine_wins[machine_key]['total'] += 1
-            if player_score > opp_score:
+            if player_score > other_score:
                 machine_wins[machine_key]['wins'] += 1
 
     # Calculate win percentages
@@ -333,7 +327,33 @@ def get_player(player_key: str):
     if not players:
         raise HTTPException(status_code=404, detail=f"Player '{player_key}' not found")
 
-    return PlayerDetail(**players[0])
+    player = players[0]
+
+    # Get current team from most recent season's scores (non-substitute appearances)
+    current_team_query = """
+        SELECT s.team_key, t.team_name
+        FROM scores s
+        JOIN teams t ON s.team_key = t.team_key AND s.season = t.season
+        WHERE s.player_key = :player_key
+          AND s.season = :last_season
+          AND s.is_substitute = false
+        GROUP BY s.team_key, t.team_name
+        ORDER BY COUNT(*) DESC
+        LIMIT 1
+    """
+    team_result = execute_query(current_team_query, {
+        'player_key': player_key,
+        'last_season': player['last_seen_season']
+    })
+
+    if team_result:
+        player['current_team_key'] = team_result[0]['team_key']
+        player['current_team_name'] = team_result[0]['team_name']
+    else:
+        player['current_team_key'] = None
+        player['current_team_name'] = None
+
+    return PlayerDetail(**player)
 
 
 @router.get(

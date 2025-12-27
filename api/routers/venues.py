@@ -16,45 +16,30 @@ from api.models.schemas import (
     ErrorResponse
 )
 from api.dependencies import execute_query
-from etl.database import db
-import json
-import os
-import glob
 
 router = APIRouter(prefix="/venues", tags=["venues"])
 
 
 def get_current_machines_for_venue(venue_key: str) -> List[str]:
     """
-    Get the current machine lineup for a venue by checking the most recent match.
-    Returns list of machine keys that are currently at this venue.
+    Get the current machine lineup for a venue from the database.
+    Returns list of machine keys from the most recent season where this venue has data.
     """
-    # Path to season 22 matches (most recent season)
-    matches_path = "mnp-data-archive/season-22/matches"
-
     try:
-        # Get all match files for this venue
-        match_files = glob.glob(f"{matches_path}/*.json")
-
-        # Find the most recent match that has this venue
-        most_recent_match = None
-        highest_week = -1
-
-        for match_file in match_files:
-            with open(match_file, 'r') as f:
-                match_data = json.load(f)
-                if match_data.get('venue', {}).get('key') == venue_key:
-                    week = int(match_data.get('week', 0))
-                    if week > highest_week:
-                        highest_week = week
-                        most_recent_match = match_data
-
-        if most_recent_match and 'venue' in most_recent_match and 'machines' in most_recent_match['venue']:
-            return most_recent_match['venue']['machines']
-
-        return []
-    except Exception as e:
-        # If we can't determine current machines, return empty list
+        # Get machines from the most recent season for this venue
+        query = """
+            SELECT vm.machine_key
+            FROM venue_machines vm
+            WHERE vm.venue_key = :venue_key
+            AND vm.season = (
+                SELECT MAX(season) FROM venue_machines WHERE venue_key = :venue_key
+            )
+            AND vm.active = true
+            ORDER BY vm.machine_key
+        """
+        results = execute_query(query, {'venue_key': venue_key})
+        return [row['machine_key'] for row in results]
+    except Exception:
         return []
 
 
@@ -65,8 +50,7 @@ def get_current_machines_for_venue(venue_key: str) -> List[str]:
     description="Get a paginated list of all venues with optional filtering"
 )
 def list_venues(
-    city: Optional[str] = Query(None, description="Filter by city"),
-    state: Optional[str] = Query(None, description="Filter by state"),
+    neighborhood: Optional[str] = Query(None, description="Filter by neighborhood"),
     search: Optional[str] = Query(None, description="Search venue names (case-insensitive)"),
     limit: int = Query(100, ge=1, le=500, description="Number of results to return"),
     offset: int = Query(0, ge=0, description="Number of results to skip")
@@ -76,20 +60,16 @@ def list_venues(
 
     Example queries:
     - `/venues` - All venues
-    - `/venues?city=Seattle` - All Seattle venues
+    - `/venues?neighborhood=Ballard` - All Ballard venues
     - `/venues?search=Tavern` - Search for "Tavern" venues
     """
     # Build WHERE clauses
     where_clauses = []
     params = {}
 
-    if city:
-        where_clauses.append("LOWER(v.city) = LOWER(:city)")
-        params['city'] = city
-
-    if state:
-        where_clauses.append("LOWER(v.state) = LOWER(:state)")
-        params['state'] = state
+    if neighborhood:
+        where_clauses.append("LOWER(v.neighborhood) = LOWER(:neighborhood)")
+        params['neighborhood'] = neighborhood
 
     if search:
         where_clauses.append("LOWER(v.venue_name) LIKE LOWER(:search)")
@@ -104,7 +84,7 @@ def list_venues(
 
     # Get paginated results
     query = f"""
-        SELECT venue_key, venue_name, city, state
+        SELECT venue_key, venue_name, address, neighborhood
         FROM venues v
         WHERE {where_clause}
         ORDER BY venue_name
@@ -130,8 +110,7 @@ def list_venues(
 )
 def list_venues_with_stats(
     season: Optional[int] = Query(None, description="Filter home teams by season (defaults to most recent)"),
-    city: Optional[str] = Query(None, description="Filter by city"),
-    state: Optional[str] = Query(None, description="Filter by state"),
+    neighborhood: Optional[str] = Query(None, description="Filter by neighborhood"),
     search: Optional[str] = Query(None, description="Search venue names (case-insensitive)"),
     limit: int = Query(100, ge=1, le=500, description="Number of results to return"),
     offset: int = Query(0, ge=0, description="Number of results to skip")
@@ -148,13 +127,9 @@ def list_venues_with_stats(
     where_clauses = []
     params = {}
 
-    if city:
-        where_clauses.append("LOWER(v.city) = LOWER(:city)")
-        params['city'] = city
-
-    if state:
-        where_clauses.append("LOWER(v.state) = LOWER(:state)")
-        params['state'] = state
+    if neighborhood:
+        where_clauses.append("LOWER(v.neighborhood) = LOWER(:neighborhood)")
+        params['neighborhood'] = neighborhood
 
     if search:
         where_clauses.append("LOWER(v.venue_name) LIKE LOWER(:search)")
@@ -169,7 +144,7 @@ def list_venues_with_stats(
 
     # Get paginated venues
     query = f"""
-        SELECT venue_key, venue_name, city, state
+        SELECT venue_key, venue_name, address, neighborhood
         FROM venues v
         WHERE {where_clause}
         ORDER BY venue_name
@@ -221,8 +196,8 @@ def list_venues_with_stats(
         enriched_venues.append(VenueWithStats(
             venue_key=venue_key,
             venue_name=venue['venue_name'],
-            city=venue.get('city'),
-            state=venue.get('state'),
+            address=venue.get('address'),
+            neighborhood=venue.get('neighborhood'),
             machine_count=machine_count,
             home_teams=home_teams
         ))
@@ -252,9 +227,8 @@ def get_venue(venue_key: str):
         SELECT
             v.venue_key,
             v.venue_name,
-            v.city,
-            v.state,
-            v.address
+            v.address,
+            v.neighborhood
         FROM venues v
         WHERE v.venue_key = :venue_key
     """
@@ -263,7 +237,20 @@ def get_venue(venue_key: str):
     if not venues:
         raise HTTPException(status_code=404, detail=f"Venue '{venue_key}' not found")
 
-    return VenueDetail(**venues[0])
+    # Get home teams for this venue (from most recent season)
+    season_query = "SELECT MAX(season) as max_season FROM teams"
+    season_result = execute_query(season_query, {})
+    season = season_result[0]['max_season'] if season_result and season_result[0]['max_season'] else 22
+
+    home_teams_query = """
+        SELECT team_key, team_name, season
+        FROM teams
+        WHERE home_venue_key = :venue_key AND season = :season
+    """
+    home_teams_result = execute_query(home_teams_query, {'venue_key': venue_key, 'season': season})
+    home_teams = [VenueHomeTeam(**team) for team in home_teams_result]
+
+    return VenueDetail(**venues[0], home_teams=home_teams)
 
 
 @router.get(
