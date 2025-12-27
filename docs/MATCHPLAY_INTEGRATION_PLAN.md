@@ -11,6 +11,32 @@ This document outlines the integration of Matchplay.events data into the MNP app
 
 ---
 
+## Data Window: Past 1 Year
+
+**Important**: Machine statistics from Matchplay are filtered to the **past 1 year (365 days)** of data.
+
+### Rationale
+- Player skill evolves over time - data from 5 years ago is less relevant than recent performance
+- Ensures machine familiarity stats reflect current experience
+- Reduces API calls by stopping pagination when reaching the cutoff date
+- Balances comprehensive coverage with data relevance
+
+### What This Affects
+- **Machine Stats**: Games played, wins, and win percentages are calculated from past 1 year only
+- **Not Affected**: Matchplay ratings (always current), IFPA data, profile info
+
+### Configuration
+The lookback period is configured in `api/services/matchplay_client.py`:
+```python
+MATCHPLAY_DATA_LOOKBACK_DAYS = 365  # 1 year
+```
+
+### Potential MNP Data Duplication
+Use `/matchplay/investigate/mnp-tournaments` to check if MNP match data is uploaded to Matchplay.
+If so, machine statistics may include both MNP and external tournament data.
+
+---
+
 ## Key Decisions (Resolved)
 
 | Question | Decision |
