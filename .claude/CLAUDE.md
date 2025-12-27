@@ -468,6 +468,28 @@ else:
 - `matchplay_client.py` - Client for Matchplay.events API
 - `player_matcher.py` - Match player names across data sources
 
+### Matchplay Integration
+
+The app integrates with Matchplay.events to fetch player ratings and machine statistics.
+
+**Key Details:**
+- **Data Window**: Machine statistics are filtered to the **past 1 year (365 days)** of data
+- **Rationale**: Player skill evolves - older tournament data is less relevant than recent performance
+- **What's Filtered**: Games played, wins, win percentages per machine
+- **Not Filtered**: Matchplay ratings (always current), IFPA data, profile info
+
+**Key Endpoints:**
+- `GET /matchplay/player/{key}/stats?refresh=true` - Get stats (refresh=true fetches fresh data from past 1 year)
+- `POST /matchplay/player/{key}/refresh-machine-stats` - Force refresh machine stats
+- `GET /matchplay/investigate/mnp-tournaments` - Check for MNP data duplication in Matchplay
+
+**Configuration** (in `api/services/matchplay_client.py`):
+```python
+MATCHPLAY_DATA_LOOKBACK_DAYS = 365  # 1 year
+```
+
+**Potential Duplication**: MNP match data may be uploaded to Matchplay. Use the investigation endpoint to check. If found, machine stats may include both MNP and external tournament data.
+
 ---
 
 ## Documentation Index
