@@ -132,11 +132,25 @@ Visit http://localhost:8000/docs for API documentation and http://localhost:3000
 
 ## 📚 Documentation
 
-- **[Setup Guide](mnp-app-docs/DATABASE_OPERATIONS.md)** - Detailed setup and database operations
-- **[API Documentation](mnp-app-docs/api/endpoints.md)** - Full API endpoint reference
-- **[Report Generation Guide](reports/README.md)** - How to generate analysis reports
-- **[Design System](frontend/DESIGN_SYSTEM.md)** - Frontend component patterns
-- **[Deployment Guide](mnp-app-docs/DEPLOYMENT_CHECKLIST.md)** - Deploy your own instance
+### For Developers & AI Assistants
+- **[.claude/CLAUDE.md](.claude/CLAUDE.md)** - LLM context & essential project info
+- **[.claude/DEVELOPMENT_GUIDE.md](.claude/DEVELOPMENT_GUIDE.md)** - Complete development workflows
+- **[.claude/PROJECT_STRUCTURE.md](.claude/PROJECT_STRUCTURE.md)** - Detailed directory structure
+- **[.claude/DATA_CONVENTIONS.md](.claude/DATA_CONVENTIONS.md)** - MNP-specific data patterns
+
+### Operations & Deployment
+- **[mnp-app-docs/DATABASE_OPERATIONS.md](mnp-app-docs/DATABASE_OPERATIONS.md)** - Database setup and operations
+- **[mnp-app-docs/DEPLOYMENT_CHECKLIST.md](mnp-app-docs/DEPLOYMENT_CHECKLIST.md)** - Deploy your own instance
+- **[DATA_UPDATE_STRATEGY.md](DATA_UPDATE_STRATEGY.md)** - Weekly data update guide
+
+### API & Frontend
+- **[mnp-app-docs/api/endpoints.md](mnp-app-docs/api/endpoints.md)** - Full API endpoint reference
+- **[frontend/DESIGN_SYSTEM.md](frontend/DESIGN_SYSTEM.md)** - Frontend component patterns
+
+### Data Structure Reference
+- **[MNP_Data_Structure_Reference.md](MNP_Data_Structure_Reference.md)** - Match data overview
+- **[MNP_Match_Data_Analysis_Guide.md](MNP_Match_Data_Analysis_Guide.md)** - Analysis methodology
+- **[machine_variations.json](machine_variations.json)** - Machine name lookups
 
 ## 🏗️ Project Structure
 
