@@ -178,37 +178,51 @@ export default function MatchupsPage() {
         </Alert>
       )}
 
-      {/* Selection Form */}
-      <Card>
-        <Card.Header>
-          <Card.Title>Select Match</Card.Title>
-          <p className="text-sm text-gray-500 mt-1">
-            {isOffSeason
-              ? 'Browse completed matches from the season'
-              : 'Choose from the official league schedule'}
+      {/* No Matches Available */}
+      {!loadingMatches && matches.length === 0 && (
+        <Alert variant="info" title={`No Remaining Matchups in Season ${currentSeason}`}>
+          <p className="mb-2">
+            There are no scheduled matchups available for Season {currentSeason}.
           </p>
-        </Card.Header>
-        <Card.Content>
-          <Select
-            label={currentSeason ? `Season ${currentSeason} Matches` : 'Match'}
-            value={selectedMatch}
-            onChange={(e) => setSelectedMatch(e.target.value)}
-            disabled={loadingMatches || matches.length === 0}
-            options={[
-              { value: '', label: loadingMatches ? 'Loading matches...' : 'Select a match' },
-              ...Object.entries(matchesByWeek).flatMap(([week, weekMatches]) => [
-                {
-                  value: `week-${week}`,
-                  label: `─── Week ${week} ───`,
-                  disabled: true,
-                },
-                ...weekMatches.map((match) => ({
-                  value: match.match_key,
-                  label: `${match.away_name} @ ${match.home_name} (${match.venue.name})`,
-                })),
-              ]),
-            ]}
-          />
+          <p className="text-sm">
+            This typically happens between seasons or after all matches have been completed.
+            Check back when the next season begins, or explore historical data from previous seasons.
+          </p>
+        </Alert>
+      )}
+
+      {/* Selection Form */}
+      {!loadingMatches && matches.length > 0 && (
+        <Card>
+          <Card.Header>
+            <Card.Title>Select Match</Card.Title>
+            <p className="text-sm text-gray-500 mt-1">
+              {isOffSeason
+                ? 'Browse completed matches from the season'
+                : 'Choose from the official league schedule'}
+            </p>
+          </Card.Header>
+          <Card.Content>
+            <Select
+              label={currentSeason ? `Season ${currentSeason} Matches` : 'Match'}
+              value={selectedMatch}
+              onChange={(e) => setSelectedMatch(e.target.value)}
+              disabled={loadingMatches}
+              options={[
+                { value: '', label: 'Select a match' },
+                ...Object.entries(matchesByWeek).flatMap(([week, weekMatches]) => [
+                  {
+                    value: `week-${week}`,
+                    label: `─── Week ${week} ───`,
+                    disabled: true,
+                  },
+                  ...weekMatches.map((match) => ({
+                    value: match.match_key,
+                    label: `${match.away_name} @ ${match.home_name} (${match.venue.name})`,
+                  })),
+                ]),
+              ]}
+            />
 
           <div className="mt-6">
             <Button
@@ -234,6 +248,7 @@ export default function MatchupsPage() {
           )}
         </Card.Content>
       </Card>
+      )}
 
       {/* Matchup Results */}
       {matchup && (
