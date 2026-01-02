@@ -49,9 +49,10 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
-# Environment files (contain secrets)
+# Environment files (NEVER commit these - they contain secrets!)
 .env
-.env.local
+.env.*
+!.env.example
 frontend/.env.local
 
 # Node.js
@@ -73,14 +74,26 @@ data/
 !config/*.json
 machine_score_stats.json
 
-# Analysis results
+# Analysis results (generated files)
 results/
 plots/
-reports/output
-
+reports/output/
+reports/output/*.md
 reports/charts/
+reports/charts/*.png
+!reports/output/.gitkeep
+!reports/charts/.gitkeep
 
 # SQLite databases (generated locally)
 *.db
 *.sqlite
 *.sqlite3
+
+# Python caching
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Private task tracking
+.tasks/

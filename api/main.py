@@ -10,6 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 import logging
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
 from api.routers import players, machines, venues, teams, matchups, seasons, predictions, matchplay
 
 # Configure logging
@@ -18,6 +22,10 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
 
 
 # Caching middleware
@@ -80,6 +88,10 @@ app = FastAPI(
     }
 )
 
+# Configure rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
@@ -104,7 +116,8 @@ app.include_router(matchplay.router)
 
 
 @app.get("/", tags=["root"])
-def read_root():
+@limiter.limit("120/minute")  # Lightweight endpoint - higher limit
+def read_root(request: Request):
     """
     API root endpoint - provides basic information and available endpoints
     """
@@ -173,7 +186,8 @@ def read_root():
 
 
 @app.get("/seasons", tags=["root"])
-def get_seasons():
+@limiter.limit("120/minute")  # Lightweight endpoint
+def get_seasons(request: Request):
     """
     Get all available seasons in the database
 
@@ -204,7 +218,8 @@ def get_seasons():
 
 
 @app.get("/health", tags=["root"])
-def health_check():
+@limiter.limit("300/minute")  # Health checks - very high limit
+def health_check(request: Request):
     """
     Health check endpoint for monitoring
     """
