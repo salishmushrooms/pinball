@@ -1,209 +1,257 @@
-# MNP Data Archive
+# Monday Night Pinball (MNP) Data Archive & Analytics
 
-This repository contains data from the Monday Night Pinball (MNP) starting with season 14. The data is organized by season and includes match results, machine information, and other league data.
+A comprehensive data analysis platform for Monday Night Pinball league matches, providing statistical insights, score predictions, and performance analytics.
 
-## Directory Structure
+## 🎯 What is This?
 
-```
-mnp-data-archive/
-├── season-XX/           # Data for each season
-│   └── matches/        # Match JSON files
-├── machines.json       # Machine definitions and names
-├── venues.json        # Venue information
-└── IPR.csv           # Individual Player Ratings
-└── matches.csv      # 10 weeks of matchups using team key
- 
-```
+This project visualizes MNP league data to help players and teams:
+- **Understand machine score distribution** through score percentiles
+- **Track player performance** across different machines and venues
+- **Predict player machine choices**
+- **Compare teams** and predict match outcomes
+- **Analyze trends** in machine selection and home venue advantage
 
-## Match Structure
+## 🌐 Live API
 
-Matches are played between two league teams during the regular season (not playoffs) at one of the team's home venues. Each team plays 5 home and 5 away matches per season.
+The API is publicly available for read-only access:
 
-### Match Format
+- **API Base URL**: https://pinball-production.up.railway.app
+- **Interactive Docs**: https://pinball-production.up.railway.app/docs
+- **ReDoc**: https://pinball-production.up.railway.app/redoc
 
-A match consists of four rounds with the following structure:
+### Quick API Examples
 
-#### Pre-Match (8:15pm)
-- Captains from both teams declare lineups
-- Captains confirm each other's lineups
+```bash
+# Get all available seasons
+curl https://pinball-production.up.railway.app/seasons
 
-#### Round 1 (Doubles)
-- Away team picks 4 machines and 4 pairs of players [8:15pm]
-- Home team picks 4 pairs of players to match up [8:20pm]
-- Four-player games on chosen machines (Players 1,3: away team; 2,4: home team) [8:30pm]
-- Scores and photos entered
-- Captains review and confirm round
-- Expected duration: 30 minutes
+# Search for players
+curl https://pinball-production.up.railway.app/players?search=smith
 
-#### Round 2 (Singles)
-- Home team picks 7 machines and 7 players [8:50pm]
-- Away team picks 7 players to match up [8:55pm]
-- Two-player games on chosen machines [9:05pm]
-- Scores and photos entered
-- Captains review and confirm round
-- Expected duration: 20 minutes
+# Get machine percentiles
+curl "https://pinball-production.up.railway.app/machines/MM/percentiles?seasons=22"
 
-#### Round 3 (Singles)
-- Away team picks 7 machines and 7 players [9:35pm]
-- Home team picks 7 players to match up [9:40pm]
-- Two-player games on chosen machines [9:50pm]
-- Scores and photos entered
-- Captains review and confirm round
-- Expected duration: 20 minutes
-
-#### Round 4 (Doubles)
-- Home team picks 4 machines and 4 pairs of players [10:20pm]
-- Away team picks 4 pairs of players to match up [10:25pm]
-- Four-player games on chosen machines (Players 1,3: home team; 2,4: away team) [10:35pm]
-- Scores and photos entered
-- Captains review and confirm round [11:05pm]
-- Expected duration: 30 minutes
-
-### Scoring System
-
-#### Doubles Games (5 points total)
-- 1 point for each opponent's score beaten
-- 1 additional point for the team with highest combined score
-
-#### Singles Games (3 points total)
-- 2 points awarded to the player with higher score
-- 1 additional point awarded to the winner if their score is double the loser's score
-- 1 point awarded to the loser if their score was not doubled
-
-## JSON File Structure
-
-### Match Files (mnp-XX-YY-TEAM1-TEAM2.json)
-
-```json
-{
-  "key": "mnp-21-1-ADB-JMF",
-  "name": "WK1 ADB @ JMF",
-  "type": "manual",
-  "week": "1",
-  "round": 4,
-  "create_at": 1738448652376,
-  "date": "02/03/2025",
-  "state": "complete",
-  "venue": {
-    "key": "JUP",
-    "name": "Jupiter",
-    "machines": ["UXMEN", "Getaway", ...]
-  },
-  "away": {
-    "name": "Admiraballs",
-    "key": "ADB",
-    "captains": [...],
-    "lineup": [...],
-    "ready": true,
-    "confirmed": {...}
-  },
-  "home": {
-    "name": "Middle Flippers",
-    "key": "JMF",
-    "captains": [...],
-    "lineup": [...],
-    "ready": true,
-    "confirmed": {...}
-  },
-  "rounds": [
-    {
-      "n": 1,
-      "games": [
-        {
-          "n": 1,
-          "machine": "VEN",
-          "player_1": "...",
-          "player_2": "...",
-          "player_3": "...",
-          "player_4": "...",
-          "done": true,
-          "photos": [...],
-          "score_1": 99337870,
-          "score_2": 26798880,
-          "score_3": 50205800,
-          "score_4": 19860680,
-          "points_1": 2.5,
-          "points_2": 0,
-          "points_3": 2.5,
-          "points_4": 0,
-          "score_13": 149543670,
-          "score_24": 46659560,
-          "points_13": 5,
-          "points_24": 0,
-          "away_points": 5,
-          "home_points": 0
-        }
-      ],
-      "done": true,
-      "right_confirmed": {...},
-      "left_confirmed": {...}
-    }
-  ]
-}
+# Get team matchup predictions
+curl "https://pinball-production.up.railway.app/matchups/analyze?team1=SKP&team2=TRL&season=22"
 ```
 
-### Key Fields in Match Files
+**API Usage Guidelines:**
+- Free to use for personal projects, research, and education
+- Read-only access (no authentication required)
+- Rate limited to prevent abuse
+- Please be respectful of server resources
+- For high-volume usage, consider deploying your own instance
 
-- `key`: Unique identifier for the match (format: mnp-SEASON-WEEK-TEAM1-TEAM2)
-- `name`: Human-readable match name
-- `type`: Match type (manual, playoff, etc.)
-- `week`: Week number in the season
-- `round`: Round number in the season
-- `date`: Match date
-- `state`: Match state (complete, in_progress, etc.)
-- `venue`: Venue information including available machines
-- `away`/`home`: Team information including:
-  - `name`: Team name
-  - `key`: Team identifier
-  - `captains`: List of team captains
-  - `lineup`: List of players with their details
-  - `ready`: Team ready status
-  - `confirmed`: Confirmation details
-- `rounds`: Array of match rounds, each containing:
-  - `n`: Round number
-  - `games`: Array of games played in the round
-  - `done`: Round completion status
-  - `right_confirmed`/`left_confirmed`: Confirmation details
+## ✨ Features
 
-### Game Structure
+### 📊 Web Application (Next.js)
+- Browse players, teams, machines, and venues
+- Multi-season analysis and filtering
+- Interactive score distributions
+- Team matchup predictions
 
-Each game in a round contains:
-- `n`: Game number
-- `machine`: Machine identifier
-- `player_1` through `player_4`: Player identifiers (4 players for doubles, 2 for singles)
-- `done`: Game completion status
-- `photos`: Array of score photos
-- `score_1` through `score_4`: Individual player scores
-- `points_1` through `points_4`: Points awarded to each player
-- `score_13`/`score_24`: Combined scores for doubles games
-- `points_13`/`points_24`: Points awarded to each pair
-- `away_points`/`home_points`: Total points awarded to each team for the game
+### 🔌 REST API (FastAPI)
+- **Player Stats**: Individual performance, machine-specific stats
+- **Machine Data**: Score percentiles, difficulty analysis
+- **Team Analysis**: Matchup predictions, machine selection patterns
+- **Venue Stats**: Home advantage analysis
+- **Matchplay Integration**: External tournament data integration
 
-## Machine Definitions
+### 📈 Report Generators (Python)
+- Score percentile analysis with visualizations
+- Venue-specific performance reports
+- Home advantage calculations
+- Team comparison reports
+- Machine selection pattern analysis
 
-The `machines.json` file contains a mapping of machine keys to their full names:
+## 🚀 Quick Start
 
-```json
-{
-  "TAF": {
-    "key": "TAF",
-    "name": "The Addams Family"
-  },
-  "AIQ": {
-    "key": "AIQ",
-    "name": "Avengers Infinity Quest"
-  }
-  // ... more machines
-}
+### Prerequisites
+- Python 3.12+
+- PostgreSQL 15+
+- Node.js 18+ (for frontend)
+- Conda (recommended for Python environment)
+
+### Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/mnp-data-archive.git
+   cd mnp-data-archive
+   git submodule update --init --recursive
+   ```
+
+2. **Set up Python environment**
+   ```bash
+   conda create -n mnp python=3.12
+   conda activate mnp
+   pip install -r requirements.txt
+   ```
+
+3. **Set up PostgreSQL database**
+   ```bash
+   # Create database and user
+   psql -U postgres
+   CREATE DATABASE mnp_analyzer;
+   CREATE USER mnp_user WITH PASSWORD 'your_password';
+   GRANT ALL PRIVILEGES ON DATABASE mnp_analyzer TO mnp_user;
+   ```
+
+4. **Configure environment variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your database credentials
+   ```
+
+5. **Load data**
+   ```bash
+   # Apply schema
+   psql -h localhost -U mnp_user -d mnp_analyzer -f schema/001_complete_schema.sql
+
+   # Load season data
+   python etl/load_season.py --season 22
+
+   # Calculate aggregates
+   python etl/calculate_percentiles.py
+   python etl/calculate_player_stats.py
+   ```
+
+6. **Start the API**
+   ```bash
+   uvicorn api.main:app --reload --port 8000
+   ```
+
+7. **Start the frontend** (optional)
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+Visit http://localhost:8000/docs for API documentation and http://localhost:3000 for the web interface.
+
+## 📚 Documentation
+
+- **[Setup Guide](mnp-app-docs/DATABASE_OPERATIONS.md)** - Detailed setup and database operations
+- **[API Documentation](mnp-app-docs/api/endpoints.md)** - Full API endpoint reference
+- **[Report Generation Guide](reports/README.md)** - How to generate analysis reports
+- **[Design System](frontend/DESIGN_SYSTEM.md)** - Frontend component patterns
+- **[Deployment Guide](mnp-app-docs/DEPLOYMENT_CHECKLIST.md)** - Deploy your own instance
+
+## 🏗️ Project Structure
+
+```
+MNP/
+├── api/                    # FastAPI backend
+│   ├── routers/           # API endpoints
+│   ├── services/          # Business logic
+│   └── models/            # Pydantic schemas
+├── frontend/              # Next.js frontend
+│   ├── app/              # App router pages
+│   ├── components/       # React components
+│   └── lib/              # API client & types
+├── etl/                   # Data pipeline
+│   ├── load_season.py    # Load match data
+│   ├── calculate_*.py    # Aggregate calculations
+│   └── parsers/          # Data parsers
+├── reports/               # Analysis & report generation
+│   ├── generators/       # Python report scripts
+│   ├── configs/          # Report configurations
+│   └── output/           # Generated reports (gitignored)
+├── schema/                # Database schema & migrations
+├── mnp-data-archive/     # League data (git submodule)
+│   ├── season-XX/        # Match data by season
+│   ├── machines.json     # Machine definitions
+│   ├── venues.json       # Venue information
+│   └── IPR.csv          # Individual Player Ratings
+└── mnp-app-docs/         # Comprehensive documentation
 ```
 
-## Venue Information
+## 🛠️ Technology Stack
 
-The `venues.json` file contains information about venues where matches are played, including:
-- Venue name and identifier
-- Available machines
-- Other venue-specific details
+**Backend:**
+- FastAPI (Python 3.12)
+- PostgreSQL 15
+- SQLAlchemy ORM
 
-## Individual Player Ratings
+**Frontend:**
+- Next.js 16
+- React 19
+- TypeScript
+- Tailwind CSS v4
 
-The `IPR.csv` file contains Individual Player Ratings for all players in the league, which are used for team balancing and match organization.
+**Deployment:**
+- Railway (API + Database)
+- Vercel (Frontend)
+
+**Data Processing:**
+- Python scripts for ETL
+- Matplotlib for visualizations
+
+## 📊 Data
+
+The project includes match data from Monday Night Pinball seasons 14-22:
+- **943 matches** across 9 seasons
+- **56,504 individual scores**
+- **938 players**
+- **400+ pinball machines**
+- **Multiple venues** across the Seattle area
+
+Data is stored in the `mnp-data-archive` git submodule. To update:
+```bash
+git submodule update --remote mnp-data-archive
+```
+
+## 🔐 Security & Privacy
+
+- This project contains **public league data** only (no personal information beyond player names)
+- **Never commit** `.env` files or API tokens
+- Production credentials managed via Railway/Vercel environment variables
+- To report security issues: [create an issue](https://github.com/yourusername/mnp-data-archive/issues)
+
+## 🤝 Contributing
+
+Contributions welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+For major changes, please open an issue first to discuss.
+
+## 📈 Report Generation
+
+Generate analysis reports using Python scripts:
+
+```bash
+# Score percentile analysis
+python reports/generators/score_percentile_report.py reports/configs/4bs_machines_config.json
+
+# Team comparison
+python reports/generators/team_machine_comparison_report.py reports/configs/trolls_vs_slapkrakenpop_config.json
+
+# Venue summary
+python reports/generators/venue_summary_report.py reports/configs/venue_summary_config.json
+```
+
+See [reports/README.md](reports/README.md) for all available generators.
+
+## 🎮 Related Projects
+
+- **[Pin Stats iOS App](https://github.com/salishmushrooms/pinstats)** - iOS companion app for viewing MNP analytics
+
+## 📜 License
+
+MIT License - see [LICENSE](LICENSE) file for details
+
+## 🙏 Acknowledgments
+
+- Monday Night Pinball league organizers and players
+- [Matchplay.events](https://matchplay.events) for tournament management platform
+- IFPA for player rating systems
+
+---
+
+**Questions?** Open an issue or check the [documentation](mnp-app-docs/)
+
+**Want to analyze your own league data?** This project is designed to be adaptable - see [DATABASE_OPERATIONS.md](mnp-app-docs/DATABASE_OPERATIONS.md) for guidance.
