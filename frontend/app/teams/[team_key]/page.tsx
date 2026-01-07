@@ -170,8 +170,11 @@ export default function TeamDetailPage() {
 
       switch (rosterSortBy) {
         case 'player_name':
-          aVal = a.player_name.toLowerCase();
-          bVal = b.player_name.toLowerCase();
+          // Extract first name (first word) for sorting
+          const aFirstName = a.player_name.split(' ')[0].toLowerCase();
+          const bFirstName = b.player_name.split(' ')[0].toLowerCase();
+          aVal = aFirstName;
+          bVal = bFirstName;
           break;
         case 'current_ipr':
           aVal = a.current_ipr ?? 0;
@@ -245,7 +248,22 @@ export default function TeamDetailPage() {
         </Link>
         <PageHeader
           title={team.team_name}
-          description={`Season ${team.season}${team.home_venue_key ? ` • Home Venue: ${team.home_venue_key}` : ''}`}
+          description={
+            <span>
+              Season {team.season}
+              {team.home_venue_key && team.home_venue_name && (
+                <>
+                  {' • Home Venue: '}
+                  <Link
+                    href={`/venues/${team.home_venue_key}`}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    {team.home_venue_name}
+                  </Link>
+                </>
+              )}
+            </span>
+          }
         />
       </div>
 
