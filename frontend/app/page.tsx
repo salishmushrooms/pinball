@@ -88,7 +88,7 @@ export default function Home() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="MNP Analyzer"
+        title="Seattle MNP Data"
         description="Monday Night Pinball Data Analysis Platform"
       />
 
