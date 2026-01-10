@@ -11,6 +11,7 @@ interface StatCardProps {
   icon?: React.ReactNode;
   className?: string;
   tooltip?: string;
+  footnote?: string;
   href?: string;
 }
 
@@ -22,6 +23,7 @@ export function StatCard({
   icon,
   className,
   tooltip,
+  footnote,
   href,
 }: StatCardProps) {
   const trendColors = {
@@ -55,6 +57,14 @@ export function StatCard({
       >
         {value}
       </div>
+      {footnote && (
+        <div
+          className="text-xs mt-1"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          * {footnote}
+        </div>
+      )}
       {trend && (
         <div className={cn('text-sm mt-2', trendColors[trendDirection])}>
           {trend}
