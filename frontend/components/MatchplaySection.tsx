@@ -6,6 +6,7 @@ import {
   MatchplayLookupResult,
   MatchplayPlayerStats,
   MatchplayMatch,
+  MatchplayUser,
 } from '@/lib/types';
 import {
   Card,
@@ -15,6 +16,7 @@ import {
   Button,
   Table,
   Badge,
+  Tooltip,
 } from '@/components/ui';
 
 interface MatchplaySectionProps {
@@ -30,6 +32,13 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
   const [linkingUserId, setLinkingUserId] = useState<number | null>(null);
   const [unlinking, setUnlinking] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+
+  // Manual search state
+  const [manualSearchMode, setManualSearchMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [waFilterEnabled, setWaFilterEnabled] = useState(true);
+  const [searchResults, setSearchResults] = useState<MatchplayUser[]>([]);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     fetchMatchplayData();
@@ -71,6 +80,35 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
     }
   }
 
+  async function handleManualSearch() {
+    if (!searchQuery.trim() || searchQuery.trim().length < 2) {
+      setError('Please enter at least 2 characters to search');
+      return;
+    }
+
+    setSearching(true);
+    setError(null);
+    setSearchResults([]);
+
+    try {
+      const locationFilter = waFilterEnabled ? 'Washington' : undefined;
+      const result = await api.searchMatchplayUsers(searchQuery.trim(), locationFilter);
+      setSearchResults(result.users);
+      if (result.users.length === 0) {
+        setError(
+          waFilterEnabled
+            ? `No Washington State players found matching "${searchQuery}". Try disabling the WA filter.`
+            : `No players found matching "${searchQuery}".`
+        );
+      }
+    } catch (err) {
+      console.error('Manual search error:', err);
+      setError(err instanceof Error ? err.message : 'Search failed');
+    } finally {
+      setSearching(false);
+    }
+  }
+
   async function handleLink(matchplayUserId: number) {
     // Prevent double-clicks
     if (linkingUserId !== null) return;
@@ -87,6 +125,11 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
       if (linkResponse.status === 'already_linked') {
         console.log('Player was already linked (possibly from another tab/request)');
       }
+
+      // Clear manual search state
+      setManualSearchMode(false);
+      setSearchQuery('');
+      setSearchResults([]);
 
       // Update state directly with the response - don't re-fetch as there may be a race condition
       setLookupResult({
@@ -151,6 +194,20 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
     }
   }
 
+  function enterManualSearch() {
+    setManualSearchMode(true);
+    setSearchQuery('');
+    setSearchResults([]);
+    setError(null);
+  }
+
+  function exitManualSearch() {
+    setManualSearchMode(false);
+    setSearchQuery('');
+    setSearchResults([]);
+    setError(null);
+  }
+
   if (loading) {
     return (
       <Card>
@@ -164,7 +221,7 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
     );
   }
 
-  if (error) {
+  if (error && !manualSearchMode && !searchResults.length) {
     return (
       <Card>
         <Card.Header>
@@ -222,6 +279,7 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
                     ? `${stats.rating.rating.toLocaleString()} ± ${(stats.rating.rd * 2)}`
                     : stats.rating?.rating?.toLocaleString() ?? 'N/A'
                 }
+                tooltip="Glicko rating system score with Rating Deviation (RD). Higher rating = stronger player. RD shows uncertainty in rating."
               />
               <StatCard
                 label="Lower Bound"
@@ -230,6 +288,7 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
                     ? (stats.rating.rating - stats.rating.rd * 2).toLocaleString()
                     : stats.rating?.lower_bound?.toLocaleString() ?? 'N/A'
                 }
+                tooltip="95% confidence interval lower bound - your rating is very likely above this value"
               />
               <StatCard
                 label="Win Rate"
@@ -238,10 +297,12 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
                     ? `${(stats.rating.efficiency_percent * 100).toFixed(1)}%`
                     : 'N/A'
                 }
+                tooltip="Percentage of games won on Matchplay.events"
               />
               <StatCard
                 label="IFPA Rank"
                 value={stats.ifpa?.rank ? `#${stats.ifpa.rank.toLocaleString()}` : 'N/A'}
+                tooltip="International Flipper Pinball Association world ranking"
               />
             </div>
 
@@ -250,27 +311,34 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
               <StatCard
                 label="Tournaments"
                 value={stats.tournament_count?.toLocaleString() ?? 'N/A'}
+                tooltip="Total tournaments played on Matchplay.events"
               />
               <StatCard
                 label="Games Played"
                 value={stats.rating?.game_count?.toLocaleString() ?? 'N/A'}
+                tooltip="Total games played on Matchplay.events"
               />
               <StatCard
                 label="Wins"
                 value={stats.rating?.win_count?.toLocaleString() ?? 'N/A'}
+                tooltip="Total games won on Matchplay.events"
               />
               <StatCard
                 label="Losses"
                 value={stats.rating?.loss_count?.toLocaleString() ?? 'N/A'}
+                tooltip="Total games lost on Matchplay.events"
               />
             </div>
 
             {/* Machine Stats */}
             {stats.machine_stats && stats.machine_stats.length > 0 && (
               <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">
-                  Machine Performance (Matchplay)
-                </h4>
+                <div className="flex items-center gap-2 mb-3">
+                  <h4 className="text-sm font-semibold text-gray-700">
+                    Machine Performance (Matchplay)
+                  </h4>
+                  <Tooltip content="Machine stats show data from the past 1 year (365 days) only" iconSize={12} />
+                </div>
                 <Table>
                   <Table.Header>
                     <Table.Row hoverable={false}>
@@ -324,6 +392,111 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
     );
   }
 
+  // Manual search mode
+  if (manualSearchMode) {
+    return (
+      <Card>
+        <Card.Header>
+          <div className="flex items-center justify-between">
+            <Card.Title>Matchplay.events - Manual Search</Card.Title>
+            <Button variant="ghost" size="sm" onClick={exitManualSearch}>
+              Back
+            </Button>
+          </div>
+        </Card.Header>
+        <Card.Content>
+          <div className="space-y-4">
+            {/* Search input and filter */}
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleManualSearch();
+                  }}
+                  placeholder="Enter player name..."
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleManualSearch}
+                  disabled={searching || !searchQuery.trim()}
+                >
+                  {searching ? 'Searching...' : 'Search'}
+                </Button>
+              </div>
+              <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={waFilterEnabled}
+                  onChange={(e) => setWaFilterEnabled(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                Washington State players only
+              </label>
+            </div>
+
+            {/* Error message */}
+            {error && (
+              <Alert variant="warning">
+                {error}
+              </Alert>
+            )}
+
+            {/* Search results */}
+            {searchResults.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600">
+                  Found {searchResults.length} player{searchResults.length !== 1 ? 's' : ''}:
+                </p>
+                {searchResults.map((user) => (
+                  <div
+                    key={user.userId}
+                    className="flex items-center justify-between p-3 border rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      {user.avatar && (
+                        <img
+                          src={user.avatar}
+                          alt=""
+                          className="w-10 h-10 rounded-full"
+                        />
+                      )}
+                      <div>
+                        <p className="font-medium">{user.name}</p>
+                        {user.location && (
+                          <p className="text-sm text-gray-500">{user.location}</p>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleLink(user.userId)}
+                      disabled={linkingUserId !== null}
+                    >
+                      {linkingUserId === user.userId ? 'Linking...' : 'Link'}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Empty state when no search yet */}
+            {!searching && searchResults.length === 0 && !error && (
+              <p className="text-sm text-gray-500">
+                Search for a player by name. Enable the Washington State filter to only show local players.
+              </p>
+            )}
+          </div>
+        </Card.Content>
+      </Card>
+    );
+  }
+
   // Player not linked - show lookup results or dismissed state
   return (
     <Card>
@@ -336,18 +509,36 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
             <p className="text-sm text-gray-600">
               No Matchplay.events account linked.
             </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setDismissed(false)}
-            >
-              Search Again
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setDismissed(false)}
+              >
+                Search Again
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={enterManualSearch}
+              >
+                Manual Search
+              </Button>
+            </div>
           </div>
         ) : lookupResult?.status === 'not_found' ? (
-          <Alert variant="warning">
-            No matching Matchplay accounts found for &quot;{playerName}&quot;.
-          </Alert>
+          <div className="space-y-3">
+            <Alert variant="warning">
+              No matching Matchplay accounts found for &quot;{playerName}&quot;.
+            </Alert>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={enterManualSearch}
+            >
+              Manual Search
+            </Button>
+          </div>
         ) : lookupResult?.matches && lookupResult.matches.length > 0 ? (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -355,13 +546,22 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
                 Found {lookupResult.matches.length} potential match
                 {lookupResult.matches.length !== 1 ? 'es' : ''} on Matchplay.events:
               </p>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setDismissed(true)}
-              >
-                Cancel
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDismissed(true)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={enterManualSearch}
+                >
+                  Manual Search
+                </Button>
+              </div>
             </div>
             <div className="space-y-3">
               {lookupResult.matches.map((match: MatchplayMatch) => (
@@ -405,9 +605,18 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
             </div>
           </div>
         ) : (
-          <Alert>
-            Search for this player on Matchplay.events to link their account.
-          </Alert>
+          <div className="space-y-3">
+            <Alert>
+              Search for this player on Matchplay.events to link their account.
+            </Alert>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={enterManualSearch}
+            >
+              Manual Search
+            </Button>
+          </div>
         )}
       </Card.Content>
     </Card>

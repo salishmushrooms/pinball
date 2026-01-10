@@ -9,7 +9,7 @@ import { RoundMultiSelect } from '@/components/RoundMultiSelect';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
 import { useDebouncedEffect } from '@/lib/hooks';
-import { Table, Card, PageHeader, FilterPanel, Alert, LoadingSpinner, WinPercentage } from '@/components/ui';
+import { Table, Card, PageHeader, FilterPanel, Alert, LoadingSpinner, WinPercentage, Breadcrumb } from '@/components/ui';
 import { SUPPORTED_SEASONS, filterSupportedSeasons, formatScore, cn } from '@/lib/utils';
 
 export default function TeamDetailPage() {
@@ -239,13 +239,12 @@ export default function TeamDetailPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Link
-          href="/teams"
-          className="text-sm mb-2 inline-block"
-          style={{ color: 'var(--text-link)' }}
-        >
-          ← Back to Teams
-        </Link>
+        <Breadcrumb
+          items={[
+            { label: 'Teams', href: '/teams' },
+            { label: team.team_name },
+          ]}
+        />
         <PageHeader
           title={team.team_name}
           description={

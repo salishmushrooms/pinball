@@ -47,6 +47,7 @@ import {
   MatchplayPlayerStats,
   MatchplayLinkResponse,
   MatchplayRatingsResponse,
+  MatchplayUserSearchResult,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -407,6 +408,20 @@ export const api = {
     return fetchAPI<MatchplayRatingsResponse>('/matchplay/players/ratings', {
       player_keys: playerKeys.join(','),
     });
+  },
+
+  /**
+   * Search Matchplay users with optional location filter
+   */
+  searchMatchplayUsers: (
+    query: string,
+    locationFilter?: string
+  ): Promise<MatchplayUserSearchResult> => {
+    const params: Record<string, string> = { query };
+    if (locationFilter) {
+      params.location_filter = locationFilter;
+    }
+    return fetchAPI<MatchplayUserSearchResult>('/matchplay/search/users', params);
   },
 };
 

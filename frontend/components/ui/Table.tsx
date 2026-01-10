@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { Tooltip } from './Tooltip';
 
 interface TableProps {
   children: React.ReactNode;
@@ -106,6 +107,7 @@ interface TableHeadProps {
   sortable?: boolean;
   onSort?: () => void;
   sortDirection?: 'asc' | 'desc' | null;
+  tooltip?: string;
 }
 
 export function TableHead({
@@ -114,6 +116,7 @@ export function TableHead({
   sortable,
   onSort,
   sortDirection,
+  tooltip,
 }: TableHeadProps) {
   return (
     <th
@@ -127,6 +130,7 @@ export function TableHead({
     >
       <div className="flex items-center gap-1">
         {children}
+        {tooltip && <Tooltip content={tooltip} iconSize={12} />}
         {sortable && (
           <span style={{ color: 'var(--text-muted)' }}>
             {sortDirection === 'asc' && '↑'}
