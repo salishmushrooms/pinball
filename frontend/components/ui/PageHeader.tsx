@@ -12,7 +12,7 @@ export function PageHeader({ title, description, className, action }: PageHeader
   return (
     <div className={cn('space-y-2', className)}>
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{title}</h1>
+        <h1 className="text-3xl md:text-4xl font-bold" style={{ color: 'var(--text-primary)' }}>{title}</h1>
         {action && <div>{action}</div>}
       </div>
       {description && <div style={{ color: 'var(--text-secondary)' }}>{description}</div>}

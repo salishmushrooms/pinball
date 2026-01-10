@@ -7,11 +7,12 @@ interface TableProps {
   children: React.ReactNode;
   className?: string;
   compact?: boolean;
+  stickyHeader?: boolean;
 }
 
-export function Table({ children, className, compact = false }: TableProps) {
+export function Table({ children, className, compact = false, stickyHeader = false }: TableProps) {
   return (
-    <div className="overflow-x-auto -mx-4 sm:mx-0">
+    <div className={cn('overflow-x-auto -mx-4 sm:mx-0', stickyHeader && 'max-h-[600px]')}>
       <table
         className={cn(
           'w-full divide-y',
