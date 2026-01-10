@@ -1,5 +1,4 @@
 import React from 'react';
-import { Card } from './Card';
 import { cn } from '@/lib/utils';
 
 interface StatCardProps {
@@ -26,17 +25,38 @@ export function StatCard({
   };
 
   return (
-    <Card className={className}>
-      <Card.Content className="text-center">
-        {icon && <div className="flex justify-center mb-2" style={{ color: 'var(--text-muted)' }}>{icon}</div>}
-        <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{label}</div>
-        <div className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{value}</div>
-        {trend && (
-          <div className={cn('text-sm mt-2', trendColors[trendDirection])}>
-            {trend}
-          </div>
-        )}
-      </Card.Content>
-    </Card>
+    <div
+      className={cn('rounded-lg p-4 text-center', className)}
+      style={{
+        backgroundColor: 'var(--color-primary-50)',
+        border: '1px solid var(--border-light)',
+      }}
+    >
+      {icon && (
+        <div
+          className="flex justify-center mb-2"
+          style={{ color: 'var(--color-primary-600)' }}
+        >
+          {icon}
+        </div>
+      )}
+      <div
+        className="text-xs font-medium uppercase tracking-wide mb-1"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        {label}
+      </div>
+      <div
+        className="text-2xl font-bold"
+        style={{ color: 'var(--color-primary-700)' }}
+      >
+        {value}
+      </div>
+      {trend && (
+        <div className={cn('text-sm mt-2', trendColors[trendDirection])}>
+          {trend}
+        </div>
+      )}
+    </div>
   );
 }
