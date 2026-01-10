@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Player } from '@/lib/types';
+import { Player, PlayerDashboardStats } from '@/lib/types';
 import {
   Card,
   PageHeader,
@@ -11,13 +11,33 @@ import {
   Alert,
   EmptyState,
   Table,
+  LoadingSpinner,
 } from '@/components/ui';
+import { PlayerDashboard, PlayerHighlightSlider } from '@/components/PlayerDashboard';
 
 export default function PlayersPage() {
   const [players, setPlayers] = useState<Player[]>([]);
+  const [dashboardStats, setDashboardStats] = useState<PlayerDashboardStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Fetch dashboard stats on mount
+  useEffect(() => {
+    async function fetchDashboardStats() {
+      try {
+        const stats = await api.getPlayerDashboardStats();
+        setDashboardStats(stats);
+      } catch (err) {
+        console.error('Failed to fetch dashboard stats:', err);
+      } finally {
+        setDashboardLoading(false);
+      }
+    }
+
+    fetchDashboardStats();
+  }, []);
 
   // Live search - fetch as user types (only when search term is not empty)
   useEffect(() => {
@@ -55,19 +75,23 @@ export default function PlayersPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Page Header */}
       <PageHeader
         title="Players"
         description="Browse and search player statistics"
       />
 
+      {/* Player Highlight Slider - shown above search when no search term */}
+      {!searchTerm.trim() && !dashboardLoading && dashboardStats?.player_highlights && dashboardStats.player_highlights.length > 0 && (
+        <PlayerHighlightSlider highlights={dashboardStats.player_highlights} />
+      )}
+
       {/* Search Filters */}
       <Card>
         <Card.Content>
           <div className="max-w-md">
             <Input
-              label="Search Name"
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -90,16 +114,14 @@ export default function PlayersPage() {
         </Alert>
       )}
 
-      {/* Initial State - no search yet */}
-      {!loading && !error && players.length === 0 && !searchTerm.trim() && (
-        <Card>
-          <Card.Content>
-            <EmptyState
-              title="Search for players"
-              description="Enter a name above to search for players."
-            />
-          </Card.Content>
-        </Card>
+      {/* Dashboard - shown when no search term */}
+      {!searchTerm.trim() && !dashboardLoading && dashboardStats && (
+        <PlayerDashboard stats={dashboardStats} />
+      )}
+
+      {/* Dashboard Loading State */}
+      {!searchTerm.trim() && dashboardLoading && (
+        <LoadingSpinner fullPage={false} text="Loading dashboard..." />
       )}
 
       {/* Empty State - no results found */}

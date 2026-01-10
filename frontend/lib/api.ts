@@ -8,6 +8,7 @@ import {
   Player,
   PlayerDetail,
   PlayerListResponse,
+  PlayerDashboardStats,
   PlayerMachineStat,
   PlayerMachineStatsList,
   PlayerMachineScoreHistory,
@@ -126,6 +127,13 @@ export const api = {
    */
   getPlayers: (params?: PlayerQueryParams): Promise<PlayerListResponse> => {
     return fetchAPI<PlayerListResponse>('/players', params);
+  },
+
+  /**
+   * Get player dashboard statistics
+   */
+  getPlayerDashboardStats: (): Promise<PlayerDashboardStats> => {
+    return fetchAPI<PlayerDashboardStats>('/players/dashboard-stats');
   },
 
   /**
