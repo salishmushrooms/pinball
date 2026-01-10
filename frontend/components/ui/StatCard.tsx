@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Tooltip } from './Tooltip';
 
@@ -10,6 +11,7 @@ interface StatCardProps {
   icon?: React.ReactNode;
   className?: string;
   tooltip?: string;
+  href?: string;
 }
 
 export function StatCard({
@@ -20,6 +22,7 @@ export function StatCard({
   icon,
   className,
   tooltip,
+  href,
 }: StatCardProps) {
   const trendColors = {
     up: 'text-green-600',
@@ -27,14 +30,8 @@ export function StatCard({
     neutral: 'text-gray-600',
   };
 
-  return (
-    <div
-      className={cn('rounded-lg p-4 text-center', className)}
-      style={{
-        backgroundColor: 'var(--color-primary-50)',
-        border: '1px solid var(--border-light)',
-      }}
-    >
+  const content = (
+    <>
       {icon && (
         <div
           className="flex justify-center mb-2"
@@ -63,6 +60,46 @@ export function StatCard({
           {trend}
         </div>
       )}
+    </>
+  );
+
+  const baseStyles = {
+    backgroundColor: 'var(--color-primary-50)',
+    border: '1px solid var(--border-light)',
+  };
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className={cn(
+          'rounded-lg p-4 md:p-6 text-center block transition-all duration-200 hover:scale-105',
+          className
+        )}
+        style={{
+          ...baseStyles,
+          textDecoration: 'none',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = 'var(--color-primary-100)';
+          e.currentTarget.style.borderColor = 'var(--color-primary-300)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'var(--color-primary-50)';
+          e.currentTarget.style.borderColor = 'var(--border-light)';
+        }}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div
+      className={cn('rounded-lg p-4 md:p-6 text-center', className)}
+      style={baseStyles}
+    >
+      {content}
     </div>
   );
 }
