@@ -66,6 +66,34 @@ export interface PlayerDetail extends Player {
   current_team_name?: string | null;
 }
 
+export interface IPRDistribution {
+  ipr_level: number;
+  count: number;
+}
+
+export interface PlayerHighlight {
+  player_key: string;
+  player_name: string;
+  team_key: string | null;
+  team_name: string | null;
+  venue_key: string | null;
+  venue_name: string | null;
+  ipr: number | null;
+  season: number;
+  best_machine_key: string;
+  best_machine_name: string;
+  best_score: number;
+  best_percentile: number;
+}
+
+export interface PlayerDashboardStats {
+  total_players: number;
+  ipr_distribution: IPRDistribution[];
+  new_players_count: number;
+  latest_season: number;
+  player_highlights: PlayerHighlight[];
+}
+
 export interface PlayerMachineStat {
   player_key: string;
   machine_key: string;

@@ -35,6 +35,37 @@ class PlayerList(BaseModel):
     offset: int
 
 
+class IPRDistribution(BaseModel):
+    """Count of players by IPR level"""
+    ipr_level: int = Field(..., description="IPR level (1-6)")
+    count: int = Field(..., description="Number of players at this level")
+
+
+class PlayerHighlight(BaseModel):
+    """Featured player with highlight stats"""
+    player_key: str
+    player_name: str
+    team_key: Optional[str] = None
+    team_name: Optional[str] = None
+    venue_key: Optional[str] = None
+    venue_name: Optional[str] = None
+    ipr: Optional[float] = None
+    season: int = Field(..., description="Season for the highlight stats")
+    best_machine_key: str = Field(..., description="Machine with highest percentile score")
+    best_machine_name: str = Field(..., description="Name of the best machine")
+    best_score: int = Field(..., description="The score achieved")
+    best_percentile: float = Field(..., description="Percentile ranking of the score")
+
+
+class PlayerDashboardStats(BaseModel):
+    """Dashboard statistics for players page"""
+    total_players: int
+    ipr_distribution: List[IPRDistribution]
+    new_players_count: int = Field(..., description="Players first seen in latest season")
+    latest_season: int = Field(..., description="The latest season number")
+    player_highlights: List[PlayerHighlight] = Field(default_factory=list, description="Featured players with highlight stats")
+
+
 # Machine Models
 class MachineBase(BaseModel):
     """Base machine information"""

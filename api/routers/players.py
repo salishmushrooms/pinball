@@ -13,6 +13,9 @@ from api.models.schemas import (
     PlayerMachineStats,
     PlayerMachineStatsList,
     PlayerMachineScoreHistoryResponse,
+    PlayerDashboardStats,
+    IPRDistribution,
+    PlayerHighlight,
     ErrorResponse
 )
 from api.dependencies import execute_query
@@ -231,6 +234,166 @@ def calculate_win_percentage_for_player(
             win_percentages[machine_key] = None
 
     return win_percentages
+
+
+@router.get(
+    "/dashboard-stats",
+    response_model=PlayerDashboardStats,
+    summary="Get player dashboard statistics",
+    description="Get statistics for the players page dashboard including total count, IPR distribution, new players, and random highlights"
+)
+def get_player_dashboard_stats():
+    """
+    Get dashboard statistics for the players page.
+
+    Returns:
+    - total_players: Total number of players
+    - ipr_distribution: Count of players by IPR level (1-6)
+    - new_players_count: Players first seen in latest season
+    - latest_season: The latest season number
+    - player_highlights: List of 5-7 random IPR 6 players with their best machine/score from latest season
+    """
+    import random
+
+    # Get total players count
+    total_query = "SELECT COUNT(*) as total FROM players"
+    total_result = execute_query(total_query)
+    total_players = total_result[0]['total'] if total_result else 0
+
+    # Get latest season
+    latest_season_query = "SELECT MAX(season) as latest FROM scores"
+    latest_season_result = execute_query(latest_season_query)
+    latest_season = latest_season_result[0]['latest'] if latest_season_result else 22
+
+    # Get IPR distribution (grouped into levels 1-6)
+    # current_ipr is already stored as the IPR level (1-6), not the raw score
+    ipr_dist_query = """
+        SELECT
+            COALESCE(current_ipr, 0) as ipr_level,
+            COUNT(*) as count
+        FROM players
+        GROUP BY current_ipr
+        ORDER BY current_ipr
+    """
+    ipr_dist_result = execute_query(ipr_dist_query)
+    ipr_distribution = [IPRDistribution(ipr_level=int(row['ipr_level']), count=row['count']) for row in ipr_dist_result]
+
+    # Get new players count (first seen in latest season)
+    new_players_query = """
+        SELECT COUNT(*) as count
+        FROM players
+        WHERE first_seen_season = :latest_season
+    """
+    new_players_result = execute_query(new_players_query, {'latest_season': latest_season})
+    new_players_count = new_players_result[0]['count'] if new_players_result else 0
+
+    # Get random IPR 6 player highlights (5-7 players)
+    player_highlights = []
+
+    # Get all IPR 6 players (current_ipr stores the IPR level 1-6, not the raw rating)
+    ipr6_players_query = """
+        SELECT player_key, name, current_ipr
+        FROM players
+        WHERE current_ipr = 6
+    """
+    ipr6_players = execute_query(ipr6_players_query)
+
+    if ipr6_players:
+        # Randomly select 5-7 players (or all if fewer than 5)
+        num_highlights = min(7, max(5, len(ipr6_players)))
+        selected_players = random.sample(ipr6_players, min(num_highlights, len(ipr6_players)))
+
+        for selected_player in selected_players:
+            player_key = selected_player['player_key']
+
+            # Get their team and venue from latest season (prefer non-substitute appearances)
+            team_venue_query = """
+                SELECT s.team_key, t.team_name, s.venue_key, v.venue_name
+                FROM scores s
+                JOIN teams t ON s.team_key = t.team_key AND s.season = t.season
+                JOIN venues v ON s.venue_key = v.venue_key
+                WHERE s.player_key = :player_key
+                  AND s.season = :latest_season
+                GROUP BY s.team_key, t.team_name, s.venue_key, v.venue_name
+                ORDER BY COUNT(*) DESC
+                LIMIT 1
+            """
+            team_venue_result = execute_query(team_venue_query, {
+                'player_key': player_key,
+                'latest_season': latest_season
+            })
+
+            team_key = None
+            team_name = None
+            venue_key = None
+            venue_name = None
+
+            if team_venue_result:
+                team_key = team_venue_result[0]['team_key']
+                team_name = team_venue_result[0]['team_name']
+                venue_key = team_venue_result[0]['venue_key']
+                venue_name = team_venue_result[0]['venue_name']
+
+            # Get their best machine/score from latest season based on percentile
+            # Use machine-level percentiles (venue_key = '_ALL_') for comparison
+            best_machine_query = """
+                WITH player_scores AS (
+                    SELECT
+                        s.machine_key,
+                        m.machine_name,
+                        s.score,
+                        (
+                            SELECT MAX(p.percentile)
+                            FROM score_percentiles p
+                            WHERE p.machine_key = s.machine_key
+                              AND p.venue_key = :venue_all
+                              AND p.season = s.season
+                              AND s.score >= p.score_threshold
+                        ) as percentile
+                    FROM scores s
+                    JOIN machines m ON s.machine_key = m.machine_key
+                    WHERE s.player_key = :player_key
+                      AND s.season = :latest_season
+                )
+                SELECT
+                    machine_key,
+                    machine_name,
+                    score,
+                    COALESCE(percentile, 0) as percentile
+                FROM player_scores
+                ORDER BY percentile DESC, score DESC
+                LIMIT 1
+            """
+            best_machine_result = execute_query(best_machine_query, {
+                'player_key': player_key,
+                'latest_season': latest_season,
+                'venue_all': '_ALL_'
+            })
+
+            if best_machine_result and len(best_machine_result) > 0:
+                best = best_machine_result[0]
+                player_highlights.append(PlayerHighlight(
+                    player_key=player_key,
+                    player_name=selected_player['name'],
+                    team_key=team_key,
+                    team_name=team_name,
+                    venue_key=venue_key,
+                    venue_name=venue_name,
+                    ipr=selected_player['current_ipr'],
+                    season=latest_season,
+                    best_machine_key=best['machine_key'],
+                    best_machine_name=best['machine_name'],
+                    best_score=best['score'],
+                    best_percentile=best['percentile']
+                ))
+
+    return PlayerDashboardStats(
+        total_players=total_players,
+        ipr_distribution=ipr_distribution,
+        new_players_count=new_players_count,
+        latest_season=latest_season,
+        player_highlights=player_highlights
+    )
 
 
 @router.get(
