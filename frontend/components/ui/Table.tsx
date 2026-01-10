@@ -30,11 +30,15 @@ export function Table({ children, className, compact = false, stickyHeader = fal
 interface TableHeaderProps {
   children: React.ReactNode;
   className?: string;
+  sticky?: boolean;
 }
 
-export function TableHeader({ children, className }: TableHeaderProps) {
+export function TableHeader({ children, className, sticky = false }: TableHeaderProps) {
   return (
-    <thead className={cn(className)} style={{ backgroundColor: 'var(--table-header-bg)' }}>
+    <thead
+      className={cn(sticky && 'sticky top-0 z-10', className)}
+      style={{ backgroundColor: 'var(--table-header-bg)' }}
+    >
       {children}
     </thead>
   );
@@ -43,15 +47,28 @@ export function TableHeader({ children, className }: TableHeaderProps) {
 interface TableBodyProps {
   children: React.ReactNode;
   className?: string;
+  striped?: boolean;
 }
 
-export function TableBody({ children, className }: TableBodyProps) {
+export function TableBody({ children, className, striped = false }: TableBodyProps) {
+  // If striped, wrap children to add alternating backgrounds
+  const styledChildren = striped
+    ? React.Children.map(children, (child, index) => {
+        if (React.isValidElement(child)) {
+          return React.cloneElement(child as React.ReactElement<{ isEven?: boolean }>, {
+            isEven: index % 2 === 1,
+          });
+        }
+        return child;
+      })
+    : children;
+
   return (
     <tbody
       className={cn('divide-y', className)}
       style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--table-border)' }}
     >
-      {children}
+      {styledChildren}
     </tbody>
   );
 }
@@ -61,18 +78,21 @@ interface TableRowProps {
   className?: string;
   onClick?: () => void;
   hoverable?: boolean;
+  isEven?: boolean;
 }
 
-export function TableRow({ children, className, onClick, hoverable = true }: TableRowProps) {
-  const hoverStyle = hoverable ? { '--tw-row-hover': 'var(--table-row-hover)' } as React.CSSProperties : {};
+export function TableRow({ children, className, onClick, hoverable = true, isEven }: TableRowProps) {
   return (
     <tr
       className={cn(
-        hoverable && 'hover:bg-[var(--table-row-hover)]',
+        'transition-colors duration-150',
+        hoverable && 'hover:bg-[var(--table-row-hover-enhanced)]',
         onClick && 'cursor-pointer',
         className
       )}
-      style={hoverStyle}
+      style={{
+        backgroundColor: isEven ? 'var(--table-row-stripe)' : undefined,
+      }}
       onClick={onClick}
     >
       {children}

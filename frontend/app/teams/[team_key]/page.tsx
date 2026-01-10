@@ -9,7 +9,7 @@ import { RoundMultiSelect } from '@/components/RoundMultiSelect';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
 import { useDebouncedEffect } from '@/lib/hooks';
-import { Table, Card, PageHeader, FilterPanel, Alert, LoadingSpinner } from '@/components/ui';
+import { Table, Card, PageHeader, FilterPanel, Alert, LoadingSpinner, WinPercentage } from '@/components/ui';
 import { SUPPORTED_SEASONS, filterSupportedSeasons, formatScore, cn } from '@/lib/utils';
 
 export default function TeamDetailPage() {
@@ -398,9 +398,7 @@ export default function TeamDetailPage() {
                           </div>
                           <div>
                             <span style={{ color: 'var(--text-muted)' }}>Win: </span>
-                            <span style={{ color: 'var(--text-primary)' }}>
-                              {player.win_percentage !== null ? `${player.win_percentage.toFixed(0)}%` : 'N/A'}
-                            </span>
+                            <WinPercentage value={player.win_percentage} />
                           </div>
                           {mpRating && (
                             <div>
@@ -469,7 +467,7 @@ export default function TeamDetailPage() {
                         <Table.Head>Top Machine</Table.Head>
                       </Table.Row>
                     </Table.Header>
-                    <Table.Body>
+                    <Table.Body striped>
                       {sortedPlayers.map((player) => {
                         const mpRating = matchplayRatings[player.player_key];
                         return (
@@ -500,7 +498,7 @@ export default function TeamDetailPage() {
                             </Table.Cell>
                             <Table.Cell>{player.games_played}</Table.Cell>
                             <Table.Cell>
-                              {player.win_percentage !== null ? `${player.win_percentage.toFixed(0)}%` : 'N/A'}
+                              <WinPercentage value={player.win_percentage} />
                             </Table.Cell>
                             <Table.Cell>
                               {player.most_played_machine_name ? (
@@ -570,9 +568,7 @@ export default function TeamDetailPage() {
                     <div className="grid grid-cols-3 gap-2 text-sm">
                       <div>
                         <span style={{ color: 'var(--text-muted)' }}>Win: </span>
-                        <span style={{ color: 'var(--text-primary)' }}>
-                          {typeof stat.win_percentage === 'number' ? `${stat.win_percentage.toFixed(0)}%` : 'N/A'}
-                        </span>
+                        <WinPercentage value={stat.win_percentage} />
                       </div>
                       <div>
                         <span style={{ color: 'var(--text-muted)' }}>Med: </span>
@@ -629,7 +625,7 @@ export default function TeamDetailPage() {
                       </Table.Head>
                     </Table.Row>
                   </Table.Header>
-                  <Table.Body>
+                  <Table.Body striped>
                     {machineStats.map((stat, idx) => (
                       <Table.Row key={idx}>
                         <Table.Cell>
@@ -642,7 +638,7 @@ export default function TeamDetailPage() {
                         </Table.Cell>
                         <Table.Cell>{stat.games_played}</Table.Cell>
                         <Table.Cell>
-                          {typeof stat.win_percentage === 'number' ? `${stat.win_percentage.toFixed(0)}%` : 'N/A'}
+                          <WinPercentage value={stat.win_percentage} />
                         </Table.Cell>
                         <Table.Cell>
                           {formatScore(stat.median_score)}
