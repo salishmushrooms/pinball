@@ -97,6 +97,23 @@ class MachineList(BaseModel):
     offset: int
 
 
+class MachineTopScore(BaseModel):
+    """Top machine by total scores"""
+    machine_key: str
+    machine_name: str
+    total_scores: int
+
+
+class MachineDashboardStats(BaseModel):
+    """Dashboard statistics for machines page"""
+    total_machines: int = Field(..., description="Total unique machines across all seasons")
+    total_machines_latest_season: int = Field(..., description="Total unique machines in latest season")
+    new_machines_count: int = Field(..., description="New machines in latest season (not in prior seasons)")
+    rare_machines_count: int = Field(..., description="Machines that only exist at 1 venue")
+    latest_season: int = Field(..., description="The latest season number")
+    top_machines_by_scores: List[MachineTopScore] = Field(default_factory=list, description="Top 10 machines by total scores in latest season")
+
+
 # Score Percentile Models
 class ScorePercentile(BaseModel):
     """Score percentile for a machine"""
