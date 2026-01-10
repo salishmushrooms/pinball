@@ -26,3 +26,4 @@ export { FilterPanel } from './FilterPanel';
 export { TruncatedText } from './TruncatedText';
 export { ContentContainer } from './ContentContainer';
 export { Modal } from './Modal';
+export { WinPercentage } from './WinPercentage';
