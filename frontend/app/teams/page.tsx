@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Team } from '@/lib/types';
 import {
@@ -9,12 +10,19 @@ import {
   Alert,
   LoadingSpinner,
   EmptyState,
+  Table,
+  ContentContainer,
 } from '@/components/ui';
+
+type SortField = 'team_name' | 'team_ipr' | 'home_venue_name';
+type SortDirection = 'asc' | 'desc';
 
 export default function TeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<SortField>('team_name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   useEffect(() => {
     fetchTeams();
@@ -31,10 +39,9 @@ export default function TeamsPage() {
       // Find the most recent season
       const maxSeason = Math.max(...data.teams.map(t => t.season));
 
-      // Filter to only teams from the most recent season, sorted by name
+      // Filter to only teams from the most recent season
       const currentSeasonTeams = data.teams
-        .filter(team => team.season === maxSeason)
-        .sort((a, b) => a.team_name.localeCompare(b.team_name));
+        .filter(team => team.season === maxSeason);
 
       setTeams(currentSeasonTeams);
     } catch (err) {
@@ -43,6 +50,49 @@ export default function TeamsPage() {
       setLoading(false);
     }
   }
+
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  }
+
+  const sortedTeams = [...teams].sort((a, b) => {
+    let aValue: string | number | null;
+    let bValue: string | number | null;
+
+    switch (sortField) {
+      case 'team_name':
+        aValue = a.team_name;
+        bValue = b.team_name;
+        break;
+      case 'team_ipr':
+        aValue = a.team_ipr ?? -1;
+        bValue = b.team_ipr ?? -1;
+        break;
+      case 'home_venue_name':
+        aValue = a.home_venue_name ?? '';
+        bValue = b.home_venue_name ?? '';
+        break;
+      default:
+        return 0;
+    }
+
+    if (aValue === null || aValue === '') return 1;
+    if (bValue === null || bValue === '') return -1;
+
+    let comparison = 0;
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      comparison = aValue.localeCompare(bValue);
+    } else {
+      comparison = aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+    }
+
+    return sortDirection === 'asc' ? comparison : -comparison;
+  });
 
   if (loading) {
     return <LoadingSpinner fullPage text="Loading teams..." />;
@@ -69,39 +119,78 @@ export default function TeamsPage() {
           </Card.Content>
         </Card>
       ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {teams.map((team) => (
-              <Card
-                key={`${team.team_key}-${team.season}`}
-                variant="interactive"
-                href={`/teams/${team.team_key}?season=${team.season}`}
-              >
-                <Card.Content>
-                  <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-                    {team.team_name}
-                  </h3>
-                  <div className="space-y-1">
-                    {team.home_venue_name && (
-                      <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                        <span className="font-medium">Venue:</span> {team.home_venue_name}
-                      </p>
-                    )}
-                    {team.team_ipr !== null && (
-                      <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                        <span className="font-medium">Team IPR:</span> {team.team_ipr}
-                      </p>
-                    )}
-                  </div>
-                </Card.Content>
-              </Card>
-            ))}
-          </div>
+        <ContentContainer>
+          <Card>
+            <Card.Content>
+              <Table>
+                <Table.Header>
+                  <Table.Row hoverable={false}>
+                    <Table.Head
+                      sortable
+                      onSort={() => handleSort('team_name')}
+                      sortDirection={sortField === 'team_name' ? sortDirection : null}
+                    >
+                      Team
+                    </Table.Head>
+                    <Table.Head
+                      sortable
+                      onSort={() => handleSort('home_venue_name')}
+                      sortDirection={sortField === 'home_venue_name' ? sortDirection : null}
+                    >
+                      Venue
+                    </Table.Head>
+                    <Table.Head
+                      sortable
+                      onSort={() => handleSort('team_ipr')}
+                      sortDirection={sortField === 'team_ipr' ? sortDirection : null}
+                    >
+                      Team IPR
+                    </Table.Head>
+                  </Table.Row>
+                </Table.Header>
+                <Table.Body striped>
+                  {sortedTeams.map((team) => (
+                    <Table.Row key={`${team.team_key}-${team.season}`}>
+                      <Table.Cell>
+                        <Link
+                          href={`/teams/${team.team_key}?season=${team.season}`}
+                          className="font-medium hover:underline"
+                          style={{ color: 'var(--link-color)' }}
+                        >
+                          {team.team_name}
+                        </Link>
+                      </Table.Cell>
+                      <Table.Cell>
+                        {team.home_venue_key && team.home_venue_name ? (
+                          <Link
+                            href={`/venues/${team.home_venue_key}`}
+                            className="hover:underline"
+                            style={{ color: 'var(--link-color)' }}
+                          >
+                            {team.home_venue_name}
+                          </Link>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>—</span>
+                        )}
+                      </Table.Cell>
+                      <Table.Cell>
+                        {team.team_ipr !== null ? (
+                          team.team_ipr
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>—</span>
+                        )}
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table>
 
-          <div className="text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Showing {teams.length} team{teams.length !== 1 ? 's' : ''} (Season {teams[0]?.season})
-          </div>
-        </>
+              <div className="mt-4 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
+                Showing {teams.length} team{teams.length !== 1 ? 's' : ''} (Season {teams[0]?.season})
+              </div>
+            </Card.Content>
+          </Card>
+        </ContentContainer>
       )}
     </div>
   );
