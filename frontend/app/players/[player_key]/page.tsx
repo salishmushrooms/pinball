@@ -12,6 +12,7 @@ import {
   Table,
   FilterPanel,
   Modal,
+  WinPercentage,
 } from '@/components/ui';
 import PlayerMachineProgressionChart from '@/components/PlayerMachineProgressionChart';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
@@ -369,9 +370,7 @@ export default function PlayerDetailPage() {
                       </div>
                       <div>
                         <span style={{ color: 'var(--text-muted)' }}>Win: </span>
-                        <span style={{ color: 'var(--text-primary)' }}>
-                          {stat.win_percentage !== null ? `${stat.win_percentage.toFixed(0)}%` : 'N/A'}
-                        </span>
+                        <WinPercentage value={stat.win_percentage} />
                       </div>
                       <div>
                         <span style={{ color: 'var(--text-muted)' }}>Med: </span>
@@ -418,7 +417,7 @@ export default function PlayerDetailPage() {
                       <Table.Head className="text-center">Chart</Table.Head>
                     </Table.Row>
                   </Table.Header>
-                  <Table.Body>
+                  <Table.Body striped>
                     {machineStats.map((stat, idx) => (
                       <Table.Row key={idx}>
                         <Table.Cell>
@@ -433,7 +432,7 @@ export default function PlayerDetailPage() {
                           {stat.games_played}
                         </Table.Cell>
                         <Table.Cell>
-                          {stat.win_percentage !== null ? `${stat.win_percentage.toFixed(0)}%` : 'N/A'}
+                          <WinPercentage value={stat.win_percentage} />
                         </Table.Cell>
                         <Table.Cell>
                           {stat.avg_percentile !== null ? stat.avg_percentile.toFixed(1) : 'N/A'}
