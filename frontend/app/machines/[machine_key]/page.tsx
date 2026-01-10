@@ -15,6 +15,7 @@ import {
   Table,
   FilterPanel,
   ContentContainer,
+  Breadcrumb,
 } from '@/components/ui';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
@@ -169,12 +170,12 @@ export default function MachineDetailPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Link
-          href="/machines"
-          className="text-blue-600 hover:text-blue-800 text-sm mb-2 inline-block"
-        >
-          ← Back to Machines
-        </Link>
+        <Breadcrumb
+          items={[
+            { label: 'Machines', href: '/machines' },
+            { label: machine.machine_name },
+          ]}
+        />
         <PageHeader
           title={machine.machine_name}
           description={

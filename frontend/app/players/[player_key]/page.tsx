@@ -13,6 +13,8 @@ import {
   FilterPanel,
   Modal,
   WinPercentage,
+  Breadcrumb,
+  Tooltip,
 } from '@/components/ui';
 import PlayerMachineProgressionChart from '@/components/PlayerMachineProgressionChart';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
@@ -263,20 +265,22 @@ export default function PlayerDetailPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Link
-          href="/players"
-          className="text-sm mb-2 inline-block"
-          style={{ color: 'var(--text-link)' }}
-        >
-          ← Back to Players
-        </Link>
+        <Breadcrumb
+          items={[
+            { label: 'Players', href: '/players' },
+            { label: player.name },
+          ]}
+        />
         <PageHeader title={player.name} />
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-          <span>IPR: {player.current_ipr ? Math.round(player.current_ipr) : 'N/A'}</span>
+          <span className="flex items-center gap-1">
+            IPR: {player.current_ipr ? Math.round(player.current_ipr) : 'N/A'}
+            <Tooltip content="IFPA Player Rating tier (1-6), calculated from Matchplay.events percentile ranking" iconSize={12} />
+          </span>
           {player.current_team_key && player.current_team_name && (
             <>
               <span>•</span>
-              <span>
+              <span className="flex items-center gap-1">
                 Team:{' '}
                 <Link
                   href={`/teams/${player.current_team_key}`}
@@ -285,6 +289,7 @@ export default function PlayerDetailPage() {
                 >
                   {player.current_team_name}
                 </Link>
+                <Tooltip content="Current team based on most recent season (non-substitute appearances)" iconSize={12} />
               </span>
             </>
           )}
@@ -395,6 +400,7 @@ export default function PlayerDetailPage() {
                         sortable
                         onSort={() => handleSort('games_played')}
                         sortDirection={sortBy === 'games_played' ? sortDirection : null}
+                        tooltip="Total games played on this machine, filtered by selected seasons and venue"
                       >
                         Games
                       </Table.Head>
@@ -402,6 +408,7 @@ export default function PlayerDetailPage() {
                         sortable
                         onSort={() => handleSort('win_percentage')}
                         sortDirection={sortBy === 'win_percentage' ? sortDirection : null}
+                        tooltip="Win rate in head-to-head matchups. Note: Player 4 scores in doubles may be unreliable due to early game completion"
                       >
                         Win %
                       </Table.Head>
@@ -409,11 +416,12 @@ export default function PlayerDetailPage() {
                         sortable
                         onSort={() => handleSort('avg_percentile')}
                         sortDirection={sortBy === 'avg_percentile' ? sortDirection : null}
+                        tooltip="Average percentile rank for this machine. Percentiles are machine-specific and not comparable across different machines"
                       >
                         %ile
                       </Table.Head>
-                      <Table.Head>Median</Table.Head>
-                      <Table.Head>Best</Table.Head>
+                      <Table.Head tooltip="Median score - the middle value when all scores are sorted, representing typical performance">Median</Table.Head>
+                      <Table.Head tooltip="Best score achieved on this machine - your peak performance">Best</Table.Head>
                       <Table.Head className="text-center">Chart</Table.Head>
                     </Table.Row>
                   </Table.Header>

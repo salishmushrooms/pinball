@@ -809,3 +809,65 @@ async def investigate_mnp_tournaments():
 
     except MatchplayClientError as e:
         raise HTTPException(status_code=503, detail=f"Matchplay API error: {str(e)}")
+
+
+@router.get(
+    "/search/users",
+    summary="Search Matchplay users",
+    description="Open search for Matchplay users by name. Useful for finding players when automatic matching fails."
+)
+async def search_matchplay_users(
+    query: str = Query(..., min_length=2, description="Search query (name)"),
+    location_filter: Optional[str] = Query(None, description="Filter results by location substring (e.g., 'Washington', 'WA')")
+):
+    """
+    Search Matchplay.events for users by name.
+
+    This is an open search endpoint that allows searching with any query string,
+    useful when the automatic name-based matching doesn't find the right player.
+
+    Optionally filter results to only show users whose location contains the
+    specified string (case-insensitive).
+
+    Example: `/matchplay/search/users?query=John&location_filter=Washington`
+    """
+    client = MatchplayClient()
+    if not client.is_configured():
+        raise HTTPException(
+            status_code=503,
+            detail="Matchplay integration not configured. Set MATCHPLAY_API_TOKEN environment variable."
+        )
+
+    try:
+        # Search Matchplay
+        users = await client.search_users(query)
+
+        # Convert to response format
+        results = []
+        for user_data in users:
+            user = MatchplayUser(
+                userId=user_data.get('userId') or user_data.get('id'),
+                name=user_data.get('name', ''),
+                ifpaId=user_data.get('ifpaId'),
+                location=user_data.get('location'),
+                avatar=user_data.get('avatar')
+            )
+
+            # Apply location filter if specified
+            if location_filter:
+                user_location = user.location or ''
+                if location_filter.lower() not in user_location.lower():
+                    continue
+
+            results.append(user)
+
+        return {
+            "query": query,
+            "location_filter": location_filter,
+            "total_results": len(results),
+            "users": results
+        }
+
+    except MatchplayClientError as e:
+        logger.error(f"Matchplay API error searching for '{query}': {e}")
+        raise HTTPException(status_code=503, detail=f"Matchplay API error: {str(e)}")

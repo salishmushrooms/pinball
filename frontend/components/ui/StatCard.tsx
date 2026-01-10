@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { Tooltip } from './Tooltip';
 
 interface StatCardProps {
   label: string;
@@ -8,6 +9,7 @@ interface StatCardProps {
   trendDirection?: 'up' | 'down' | 'neutral';
   icon?: React.ReactNode;
   className?: string;
+  tooltip?: string;
 }
 
 export function StatCard({
@@ -17,6 +19,7 @@ export function StatCard({
   trendDirection = 'neutral',
   icon,
   className,
+  tooltip,
 }: StatCardProps) {
   const trendColors = {
     up: 'text-green-600',
@@ -44,7 +47,10 @@ export function StatCard({
         className="text-xs font-medium uppercase tracking-wide mb-1"
         style={{ color: 'var(--text-muted)' }}
       >
-        {label}
+        <div className="flex items-center justify-center gap-1">
+          {label}
+          {tooltip && <Tooltip content={tooltip} iconSize={12} />}
+        </div>
       </div>
       <div
         className="text-2xl font-bold"
