@@ -173,6 +173,21 @@ export interface MachineListResponse {
   offset: number;
 }
 
+export interface MachineTopScore {
+  machine_key: string;
+  machine_name: string;
+  total_scores: number;
+}
+
+export interface MachineDashboardStats {
+  total_machines: number;
+  total_machines_latest_season: number;
+  new_machines_count: number;
+  rare_machines_count: number;
+  latest_season: number;
+  top_machines_by_scores: MachineTopScore[];
+}
+
 export interface Percentile {
   machine_key: string;
   venue_key: string;

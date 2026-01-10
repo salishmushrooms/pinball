@@ -14,6 +14,7 @@ import {
   PlayerMachineScoreHistory,
   Machine,
   MachineListResponse,
+  MachineDashboardStats,
   GroupedPercentiles,
   Percentile,
   PlayerQueryParams,
@@ -174,6 +175,13 @@ export const api = {
    */
   getMachines: (params?: MachineQueryParams): Promise<MachineListResponse> => {
     return fetchAPI<MachineListResponse>('/machines', params);
+  },
+
+  /**
+   * Get machine dashboard statistics
+   */
+  getMachineDashboardStats: (): Promise<MachineDashboardStats> => {
+    return fetchAPI<MachineDashboardStats>('/machines/dashboard-stats');
   },
 
   /**
