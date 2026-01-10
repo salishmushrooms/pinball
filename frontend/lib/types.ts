@@ -658,3 +658,10 @@ export interface MatchplayRatingInfo {
 export interface MatchplayRatingsResponse {
   ratings: Record<string, MatchplayRatingInfo>;
 }
+
+export interface MatchplayUserSearchResult {
+  query: string;
+  location_filter: string | null;
+  total_results: number;
+  users: MatchplayUser[];
+}

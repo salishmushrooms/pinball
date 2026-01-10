@@ -17,6 +17,7 @@ import {
   StatCard,
   FilterPanel,
   ContentContainer,
+  Breadcrumb,
 } from '@/components/ui';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { TeamMultiSelect } from '@/components/TeamMultiSelect';
@@ -124,12 +125,12 @@ export default function VenueDetailPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Link
-          href="/venues"
-          className="text-blue-600 hover:text-blue-800 text-sm mb-2 inline-block"
-        >
-          ← Back to Venues
-        </Link>
+        <Breadcrumb
+          items={[
+            { label: 'Venues', href: '/venues' },
+            { label: venue.venue_name },
+          ]}
+        />
         <PageHeader
           title={venue.venue_name}
           description={

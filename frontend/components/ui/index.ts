@@ -27,3 +27,5 @@ export { TruncatedText } from './TruncatedText';
 export { ContentContainer } from './ContentContainer';
 export { Modal } from './Modal';
 export { WinPercentage } from './WinPercentage';
+export { Breadcrumb } from './Breadcrumb';
+export { Tooltip } from './Tooltip';
