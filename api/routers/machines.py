@@ -13,12 +13,105 @@ from api.models.schemas import (
     ScorePercentile,
     MachineScore,
     MachineScoreList,
+    MachineDashboardStats,
+    MachineTopScore,
     ErrorResponse
 )
 from api.dependencies import execute_query
 from etl.database import db
 
 router = APIRouter(prefix="/machines", tags=["machines"])
+
+
+@router.get(
+    "/dashboard-stats",
+    response_model=MachineDashboardStats,
+    summary="Get machine dashboard statistics",
+    description="Get statistics for the machines page dashboard including total count, new machines, rare machines, and top machines by scores"
+)
+def get_machine_dashboard_stats():
+    """
+    Get dashboard statistics for the machines page.
+
+    Returns:
+    - total_machines: Total unique machines across all seasons
+    - total_machines_latest_season: Total unique machines in latest season
+    - new_machines_count: Machines first seen in latest season (not in prior seasons)
+    - rare_machines_count: Number of machines that only exist at 1 venue
+    - latest_season: The latest season number
+    - top_machines_by_scores: Top 10 machines by total scores in latest season
+    """
+    # Get latest season
+    latest_season_query = "SELECT MAX(season) as latest FROM scores"
+    latest_season_result = execute_query(latest_season_query)
+    latest_season = latest_season_result[0]['latest'] if latest_season_result else 22
+
+    # Get total unique machines across all seasons
+    total_machines_query = "SELECT COUNT(DISTINCT machine_key) as total FROM machines"
+    total_machines_result = execute_query(total_machines_query)
+    total_machines = total_machines_result[0]['total'] if total_machines_result else 0
+
+    # Get total unique machines in latest season
+    latest_season_machines_query = """
+        SELECT COUNT(DISTINCT machine_key) as total
+        FROM scores
+        WHERE season = :latest_season
+    """
+    latest_season_machines_result = execute_query(latest_season_machines_query, {'latest_season': latest_season})
+    total_machines_latest_season = latest_season_machines_result[0]['total'] if latest_season_machines_result else 0
+
+    # Get new machines count (machines in latest season that don't appear in any prior season)
+    new_machines_query = """
+        SELECT COUNT(DISTINCT s_latest.machine_key) as count
+        FROM scores s_latest
+        WHERE s_latest.season = :latest_season
+          AND NOT EXISTS (
+            SELECT 1
+            FROM scores s_prior
+            WHERE s_prior.machine_key = s_latest.machine_key
+              AND s_prior.season < :latest_season
+          )
+    """
+    new_machines_result = execute_query(new_machines_query, {'latest_season': latest_season})
+    new_machines_count = new_machines_result[0]['count'] if new_machines_result else 0
+
+    # Get rare machines count (machines that only exist at 1 venue across all data)
+    rare_machines_query = """
+        SELECT COUNT(*) as count
+        FROM (
+            SELECT machine_key
+            FROM scores
+            GROUP BY machine_key
+            HAVING COUNT(DISTINCT venue_key) = 1
+        ) rare
+    """
+    rare_machines_result = execute_query(rare_machines_query)
+    rare_machines_count = rare_machines_result[0]['count'] if rare_machines_result else 0
+
+    # Get top 10 machines by total scores in latest season
+    top_machines_query = """
+        SELECT
+            s.machine_key,
+            m.machine_name,
+            COUNT(*) as total_scores
+        FROM scores s
+        JOIN machines m ON s.machine_key = m.machine_key
+        WHERE s.season = :latest_season
+        GROUP BY s.machine_key, m.machine_name
+        ORDER BY total_scores DESC
+        LIMIT 10
+    """
+    top_machines_result = execute_query(top_machines_query, {'latest_season': latest_season})
+    top_machines = [MachineTopScore(**row) for row in top_machines_result]
+
+    return MachineDashboardStats(
+        total_machines=total_machines,
+        total_machines_latest_season=total_machines_latest_season,
+        new_machines_count=new_machines_count,
+        rare_machines_count=rare_machines_count,
+        latest_season=latest_season,
+        top_machines_by_scores=top_machines
+    )
 
 
 @router.get(
