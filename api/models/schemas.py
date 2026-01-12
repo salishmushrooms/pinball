@@ -240,7 +240,8 @@ class VenueBase(BaseModel):
     venue_key: str
     venue_name: str
     address: Optional[str] = None
-    neighborhood: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
 
 
 class VenueHomeTeam(BaseModel):
@@ -585,6 +586,46 @@ class MatchplayLinkResponse(BaseModel):
     """Response after linking a player"""
     status: str
     mapping: MatchplayPlayerMapping
+
+
+# Player Machine Game Models (with opponent details)
+class GamePlayer(BaseModel):
+    """A player in a game with their score and details"""
+    player_key: str
+    player_name: str
+    player_position: int = Field(..., ge=1, le=4, description="Position in game (1-4)")
+    score: int
+    team_key: str
+    team_name: str
+    is_home_team: bool
+
+
+class PlayerMachineGame(BaseModel):
+    """A complete game instance with all players"""
+    match_key: str
+    season: int
+    week: int
+    date: Optional[str] = None
+    venue_key: str
+    venue_name: str
+    round_number: int = Field(..., ge=1, le=4, description="Round number (1-4)")
+    home_team_key: str
+    home_team_name: str
+    away_team_key: str
+    away_team_name: str
+    players: List[GamePlayer] = Field(..., description="All players in this game")
+
+
+class PlayerMachineGamesList(BaseModel):
+    """List of games with pagination"""
+    player_key: str
+    player_name: str
+    machine_key: str
+    machine_name: str
+    games: List[PlayerMachineGame]
+    total: int
+    limit: int
+    offset: int
 
 
 # Update forward references

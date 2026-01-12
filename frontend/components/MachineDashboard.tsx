@@ -55,7 +55,7 @@ export function MachineDashboard({ stats }: MachineDashboardProps) {
             <Table.Body>
               {top_machines_by_scores.map((machine, index) => (
                 <Table.Row key={machine.machine_key}>
-                  <Table.Cell className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                  <Table.Cell className="text-xs font-medium text-muted">
                     #{index + 1}
                   </Table.Cell>
                   <Table.Cell>
@@ -67,7 +67,7 @@ export function MachineDashboard({ stats }: MachineDashboardProps) {
                       {machine.machine_name}
                     </Link>
                   </Table.Cell>
-                  <Table.Cell className="text-right text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  <Table.Cell className="text-right text-sm text-secondary">
                     {machine.total_scores.toLocaleString()}
                   </Table.Cell>
                 </Table.Row>

@@ -50,6 +50,7 @@ import {
   MatchplayLinkResponse,
   MatchplayRatingsResponse,
   MatchplayUserSearchResult,
+  PlayerMachineGamesResponse,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -164,6 +165,20 @@ export const api = {
   ): Promise<PlayerMachineScoreHistory> => {
     return fetchAPI<PlayerMachineScoreHistory>(
       `/players/${playerKey}/machines/${machineKey}/scores`,
+      params
+    );
+  },
+
+  /**
+   * Get player's games on a specific machine with opponent details
+   */
+  getPlayerMachineGames: (
+    playerKey: string,
+    machineKey: string,
+    params?: { venue_key?: string; seasons?: number[]; limit?: number; offset?: number }
+  ): Promise<PlayerMachineGamesResponse> => {
+    return fetchAPI<PlayerMachineGamesResponse>(
+      `/players/${playerKey}/machines/${machineKey}/games`,
       params
     );
   },

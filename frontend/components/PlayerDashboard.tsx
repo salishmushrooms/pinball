@@ -156,8 +156,8 @@ export function PlayerDashboard({ stats }: PlayerDashboardProps) {
   const maxCount = Math.max(...ratedDistribution.map((d) => d.count));
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      {/* Stats Cards - Left Side */}
+    <div className="space-y-4">
+      {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-3">
         <StatCard
           label="Total Players"
@@ -174,7 +174,7 @@ export function PlayerDashboard({ stats }: PlayerDashboardProps) {
         />
       </div>
 
-      {/* Player Distribution Chart - Right Side */}
+      {/* Player Distribution Chart */}
       <Card>
         <Card.Content className="py-3">
           <div

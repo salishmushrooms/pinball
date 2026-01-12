@@ -50,7 +50,7 @@ def get_current_machines_for_venue(venue_key: str) -> List[str]:
     description="Get a paginated list of all venues with optional filtering"
 )
 def list_venues(
-    neighborhood: Optional[str] = Query(None, description="Filter by neighborhood"),
+    city: Optional[str] = Query(None, description="Filter by city"),
     search: Optional[str] = Query(None, description="Search venue names (case-insensitive)"),
     limit: int = Query(100, ge=1, le=500, description="Number of results to return"),
     offset: int = Query(0, ge=0, description="Number of results to skip")
@@ -60,16 +60,16 @@ def list_venues(
 
     Example queries:
     - `/venues` - All venues
-    - `/venues?neighborhood=Ballard` - All Ballard venues
+    - `/venues?city=Seattle` - All Seattle venues
     - `/venues?search=Tavern` - Search for "Tavern" venues
     """
     # Build WHERE clauses
     where_clauses = []
     params = {}
 
-    if neighborhood:
-        where_clauses.append("LOWER(v.neighborhood) = LOWER(:neighborhood)")
-        params['neighborhood'] = neighborhood
+    if city:
+        where_clauses.append("LOWER(v.city) = LOWER(:city)")
+        params['city'] = city
 
     if search:
         where_clauses.append("LOWER(v.venue_name) LIKE LOWER(:search)")
@@ -84,7 +84,7 @@ def list_venues(
 
     # Get paginated results
     query = f"""
-        SELECT venue_key, venue_name, address, neighborhood
+        SELECT venue_key, venue_name, address, city, state
         FROM venues v
         WHERE {where_clause}
         ORDER BY venue_name

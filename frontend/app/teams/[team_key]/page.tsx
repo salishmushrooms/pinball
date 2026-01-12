@@ -9,7 +9,7 @@ import { RoundMultiSelect } from '@/components/RoundMultiSelect';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
 import { useDebouncedEffect } from '@/lib/hooks';
-import { Table, Card, PageHeader, FilterPanel, Alert, LoadingSpinner, WinPercentage, Breadcrumb } from '@/components/ui';
+import { Table, Card, PageHeader, FilterPanel, Alert, LoadingSpinner, WinPercentage, Breadcrumb, TeamLogo } from '@/components/ui';
 import { SUPPORTED_SEASONS, filterSupportedSeasons, formatScore, cn } from '@/lib/utils';
 
 export default function TeamDetailPage() {
@@ -245,25 +245,35 @@ export default function TeamDetailPage() {
             { label: team.team_name },
           ]}
         />
-        <PageHeader
-          title={team.team_name}
-          description={
-            <span>
-              Season {team.season}
-              {team.home_venue_key && team.home_venue_name && (
-                <>
-                  {' • Home Venue: '}
-                  <Link
-                    href={`/venues/${team.home_venue_key}`}
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    {team.home_venue_name}
-                  </Link>
-                </>
-              )}
-            </span>
-          }
-        />
+        <div className="flex items-center gap-4 mt-4">
+          <TeamLogo
+            teamKey={team.team_key}
+            teamName={team.team_name}
+            size="lg"
+            priority={true}
+          />
+          <div className="flex-1">
+            <PageHeader
+              title={team.team_name}
+              description={
+                <span>
+                  Season {team.season}
+                  {team.home_venue_key && team.home_venue_name && (
+                    <>
+                      {' • Home Venue: '}
+                      <Link
+                        href={`/venues/${team.home_venue_key}`}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        {team.home_venue_name}
+                      </Link>
+                    </>
+                  )}
+                </span>
+              }
+            />
+          </div>
+        </div>
       </div>
 
       {/* Filters */}

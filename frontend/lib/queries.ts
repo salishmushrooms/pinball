@@ -20,6 +20,7 @@ import {
   PlayerListResponse,
   PlayerMachineStatsList,
   PlayerMachineScoreHistory,
+  PlayerMachineGamesResponse,
   PlayerQueryParams,
   PlayerMachineStatsParams,
   Machine,
@@ -70,6 +71,11 @@ export const queryKeys = {
     machineKey: string,
     params?: { venue_key?: string; seasons?: number[] }
   ) => ['player', playerKey, 'machines', machineKey, 'scores', params] as const,
+  playerMachineGames: (
+    playerKey: string,
+    machineKey: string,
+    params?: { venue_key?: string; seasons?: number[]; limit?: number; offset?: number }
+  ) => ['player', playerKey, 'machines', machineKey, 'games', params] as const,
 
   // Machines
   machines: (params?: MachineQueryParams) => ['machines', params] as const,
@@ -183,6 +189,22 @@ export function usePlayerMachineScoreHistory(
   return useQuery({
     queryKey: queryKeys.playerMachineScoreHistory(playerKey, machineKey, params),
     queryFn: () => api.getPlayerMachineScoreHistory(playerKey, machineKey, params),
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+    enabled: !!playerKey && !!machineKey,
+    ...options,
+  });
+}
+
+export function usePlayerMachineGames(
+  playerKey: string,
+  machineKey: string,
+  params?: { venue_key?: string; seasons?: number[]; limit?: number; offset?: number },
+  options?: Omit<UseQueryOptions<PlayerMachineGamesResponse>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.playerMachineGames(playerKey, machineKey, params),
+    queryFn: () => api.getPlayerMachineGames(playerKey, machineKey, params),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
     enabled: !!playerKey && !!machineKey,
