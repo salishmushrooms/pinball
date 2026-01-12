@@ -12,6 +12,7 @@ import {
   EmptyState,
   Table,
   ContentContainer,
+  TeamLogo,
 } from '@/components/ui';
 
 type SortField = 'team_name' | 'team_ipr' | 'home_venue_name';
@@ -152,13 +153,20 @@ export default function TeamsPage() {
                   {sortedTeams.map((team) => (
                     <Table.Row key={`${team.team_key}-${team.season}`}>
                       <Table.Cell>
-                        <Link
-                          href={`/teams/${team.team_key}?season=${team.season}`}
-                          className="font-medium hover:underline"
-                          style={{ color: 'var(--link-color)' }}
-                        >
-                          {team.team_name}
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <TeamLogo
+                            teamKey={team.team_key}
+                            teamName={team.team_name}
+                            size="sm"
+                          />
+                          <Link
+                            href={`/teams/${team.team_key}?season=${team.season}`}
+                            className="font-medium hover:underline"
+                            style={{ color: 'var(--link-color)' }}
+                          >
+                            {team.team_name}
+                          </Link>
+                        </div>
                       </Table.Cell>
                       <Table.Cell>
                         {team.home_venue_key && team.home_venue_name ? (

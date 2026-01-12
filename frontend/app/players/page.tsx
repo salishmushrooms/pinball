@@ -82,9 +82,19 @@ export default function PlayersPage() {
         description="Browse and search player statistics"
       />
 
-      {/* Player Highlight Slider - shown above search when no search term */}
+      {/* Player Highlight Slider - shown above dashboard when no search term */}
       {!searchTerm.trim() && !dashboardLoading && dashboardStats?.player_highlights && dashboardStats.player_highlights.length > 0 && (
         <PlayerHighlightSlider highlights={dashboardStats.player_highlights} />
+      )}
+
+      {/* Dashboard - shown above search when no search term */}
+      {!searchTerm.trim() && !dashboardLoading && dashboardStats && (
+        <PlayerDashboard stats={dashboardStats} />
+      )}
+
+      {/* Dashboard Loading State */}
+      {!searchTerm.trim() && dashboardLoading && (
+        <LoadingSpinner fullPage={false} text="Loading dashboard..." />
       )}
 
       {/* Search Filters */}
@@ -112,16 +122,6 @@ export default function PlayersPage() {
         <Alert variant="error" title="Error">
           {error}
         </Alert>
-      )}
-
-      {/* Dashboard - shown when no search term */}
-      {!searchTerm.trim() && !dashboardLoading && dashboardStats && (
-        <PlayerDashboard stats={dashboardStats} />
-      )}
-
-      {/* Dashboard Loading State */}
-      {!searchTerm.trim() && dashboardLoading && (
-        <LoadingSpinner fullPage={false} text="Loading dashboard..." />
       )}
 
       {/* Empty State - no results found */}

@@ -708,3 +708,40 @@ export interface MatchplayUserSearchResult {
   total_results: number;
   users: MatchplayUser[];
 }
+
+// Player Machine Games Types (with opponent details)
+export interface GamePlayer {
+  player_key: string;
+  player_name: string;
+  player_position: number;
+  score: number;
+  team_key: string;
+  team_name: string;
+  is_home_team: boolean;
+}
+
+export interface PlayerMachineGame {
+  match_key: string;
+  season: number;
+  week: number;
+  date: string | null;
+  venue_key: string;
+  venue_name: string;
+  round_number: number;
+  home_team_key: string;
+  home_team_name: string;
+  away_team_key: string;
+  away_team_name: string;
+  players: GamePlayer[];
+}
+
+export interface PlayerMachineGamesResponse {
+  player_key: string;
+  player_name: string;
+  machine_key: string;
+  machine_name: string;
+  games: PlayerMachineGame[];
+  total: number;
+  limit: number;
+  offset: number;
+}

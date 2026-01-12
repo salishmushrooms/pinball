@@ -371,7 +371,13 @@ export default function PlayerDetailPage() {
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
                         <span style={{ color: 'var(--text-muted)' }}>Games: </span>
-                        <span style={{ color: 'var(--text-primary)' }}>{stat.games_played}</span>
+                        <Link
+                          href={`/players/${playerKey}/machines/${stat.machine_key}?seasons=${seasonsFilter.join(',')}&venue_key=${venueFilter}`}
+                          className="hover:underline"
+                          style={{ color: 'var(--text-link)' }}
+                        >
+                          {stat.games_played}
+                        </Link>
                       </div>
                       <div>
                         <span style={{ color: 'var(--text-muted)' }}>Win: </span>
@@ -437,7 +443,13 @@ export default function PlayerDetailPage() {
                           </Link>
                         </Table.Cell>
                         <Table.Cell>
-                          {stat.games_played}
+                          <Link
+                            href={`/players/${playerKey}/machines/${stat.machine_key}?seasons=${seasonsFilter.join(',')}&venue_key=${venueFilter}`}
+                            className="hover:underline"
+                            style={{ color: 'var(--text-link)' }}
+                          >
+                            {stat.games_played}
+                          </Link>
                         </Table.Cell>
                         <Table.Cell>
                           <WinPercentage value={stat.win_percentage} />

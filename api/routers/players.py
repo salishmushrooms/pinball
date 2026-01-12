@@ -16,6 +16,9 @@ from api.models.schemas import (
     PlayerDashboardStats,
     IPRDistribution,
     PlayerHighlight,
+    GamePlayer,
+    PlayerMachineGame,
+    PlayerMachineGamesList,
     ErrorResponse
 )
 from api.dependencies import execute_query
@@ -816,4 +819,220 @@ def get_player_machine_score_history(
         total_games=len(scores),
         scores=all_scores_data,
         season_stats=season_stats
+    )
+
+
+@router.get(
+    "/{player_key}/machines/{machine_key}/games",
+    response_model=PlayerMachineGamesList,
+    responses={404: {"model": ErrorResponse}},
+    summary="Get player's games on a specific machine with opponent details",
+    description="Get all individual games for a player on a specific machine, including all players and their scores"
+)
+def get_player_machine_games(
+    player_key: str,
+    machine_key: str,
+    venue_key: Optional[str] = Query(None, description="Filter by venue"),
+    seasons: Union[TypingList[int], None] = Query(None, description="Filter by season(s) - can pass multiple"),
+    limit: int = Query(100, ge=1, le=500, description="Number of results to return"),
+    offset: int = Query(0, ge=0, description="Number of results to skip")
+):
+    """
+    Get all individual games for a player on a specific machine with complete opponent details.
+
+    Returns a list of games showing:
+    - Match details (season, week, date, venue)
+    - All players in each game with their scores, positions, and teams
+    - Home and away team information
+
+    Example: `/players/sean_irby/machines/MM/games`
+    Example: `/players/sean_irby/machines/MM/games?seasons=21&seasons=22&venue_key=KRA`
+    """
+    # First verify player exists
+    player_check = execute_query(
+        "SELECT name FROM players WHERE player_key = :player_key",
+        {'player_key': player_key}
+    )
+    if not player_check:
+        raise HTTPException(status_code=404, detail=f"Player '{player_key}' not found")
+
+    player_name = player_check[0]['name']
+
+    # Verify machine exists
+    machine_check = execute_query(
+        "SELECT machine_name FROM machines WHERE machine_key = :machine_key",
+        {'machine_key': machine_key}
+    )
+    if not machine_check:
+        raise HTTPException(status_code=404, detail=f"Machine '{machine_key}' not found")
+
+    machine_name = machine_check[0]['machine_name']
+
+    # Build WHERE clause for player's games
+    where_clauses = [
+        "ps.player_key = :player_key",
+        "ps.machine_key = :machine_key"
+    ]
+    params = {
+        'player_key': player_key,
+        'machine_key': machine_key
+    }
+
+    if venue_key is not None:
+        where_clauses.append("ps.venue_key = :venue_key")
+        params['venue_key'] = venue_key
+
+    if seasons is not None and len(seasons) > 0:
+        placeholders = ','.join([f':season{i}' for i in range(len(seasons))])
+        where_clauses.append(f"ps.season IN ({placeholders})")
+        for i, season in enumerate(seasons):
+            params[f'season{i}'] = season
+
+    where_clause = " AND ".join(where_clauses)
+
+    # Get total count
+    count_query = f"""
+        SELECT COUNT(DISTINCT ps.match_key || '-' || ps.round_number) as total
+        FROM scores ps
+        WHERE {where_clause}
+    """
+    count_result = execute_query(count_query, params)
+    total = count_result[0]['total'] if count_result else 0
+
+    # Fetch all games for this player on this machine
+    # Include limit and offset for pagination
+    games_query = f"""
+        WITH player_games AS (
+            SELECT DISTINCT
+                ps.match_key,
+                ps.round_number,
+                ps.season,
+                ps.week,
+                ps.date,
+                ps.venue_key,
+                v.venue_name,
+                m.home_team_key,
+                m.away_team_key
+            FROM scores ps
+            JOIN venues v ON ps.venue_key = v.venue_key
+            JOIN matches m ON ps.match_key = m.match_key
+            WHERE {where_clause}
+            ORDER BY ps.season DESC, ps.week DESC, ps.date DESC, ps.match_key, ps.round_number
+            LIMIT :limit OFFSET :offset
+        )
+        SELECT
+            pg.match_key,
+            pg.round_number,
+            pg.season,
+            pg.week,
+            pg.date,
+            pg.venue_key,
+            pg.venue_name,
+            pg.home_team_key,
+            ht.team_name as home_team_name,
+            pg.away_team_key,
+            at.team_name as away_team_name,
+            s.player_key,
+            p.name as player_name,
+            s.player_position,
+            s.score,
+            s.team_key,
+            st.team_name as player_team_name,
+            s.is_home_team
+        FROM player_games pg
+        JOIN scores s ON s.match_key = pg.match_key
+            AND s.round_number = pg.round_number
+            AND s.machine_key = :machine_key
+        JOIN players p ON s.player_key = p.player_key
+        JOIN teams ht ON pg.home_team_key = ht.team_key AND pg.season = ht.season
+        JOIN teams at ON pg.away_team_key = at.team_key AND pg.season = at.season
+        JOIN teams st ON s.team_key = st.team_key AND pg.season = st.season
+        ORDER BY pg.season DESC, pg.week DESC, pg.date DESC, pg.match_key, pg.round_number, s.player_position
+    """
+
+    params['limit'] = limit
+    params['offset'] = offset
+
+    results = execute_query(games_query, params)
+
+    if not results:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No games found for player '{player_key}' on machine '{machine_key}'"
+        )
+
+    # Group results by game (match_key + round_number)
+    from collections import defaultdict
+    games_dict = defaultdict(lambda: {
+        'match_key': None,
+        'season': None,
+        'week': None,
+        'date': None,
+        'venue_key': None,
+        'venue_name': None,
+        'round_number': None,
+        'home_team_key': None,
+        'home_team_name': None,
+        'away_team_key': None,
+        'away_team_name': None,
+        'players': []
+    })
+
+    for row in results:
+        game_key = f"{row['match_key']}-{row['round_number']}"
+
+        if games_dict[game_key]['match_key'] is None:
+            games_dict[game_key] = {
+                'match_key': row['match_key'],
+                'season': row['season'],
+                'week': row['week'],
+                'date': row['date'].isoformat() if row['date'] else None,
+                'venue_key': row['venue_key'],
+                'venue_name': row['venue_name'],
+                'round_number': row['round_number'],
+                'home_team_key': row['home_team_key'],
+                'home_team_name': row['home_team_name'],
+                'away_team_key': row['away_team_key'],
+                'away_team_name': row['away_team_name'],
+                'players': []
+            }
+
+        games_dict[game_key]['players'].append({
+            'player_key': row['player_key'],
+            'player_name': row['player_name'],
+            'player_position': row['player_position'],
+            'score': row['score'],
+            'team_key': row['team_key'],
+            'team_name': row['player_team_name'],
+            'is_home_team': row['is_home_team']
+        })
+
+    # Convert to list and create response objects
+    games_list = []
+    for game_data in games_dict.values():
+        game_players = [GamePlayer(**player) for player in game_data['players']]
+        games_list.append(PlayerMachineGame(
+            match_key=game_data['match_key'],
+            season=game_data['season'],
+            week=game_data['week'],
+            date=game_data['date'],
+            venue_key=game_data['venue_key'],
+            venue_name=game_data['venue_name'],
+            round_number=game_data['round_number'],
+            home_team_key=game_data['home_team_key'],
+            home_team_name=game_data['home_team_name'],
+            away_team_key=game_data['away_team_key'],
+            away_team_name=game_data['away_team_name'],
+            players=game_players
+        ))
+
+    return PlayerMachineGamesList(
+        player_key=player_key,
+        player_name=player_name,
+        machine_key=machine_key,
+        machine_name=machine_name,
+        games=games_list,
+        total=total,
+        limit=limit,
+        offset=offset
     )

@@ -29,3 +29,5 @@ export { Modal } from './Modal';
 export { WinPercentage } from './WinPercentage';
 export { Breadcrumb } from './Breadcrumb';
 export { Tooltip } from './Tooltip';
+export { TeamLogo } from './TeamLogo';
+export type { TeamLogoProps } from './TeamLogo';
