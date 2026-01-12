@@ -240,7 +240,6 @@ class VenueBase(BaseModel):
     venue_key: str
     venue_name: str
     address: Optional[str] = None
-    city: Optional[str] = None
     state: Optional[str] = None
 
 

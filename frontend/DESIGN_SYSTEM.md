@@ -44,6 +44,7 @@ MNP is a data-heavy application. Design should enhance readability and comprehen
 - **Clear visual hierarchy** for tables and lists
 - **Scannable layouts** with consistent spacing
 - **Meaningful use of color** to highlight important data (high scores, rankings, etc.)
+- **Constrain sparse content** - Simple lists and narrow tables should not stretch to full width on desktop. Use max-width constraints to keep content readable and visually cohesive.
 
 ### 2. Responsive & Mobile-Friendly
 All components must work across devices:
@@ -452,7 +453,40 @@ className="grid grid-cols-1 md:grid-cols-3 gap-4"
 
 ---
 
-#### 9. LoadingSpinner
+#### 9. TopMachinesList
+
+**Purpose:** Display a ranked list of items (e.g., top machines by score count)
+**Use Case:** Simple "Top N" displays that should remain narrow on desktop
+
+```tsx
+<TopMachinesList
+  machines={topMachines}
+  title="Most Played Machines"
+  subtitle="Season 22 scores"
+  maxWidth="320px"
+/>
+```
+
+**Props:**
+- `machines`: Array of `{ machine_key, machine_name, total_scores }`
+- `title`: Header text (default: "Top Machines")
+- `subtitle`: Optional secondary text below title
+- `maxWidth`: CSS max-width value (default: "320px")
+
+**Styling:**
+- Background: `var(--color-primary-50)`
+- Border: `1px solid var(--border-light)`
+- Max-width constrained by default to prevent stretching on desktop
+- Each row shows: rank number, linked machine name, score count
+
+**When to Use:**
+- Displaying top 3-5 items in a simple ranked list
+- Summary widgets that don't need full-width display
+- Any "top N" display where content is sparse
+
+---
+
+#### 10. LoadingSpinner
 
 **Purpose:** Loading states
 
@@ -467,7 +501,7 @@ className="grid grid-cols-1 md:grid-cols-3 gap-4"
 
 ---
 
-#### 10. EmptyState
+#### 11. EmptyState
 
 **Purpose:** No data placeholders
 
@@ -487,7 +521,7 @@ className="grid grid-cols-1 md:grid-cols-3 gap-4"
 
 ---
 
-#### 11. TruncatedText
+#### 12. TruncatedText
 
 **Purpose:** Truncate long text (like machine names) with ellipsis and tooltip
 **Use Case:** Tables on mobile where column width is limited
@@ -517,7 +551,7 @@ import { TruncatedText } from '@/components/ui';
 
 ---
 
-#### 12. ContentContainer
+#### 13. ContentContainer
 
 **Purpose:** Constrain content/table width on desktop to reduce excessive whitespace
 **Use Case:** Tables with few columns that look too stretched on wide screens
@@ -569,7 +603,7 @@ import { ContentContainer } from '@/components/ui';
 
 ---
 
-#### 13. FilterPanel
+#### 14. FilterPanel
 
 **Purpose:** Collapsible container for page filters
 **Features:** Active filter count badge, clear all button
@@ -589,7 +623,7 @@ import { ContentContainer } from '@/components/ui';
 
 ---
 
-#### 14. Modal
+#### 15. Modal
 
 **Purpose:** Overlay dialog for focused content (charts, forms, confirmations)
 **Features:** Escape key closes, click outside closes, prevents body scroll

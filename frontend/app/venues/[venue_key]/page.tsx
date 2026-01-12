@@ -14,7 +14,7 @@ import {
   EmptyState,
   Table,
   Badge,
-  StatCard,
+  TopMachinesList,
   FilterPanel,
   ContentContainer,
   Breadcrumb,
@@ -29,6 +29,7 @@ export default function VenueDetailPage() {
 
   const [venue, setVenue] = useState<VenueDetail | null>(null);
   const [machines, setMachines] = useState<VenueMachineStats[]>([]);
+  const [topMachines, setTopMachines] = useState<VenueMachineStats[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [availableSeasons, setAvailableSeasons] = useState<number[]>([...SUPPORTED_SEASONS]);
   const [loading, setLoading] = useState(true);
@@ -42,25 +43,32 @@ export default function VenueDetailPage() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [seasons, setSeasons] = useState<number[]>([]);
 
-  // Fetch available seasons and teams on mount
+  // Fetch available seasons, teams, and top machines (season 22) on mount
   useEffect(() => {
     async function fetchInitialData() {
       try {
-        const [seasonsData, teamsData] = await Promise.all([
+        const [seasonsData, teamsData, topMachinesData] = await Promise.all([
           api.getSeasons(),
           api.getTeams({ limit: 500 }),
+          api.getVenueMachines(venueKey, {
+            current_only: true,
+            seasons: [22],
+          }),
         ]);
         const supported = filterSupportedSeasons(seasonsData.seasons);
         setAvailableSeasons(supported);
         setTeams(teamsData.teams);
         // Default to all supported seasons
         setSeasons(supported);
+        // Top 3 machines by score count in season 22
+        const sorted = [...topMachinesData].sort((a, b) => b.total_scores - a.total_scores);
+        setTopMachines(sorted.slice(0, 3));
       } catch (err) {
         console.error('Failed to fetch initial data:', err);
       }
     }
     fetchInitialData();
-  }, []);
+  }, [venueKey]);
 
   // Fetch venue and machines when filters change
   useEffect(() => {
@@ -272,42 +280,13 @@ export default function VenueDetailPage() {
         </div>
       </FilterPanel>
 
-      {/* Summary Statistics - moved above machines table */}
-      {machines.length > 0 && (
-        <Card>
-          <Card.Header>
-            <Card.Title>Summary Statistics</Card.Title>
-          </Card.Header>
-          <Card.Content>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <StatCard
-                label="Total Machines"
-                value={machines.length}
-              />
-              <StatCard
-                label={selectedTeams.length > 0 ? 'Total Games' : 'Total Scores'}
-                value={machines.reduce((sum, m) => sum + m.total_scores, 0).toLocaleString()}
-              />
-              <StatCard
-                label={selectedTeams.length > 0 ? 'Team Members' : 'Unique Players'}
-                value={Math.max(...machines.map((m) => m.unique_players))}
-              />
-              <StatCard
-                label={`Avg ${selectedTeams.length > 0 ? 'Games' : 'Scores'}/Machine`}
-                value={Math.round(
-                  machines.reduce((sum, m) => sum + m.total_scores, 0) /
-                    machines.length
-                ).toLocaleString()}
-              />
-            </div>
-            {selectedTeams.length > 0 && scoresFrom === 'all' && (
-              <Alert variant="info" title="Scouting Mode" className="mt-4">
-                These statistics show {teams.find((t) => t.team_key === selectedTeams[0])?.team_name}'s
-                total experience on machines currently at {venue.venue_name}, including games played at other venues.
-              </Alert>
-            )}
-          </Card.Content>
-        </Card>
+      {/* Top Machines - Season 22 */}
+      {topMachines.length > 0 && (
+        <TopMachinesList
+          machines={topMachines}
+          title="Most Played Machines"
+          subtitle="Season 22 scores"
+        />
       )}
 
       {/* Machines Table */}

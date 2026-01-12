@@ -565,10 +565,11 @@ async def search_matchplay_tournaments(
 @router.get(
     "/players/ratings",
     summary="Get Matchplay ratings for multiple players",
-    description="Batch lookup of Matchplay ratings for linked players (efficient for rosters)"
+    description="Batch lookup of Matchplay ratings for linked players (efficient for rosters). Returns cached ratings by default."
 )
 async def get_players_matchplay_ratings(
-    player_keys: str = Query(..., description="Comma-separated list of player keys")
+    player_keys: str = Query(..., description="Comma-separated list of player keys"),
+    refresh: bool = Query(False, description="Force refresh ratings from Matchplay API (rate-limited)")
 ):
     """
     Get Matchplay ratings for multiple linked players at once.
@@ -576,59 +577,132 @@ async def get_players_matchplay_ratings(
     Returns a map of player_key -> rating info for all linked players.
     Players that are not linked will be omitted from the response.
 
+    By default, returns cached ratings from the database for fast loading.
+    Use refresh=true to fetch fresh ratings from Matchplay API (rate-limited).
+
     Example: `/matchplay/players/ratings?player_keys=abc123,def456,ghi789`
+    Example: `/matchplay/players/ratings?player_keys=abc123&refresh=true`
     """
     keys = [k.strip() for k in player_keys.split(',') if k.strip()]
 
     if not keys:
-        return {"ratings": {}}
+        return {"ratings": {}, "cached": True, "last_updated": None}
 
-    # Batch lookup all linked players
+    # Batch lookup all linked players with their cached ratings
     placeholders = ', '.join([f':key_{i}' for i in range(len(keys))])
     params = {f'key_{i}': k for i, k in enumerate(keys)}
 
+    # Join with matchplay_ratings to get cached rating data
     mapping_query = f"""
-        SELECT mnp_player_key, matchplay_user_id, matchplay_name
-        FROM matchplay_player_mappings
-        WHERE mnp_player_key IN ({placeholders})
+        SELECT
+            m.mnp_player_key,
+            m.matchplay_user_id,
+            m.matchplay_name,
+            m.last_synced,
+            r.rating_value,
+            r.rating_rd,
+            r.fetched_at as rating_fetched_at
+        FROM matchplay_player_mappings m
+        LEFT JOIN matchplay_ratings r ON m.matchplay_user_id = r.matchplay_user_id
+        WHERE m.mnp_player_key IN ({placeholders})
     """
     mappings = execute_query(mapping_query, params)
 
     if not mappings:
-        return {"ratings": {}}
+        return {"ratings": {}, "cached": True, "last_updated": None}
 
-    # For now, return cached info from mappings
-    # If we need fresh ratings, we'd need to batch API calls which is rate-limited
     client = MatchplayClient()
     ratings = {}
+    oldest_fetch = None
 
     for mapping in mappings:
         player_key = mapping['mnp_player_key']
         matchplay_user_id = mapping['matchplay_user_id']
         matchplay_name = mapping['matchplay_name']
+        cached_rating = mapping.get('rating_value')
+        cached_rd = mapping.get('rating_rd')
+        rating_fetched_at = mapping.get('rating_fetched_at')
+
+        # Track oldest fetch time for cache staleness indication
+        if rating_fetched_at and (oldest_fetch is None or rating_fetched_at < oldest_fetch):
+            oldest_fetch = rating_fetched_at
 
         ratings[player_key] = {
             "matchplay_user_id": matchplay_user_id,
             "matchplay_name": matchplay_name,
-            "rating": None,
+            "rating": float(cached_rating) if cached_rating is not None else None,
+            "rd": float(cached_rd) if cached_rd is not None else None,
             "profile_url": f"https://app.matchplay.events/users/{matchplay_user_id}"
         }
 
-        # Try to fetch rating from API (with rate limiting awareness)
-        # Note: rate_limit_remaining is None until first API call, so allow that case
-        if client.is_configured() and (client.rate_limit_remaining is None or client.rate_limit_remaining > 2):
+    # If refresh requested and API is configured, fetch fresh ratings
+    if refresh and client.is_configured():
+        logger.info(f"Refreshing Matchplay ratings for {len(mappings)} players")
+
+        for mapping in mappings:
+            player_key = mapping['mnp_player_key']
+            matchplay_user_id = mapping['matchplay_user_id']
+
+            # Check rate limit before each call
+            if client.rate_limit_remaining is not None and client.rate_limit_remaining <= 2:
+                logger.warning("Rate limit nearly exhausted, stopping refresh")
+                break
+
             try:
                 profile = await client.get_user_profile(matchplay_user_id)
                 if profile:
                     rating_data = profile.get('rating')
                     if rating_data:
-                        ratings[player_key]["rating"] = rating_data.get('rating')
-                        ratings[player_key]["rd"] = rating_data.get('rd')
+                        new_rating = rating_data.get('rating')
+                        new_rd = rating_data.get('rd')
+
+                        # Update the response
+                        ratings[player_key]["rating"] = new_rating
+                        ratings[player_key]["rd"] = new_rd
                         ratings[player_key]["game_count"] = rating_data.get('gameCount')
+
+                        # Store in cache - upsert into matchplay_ratings
+                        with get_db_connection() as conn:
+                            # Delete existing rating for this user
+                            conn.execute(text("""
+                                DELETE FROM matchplay_ratings
+                                WHERE matchplay_user_id = :matchplay_user_id
+                            """), {'matchplay_user_id': matchplay_user_id})
+
+                            # Insert new rating
+                            conn.execute(text("""
+                                INSERT INTO matchplay_ratings
+                                    (matchplay_user_id, rating_value, rating_rd, fetched_at)
+                                VALUES
+                                    (:matchplay_user_id, :rating_value, :rating_rd, :fetched_at)
+                            """), {
+                                'matchplay_user_id': matchplay_user_id,
+                                'rating_value': new_rating,
+                                'rating_rd': new_rd,
+                                'fetched_at': datetime.utcnow()
+                            })
+
+                            # Update last_synced on mapping
+                            conn.execute(text("""
+                                UPDATE matchplay_player_mappings
+                                SET last_synced = :last_synced
+                                WHERE matchplay_user_id = :matchplay_user_id
+                            """), {
+                                'matchplay_user_id': matchplay_user_id,
+                                'last_synced': datetime.utcnow()
+                            })
+                            conn.commit()
+
             except Exception as e:
                 logger.warning(f"Failed to fetch rating for {player_key}: {e}")
 
-    return {"ratings": ratings}
+        oldest_fetch = datetime.utcnow()
+
+    return {
+        "ratings": ratings,
+        "cached": not refresh,
+        "last_updated": oldest_fetch.isoformat() if oldest_fetch else None
+    }
 
 
 @router.post(

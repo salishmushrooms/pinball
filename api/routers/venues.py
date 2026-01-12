@@ -50,7 +50,6 @@ def get_current_machines_for_venue(venue_key: str) -> List[str]:
     description="Get a paginated list of all venues with optional filtering"
 )
 def list_venues(
-    city: Optional[str] = Query(None, description="Filter by city"),
     search: Optional[str] = Query(None, description="Search venue names (case-insensitive)"),
     limit: int = Query(100, ge=1, le=500, description="Number of results to return"),
     offset: int = Query(0, ge=0, description="Number of results to skip")
@@ -60,16 +59,11 @@ def list_venues(
 
     Example queries:
     - `/venues` - All venues
-    - `/venues?city=Seattle` - All Seattle venues
     - `/venues?search=Tavern` - Search for "Tavern" venues
     """
     # Build WHERE clauses
     where_clauses = []
     params = {}
-
-    if city:
-        where_clauses.append("LOWER(v.city) = LOWER(:city)")
-        params['city'] = city
 
     if search:
         where_clauses.append("LOWER(v.venue_name) LIKE LOWER(:search)")
@@ -84,7 +78,7 @@ def list_venues(
 
     # Get paginated results
     query = f"""
-        SELECT venue_key, venue_name, address, city, state
+        SELECT venue_key, venue_name, address, neighborhood as state
         FROM venues v
         WHERE {where_clause}
         ORDER BY venue_name
@@ -110,6 +104,7 @@ def list_venues(
 )
 def list_venues_with_stats(
     season: Optional[int] = Query(None, description="Filter home teams by season (defaults to most recent)"),
+    active_only: bool = Query(True, description="Only show venues with home teams in the current season"),
     neighborhood: Optional[str] = Query(None, description="Filter by neighborhood"),
     search: Optional[str] = Query(None, description="Search venue names (case-insensitive)"),
     limit: int = Query(100, ge=1, le=500, description="Number of results to return"),
@@ -119,13 +114,28 @@ def list_venues_with_stats(
     List all venues with additional statistics including machine count and home teams.
 
     Example queries:
-    - `/venues/with-stats` - All venues with stats
+    - `/venues/with-stats` - Active venues (with home teams in current season)
+    - `/venues/with-stats?active_only=false` - All venues including inactive
     - `/venues/with-stats?season=22` - Home teams filtered to season 22
     - `/venues/with-stats?search=Tavern` - Search for "Tavern" venues
     """
+    # Get most recent season first (needed for active_only filter and home teams)
+    if season is None:
+        season_query = "SELECT MAX(season) as max_season FROM teams"
+        season_result = execute_query(season_query, {})
+        season = season_result[0]['max_season'] if season_result and season_result[0]['max_season'] else 22
+
     # Build WHERE clauses
     where_clauses = []
-    params = {}
+    params = {'season': season}
+
+    # Filter to only venues with home teams in the current season
+    if active_only:
+        where_clauses.append("""
+            v.venue_key IN (
+                SELECT DISTINCT home_venue_key FROM teams WHERE season = :season AND home_venue_key IS NOT NULL
+            )
+        """)
 
     if neighborhood:
         where_clauses.append("LOWER(v.neighborhood) = LOWER(:neighborhood)")
@@ -153,13 +163,6 @@ def list_venues_with_stats(
     params['limit'] = limit
     params['offset'] = offset
     venues = execute_query(query, params)
-
-    # Get home teams for each venue
-    # If season not specified, get most recent season
-    if season is None:
-        season_query = "SELECT MAX(season) as max_season FROM teams"
-        season_result = execute_query(season_query, {})
-        season = season_result[0]['max_season'] if season_result and season_result[0]['max_season'] else 22
 
     home_teams_query = """
         SELECT team_key, team_name, home_venue_key, season

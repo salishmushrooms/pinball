@@ -349,9 +349,9 @@ export interface VenueMachineStats {
 }
 
 export interface VenueQueryParams {
-  city?: string;
   state?: string;
   search?: string;
+  active_only?: boolean;
   limit?: number;
   offset?: number;
 }
@@ -700,6 +700,8 @@ export interface MatchplayRatingInfo {
 
 export interface MatchplayRatingsResponse {
   ratings: Record<string, MatchplayRatingInfo>;
+  cached: boolean;
+  last_updated: string | null;
 }
 
 export interface MatchplayUserSearchResult {

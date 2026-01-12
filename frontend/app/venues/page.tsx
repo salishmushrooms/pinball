@@ -17,11 +17,16 @@ export default function VenuesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showInactive, setShowInactive] = useState(false);
 
   useEffect(() => {
     async function fetchVenues() {
+      setLoading(true);
       try {
-        const data = await api.getVenuesWithStats({ limit: 500 });
+        const data = await api.getVenuesWithStats({
+          limit: 500,
+          active_only: !showInactive
+        });
         setVenues(data.venues);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch venues');
@@ -31,7 +36,7 @@ export default function VenuesPage() {
     }
 
     fetchVenues();
-  }, []);
+  }, [showInactive]);
 
   const filteredVenues = venues.filter((venue) =>
     venue.venue_name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -58,12 +63,28 @@ export default function VenuesPage() {
 
       <Card>
         <Card.Content>
-          <Input
-            type="text"
-            placeholder="Search venues..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <div className="flex-1 w-full sm:w-auto">
+              <Input
+                type="text"
+                placeholder="Search venues..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={(e) => setShowInactive(e.target.checked)}
+                className="h-4 w-4 rounded focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+                style={{ borderColor: 'var(--input-border)' }}
+              />
+              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                Show inactive venues
+              </span>
+            </label>
+          </div>
         </Card.Content>
       </Card>
 

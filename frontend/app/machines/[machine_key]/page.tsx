@@ -16,6 +16,7 @@ import {
   FilterPanel,
   ContentContainer,
   Breadcrumb,
+  type FilterChipData,
 } from '@/components/ui';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
@@ -167,6 +168,51 @@ export default function MachineDetailPage() {
 
   const stats = calculateStats();
 
+  // Build active filters for chips display
+  const activeFilters: FilterChipData[] = [];
+
+  // Season filter - only show if not "all seasons"
+  if (selectedSeasons.length > 0 && selectedSeasons.length < availableSeasons.length) {
+    activeFilters.push({
+      key: 'season',
+      label: 'Season',
+      value: selectedSeasons.length === 1
+        ? String(selectedSeasons[0])
+        : selectedSeasons.sort((a, b) => b - a).join(', '),
+      onRemove: () => setSelectedSeasons([...availableSeasons]),
+    });
+  }
+
+  // Venue filter
+  if (selectedVenue !== 'all') {
+    const venueName = venues.find(v => v.venue_key === selectedVenue)?.venue_name || selectedVenue;
+    activeFilters.push({
+      key: 'venue',
+      label: 'Venue',
+      value: venueName,
+      onRemove: () => setSelectedVenue('all'),
+    });
+  }
+
+  // Team filter
+  if (selectedTeams.length > 0) {
+    const teamNames = selectedTeams.map(tk =>
+      teams.find(t => t.team_key === tk)?.team_name || tk
+    );
+    activeFilters.push({
+      key: 'team',
+      label: selectedTeams.length === 1 ? 'Team' : 'Teams',
+      value: teamNames.length <= 2 ? teamNames.join(', ') : `${teamNames.length} selected`,
+      onRemove: () => setSelectedTeams([]),
+    });
+  }
+
+  const handleClearAllFilters = () => {
+    setSelectedSeasons([Math.max(...availableSeasons)]);
+    setSelectedVenue('all');
+    setSelectedTeams([]);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -209,6 +255,7 @@ export default function MachineDetailPage() {
               value={formatScore(machine.max_score || 0)}
             />
           </div>
+          <p className="text-sm text-gray-500 mt-4">* Based on data from MNP seasons 18-22</p>
         </Card.Content>
       </Card>
 
@@ -217,17 +264,8 @@ export default function MachineDetailPage() {
         title="Filters"
         collapsible={true}
         defaultOpen={false}
-        activeFilterCount={
-          (selectedSeasons.length > 0 && selectedSeasons.length < availableSeasons.length ? 1 : 0) +
-          (selectedVenue !== 'all' ? 1 : 0) +
-          (selectedTeams.length > 0 ? 1 : 0)
-        }
-        showClearAll={true}
-        onClearAll={() => {
-          setSelectedSeasons([Math.max(...availableSeasons)]);
-          setSelectedVenue('all');
-          setSelectedTeams([]);
-        }}
+        activeFilters={activeFilters}
+        onClearAll={handleClearAllFilters}
       >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <SeasonMultiSelect
