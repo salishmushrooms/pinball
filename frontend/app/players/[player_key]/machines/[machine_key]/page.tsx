@@ -120,11 +120,6 @@ export default function PlayerMachineGamesPage() {
     return '';
   }
 
-  // Helper function to format team display
-  function formatTeamDisplay(game: typeof gamesData.games[0]): string {
-    return `${game.away_team_name} @ ${game.home_team_name}`;
-  }
-
   if (loading) {
     return <LoadingSpinner fullPage text="Loading game details..." />;
   }
@@ -159,7 +154,7 @@ export default function PlayerMachineGamesPage() {
         />
         <PageHeader
           title={`${player.name} - ${machine.machine_name}`}
-          subtitle="Game-by-game breakdown with opponents"
+          description="Game-by-game breakdown with opponents"
         />
       </div>
 
