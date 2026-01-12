@@ -434,10 +434,13 @@ export const api = {
 
   /**
    * Get Matchplay ratings for multiple players (batch lookup)
+   * @param playerKeys - Array of player keys to look up
+   * @param refresh - If true, fetches fresh ratings from Matchplay API (rate-limited)
    */
-  getMatchplayRatings: (playerKeys: string[]): Promise<MatchplayRatingsResponse> => {
+  getMatchplayRatings: (playerKeys: string[], refresh: boolean = false): Promise<MatchplayRatingsResponse> => {
     return fetchAPI<MatchplayRatingsResponse>('/matchplay/players/ratings', {
       player_keys: playerKeys.join(','),
+      refresh,
     });
   },
 

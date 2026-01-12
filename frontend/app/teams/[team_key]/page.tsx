@@ -24,6 +24,8 @@ export default function TeamDetailPage() {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [availableSeasons, setAvailableSeasons] = useState<number[]>([]);
   const [matchplayRatings, setMatchplayRatings] = useState<Record<string, MatchplayRatingInfo>>({});
+  const [matchplayLastUpdated, setMatchplayLastUpdated] = useState<string | null>(null);
+  const [matchplayRefreshing, setMatchplayRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -122,22 +124,41 @@ export default function TeamDetailPage() {
       setMachineStats(sortedStats);
       setPlayers(playersData.players);
 
-      // Fetch Matchplay ratings for all players in roster
+      // Fetch cached Matchplay ratings for all players in roster (non-blocking)
+      // This uses cached data so it's fast and doesn't hit rate limits
       if (playersData.players.length > 0) {
-        try {
-          const playerKeys = playersData.players.map((p) => p.player_key);
-          const ratingsResponse = await api.getMatchplayRatings(playerKeys);
-          setMatchplayRatings(ratingsResponse.ratings || {});
-        } catch (ratingsErr) {
-          // Non-fatal - just log and continue without ratings
-          console.warn('Failed to fetch Matchplay ratings:', ratingsErr);
-        }
+        const playerKeys = playersData.players.map((p) => p.player_key);
+        api.getMatchplayRatings(playerKeys)
+          .then((ratingsResponse) => {
+            setMatchplayRatings(ratingsResponse.ratings || {});
+            setMatchplayLastUpdated(ratingsResponse.last_updated);
+          })
+          .catch((ratingsErr) => {
+            // Non-fatal - just log and continue without ratings
+            console.warn('Failed to fetch Matchplay ratings:', ratingsErr);
+          });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch team data');
     } finally {
       setLoading(false);
       setFetching(false);
+    }
+  }
+
+  async function refreshMatchplayRatings() {
+    if (players.length === 0 || matchplayRefreshing) return;
+
+    setMatchplayRefreshing(true);
+    try {
+      const playerKeys = players.map((p) => p.player_key);
+      const ratingsResponse = await api.getMatchplayRatings(playerKeys, true);
+      setMatchplayRatings(ratingsResponse.ratings || {});
+      setMatchplayLastUpdated(ratingsResponse.last_updated);
+    } catch (err) {
+      console.warn('Failed to refresh Matchplay ratings:', err);
+    } finally {
+      setMatchplayRefreshing(false);
     }
   }
 
@@ -332,11 +353,11 @@ export default function TeamDetailPage() {
         className="border rounded-lg"
         style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg)' }}
       >
-        <button
-          onClick={() => setRosterOpen(!rosterOpen)}
-          className="w-full px-6 py-4 flex items-center justify-between transition-colors hover:opacity-80"
-        >
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between px-6 py-4">
+          <button
+            onClick={() => setRosterOpen(!rosterOpen)}
+            className="flex items-center gap-3 transition-colors hover:opacity-80"
+          >
             <h2
               className="text-xl font-semibold"
               style={{ color: 'var(--text-primary)' }}
@@ -349,25 +370,76 @@ export default function TeamDetailPage() {
             >
               ({players.length} player{players.length !== 1 ? 's' : ''})
             </span>
-          </div>
-          <svg
-            className={cn(
-              'w-5 h-5 transition-transform',
-              rosterOpen && 'transform rotate-180'
+            <svg
+              className={cn(
+                'w-5 h-5 transition-transform',
+                rosterOpen && 'transform rotate-180'
+              )}
+              style={{ color: 'var(--text-muted)' }}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+
+          {/* Matchplay refresh button */}
+          <div className="flex items-center gap-2">
+            {matchplayLastUpdated && (
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                MP data: {new Date(matchplayLastUpdated).toLocaleDateString()}
+              </span>
             )}
-            style={{ color: 'var(--text-muted)' }}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
-        </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                refreshMatchplayRatings();
+              }}
+              disabled={matchplayRefreshing || players.length === 0}
+              className={cn(
+                'px-3 py-1 text-xs rounded border transition-colors',
+                matchplayRefreshing
+                  ? 'opacity-50 cursor-not-allowed'
+                  : 'hover:bg-blue-50 dark:hover:bg-blue-900/20'
+              )}
+              style={{
+                borderColor: 'var(--border)',
+                color: 'var(--text-secondary)',
+              }}
+              title="Refresh Matchplay ratings from API"
+            >
+              {matchplayRefreshing ? (
+                <span className="flex items-center gap-1">
+                  <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="none"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  Refreshing...
+                </span>
+              ) : (
+                'Refresh MP'
+              )}
+            </button>
+          </div>
+        </div>
 
         {rosterOpen && (
           <div className="px-6 pb-6 border-t" style={{ borderColor: 'var(--border)' }}>
