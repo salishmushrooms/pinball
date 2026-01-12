@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { api } from '@/lib/api';
-import { Team } from '@/lib/types';
+import { useTeams } from '@/lib/queries';
 import {
   Card,
   PageHeader,
@@ -19,38 +18,17 @@ type SortField = 'team_name' | 'team_ipr' | 'home_venue_name';
 type SortDirection = 'asc' | 'desc';
 
 export default function TeamsPage() {
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [sortField, setSortField] = useState<SortField>('team_name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-  useEffect(() => {
-    fetchTeams();
-  }, []);
+  const { data, isLoading, error } = useTeams({ limit: 500 });
 
-  async function fetchTeams() {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api.getTeams({
-        limit: 500, // API maximum limit
-      });
-
-      // Find the most recent season
-      const maxSeason = Math.max(...data.teams.map(t => t.season));
-
-      // Filter to only teams from the most recent season
-      const currentSeasonTeams = data.teams
-        .filter(team => team.season === maxSeason);
-
-      setTeams(currentSeasonTeams);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch teams');
-    } finally {
-      setLoading(false);
-    }
-  }
+  // Filter to only teams from the most recent season
+  const teams = useMemo(() => {
+    if (!data?.teams?.length) return [];
+    const maxSeason = Math.max(...data.teams.map(t => t.season));
+    return data.teams.filter(team => team.season === maxSeason);
+  }, [data]);
 
   function handleSort(field: SortField) {
     if (sortField === field) {
@@ -61,46 +39,48 @@ export default function TeamsPage() {
     }
   }
 
-  const sortedTeams = [...teams].sort((a, b) => {
-    let aValue: string | number | null;
-    let bValue: string | number | null;
+  const sortedTeams = useMemo(() => {
+    return [...teams].sort((a, b) => {
+      let aValue: string | number | null;
+      let bValue: string | number | null;
 
-    switch (sortField) {
-      case 'team_name':
-        aValue = a.team_name;
-        bValue = b.team_name;
-        break;
-      case 'team_ipr':
-        aValue = a.team_ipr ?? -1;
-        bValue = b.team_ipr ?? -1;
-        break;
-      case 'home_venue_name':
-        aValue = a.home_venue_name ?? '';
-        bValue = b.home_venue_name ?? '';
-        break;
-      default:
-        return 0;
-    }
+      switch (sortField) {
+        case 'team_name':
+          aValue = a.team_name;
+          bValue = b.team_name;
+          break;
+        case 'team_ipr':
+          aValue = a.team_ipr ?? -1;
+          bValue = b.team_ipr ?? -1;
+          break;
+        case 'home_venue_name':
+          aValue = a.home_venue_name ?? '';
+          bValue = b.home_venue_name ?? '';
+          break;
+        default:
+          return 0;
+      }
 
-    if (aValue === null || aValue === '') return 1;
-    if (bValue === null || bValue === '') return -1;
+      if (aValue === null || aValue === '') return 1;
+      if (bValue === null || bValue === '') return -1;
 
-    let comparison = 0;
-    if (typeof aValue === 'string' && typeof bValue === 'string') {
-      comparison = aValue.localeCompare(bValue);
-    } else {
-      comparison = aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-    }
+      let comparison = 0;
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        comparison = aValue.localeCompare(bValue);
+      } else {
+        comparison = aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      }
 
-    return sortDirection === 'asc' ? comparison : -comparison;
-  });
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [teams, sortField, sortDirection]);
 
-  if (loading) {
+  if (isLoading) {
     return <LoadingSpinner fullPage text="Loading teams..." />;
   }
 
   if (error) {
-    return <Alert variant="error" title="Error">{error}</Alert>;
+    return <Alert variant="error" title="Error">{error instanceof Error ? error.message : 'Failed to fetch teams'}</Alert>;
   }
 
   return (

@@ -1,8 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
-import { ApiInfo } from '@/lib/types';
+import { useApiInfo } from '@/lib/queries';
 import {
   Card,
   PageHeader,
@@ -54,33 +52,16 @@ const icons = {
 };
 
 export default function Home() {
-  const [apiInfo, setApiInfo] = useState<ApiInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: apiInfo, isLoading, error } = useApiInfo();
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const data = await api.getApiInfo();
-        setApiInfo(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch data');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchData();
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return <LoadingSpinner fullPage text="Loading..." />;
   }
 
   if (error) {
     return (
       <Alert variant="error" title="Error">
-        {error}
+        {error instanceof Error ? error.message : 'Failed to fetch data'}
       </Alert>
     );
   }
