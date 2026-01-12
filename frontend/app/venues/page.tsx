@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import { useState } from 'react';
+import { useVenuesWithStats } from '@/lib/queries';
 import { VenueWithStats } from '@/lib/types';
 import {
   Card,
@@ -13,43 +13,28 @@ import {
 } from '@/components/ui';
 
 export default function VenuesPage() {
-  const [venues, setVenues] = useState<VenueWithStats[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showInactive, setShowInactive] = useState(false);
 
-  useEffect(() => {
-    async function fetchVenues() {
-      setLoading(true);
-      try {
-        const data = await api.getVenuesWithStats({
-          limit: 500,
-          active_only: !showInactive
-        });
-        setVenues(data.venues);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch venues');
-      } finally {
-        setLoading(false);
-      }
-    }
+  const { data, isLoading, error } = useVenuesWithStats({
+    limit: 500,
+    active_only: !showInactive
+  });
 
-    fetchVenues();
-  }, [showInactive]);
+  const venues = data?.venues ?? [];
 
   const filteredVenues = venues.filter((venue) =>
     venue.venue_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (loading) {
+  if (isLoading) {
     return <LoadingSpinner fullPage text="Loading venues..." />;
   }
 
   if (error) {
     return (
       <Alert variant="error" title="Error">
-        {error}
+        {error instanceof Error ? error.message : 'Failed to fetch venues'}
       </Alert>
     );
   }

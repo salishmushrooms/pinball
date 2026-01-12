@@ -18,6 +18,7 @@ import {
   ApiInfo,
   PlayerDetail,
   PlayerListResponse,
+  PlayerDashboardStats,
   PlayerMachineStatsList,
   PlayerMachineScoreHistory,
   PlayerMachineGamesResponse,
@@ -25,6 +26,7 @@ import {
   PlayerMachineStatsParams,
   Machine,
   MachineListResponse,
+  MachineDashboardStats,
   MachineQueryParams,
   MachinePercentilesParams,
   GroupedPercentiles,
@@ -63,6 +65,7 @@ export const queryKeys = {
 
   // Players
   players: (params?: PlayerQueryParams) => ['players', params] as const,
+  playerDashboardStats: ['players', 'dashboardStats'] as const,
   player: (playerKey: string) => ['player', playerKey] as const,
   playerMachineStats: (playerKey: string, params?: PlayerMachineStatsParams) =>
     ['player', playerKey, 'machines', params] as const,
@@ -79,6 +82,7 @@ export const queryKeys = {
 
   // Machines
   machines: (params?: MachineQueryParams) => ['machines', params] as const,
+  machineDashboardStats: ['machines', 'dashboardStats'] as const,
   machine: (machineKey: string) => ['machine', machineKey] as const,
   machinePercentiles: (machineKey: string, params?: MachinePercentilesParams) =>
     ['machine', machineKey, 'percentiles', params] as const,
@@ -145,6 +149,18 @@ export function usePlayers(
   return useQuery({
     queryKey: queryKeys.players(params),
     queryFn: () => api.getPlayers(params),
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+    ...options,
+  });
+}
+
+export function usePlayerDashboardStats(
+  options?: Omit<UseQueryOptions<PlayerDashboardStats>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.playerDashboardStats,
+    queryFn: () => api.getPlayerDashboardStats(),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
     ...options,
@@ -223,6 +239,18 @@ export function useMachines(
   return useQuery({
     queryKey: queryKeys.machines(params),
     queryFn: () => api.getMachines(params),
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
+    ...options,
+  });
+}
+
+export function useMachineDashboardStats(
+  options?: Omit<UseQueryOptions<MachineDashboardStats>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.machineDashboardStats,
+    queryFn: () => api.getMachineDashboardStats(),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
     ...options,

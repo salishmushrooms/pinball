@@ -10,7 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import text
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from api.models.schemas import (
     MatchplayLookupResult,
@@ -362,7 +362,7 @@ async def unlink_player_from_matchplay(player_key: str):
 )
 async def get_player_matchplay_stats(
     player_key: str,
-    refresh: bool = Query(False, description="Force refresh machine stats from Matchplay API (fetches past 1 year of games)")
+    refresh: bool = Query(False, description="Force refresh all data from Matchplay API (profile and machine stats)")
 ):
     """
     Get Matchplay statistics for a linked MNP player.
@@ -373,8 +373,8 @@ async def get_player_matchplay_stats(
     - Tournament count
     - Machine statistics (games played, wins, win % per machine)
 
-    Note: Machine statistics are based on the past 1 year of Matchplay data
-    to ensure relevance. Use refresh=true to update cached machine stats.
+    Note: Profile data (rating, IFPA) is cached for 24 hours. Machine statistics
+    are cached until manually refreshed. Use refresh=true to force update all data.
     """
     # Get mapping
     mapping_query = """
@@ -456,16 +456,61 @@ async def get_player_matchplay_stats(
         for s in stats
     ]
 
-    # Always fetch fresh profile data from API (it's fast and gives us current rating)
+    # Check if we have cached profile data that's less than 24 hours old
     rating = None
     ifpa = None
     location = None
     avatar = None
     tournament_count = None
+    cache_stale = True
 
-    if client.is_configured():
+    cached_profile_query = """
+        SELECT rating_value, rating_rd, game_count, win_count, loss_count,
+               efficiency_percent, lower_bound, ifpa_id, ifpa_rank, ifpa_rating,
+               ifpa_womens_rank, tournament_count, location, avatar, fetched_at
+        FROM matchplay_ratings
+        WHERE matchplay_user_id = :matchplay_user_id
+        ORDER BY fetched_at DESC
+        LIMIT 1
+    """
+    cached_profile = execute_query(cached_profile_query, {'matchplay_user_id': matchplay_user_id})
+
+    if cached_profile and not refresh:
+        cached = cached_profile[0]
+        fetched_at = cached.get('fetched_at')
+        if fetched_at and datetime.utcnow() - fetched_at < timedelta(hours=24):
+            cache_stale = False
+            logger.debug(f"Using cached profile data for player {player_key} (fetched {fetched_at})")
+
+            # Use cached data
+            location = cached.get('location')
+            avatar = cached.get('avatar')
+            tournament_count = cached.get('tournament_count')
+
+            if cached.get('rating_value') is not None:
+                rating = MatchplayRating(
+                    rating=float(cached['rating_value']) if cached['rating_value'] else None,
+                    rd=float(cached['rating_rd']) if cached['rating_rd'] else None,
+                    game_count=cached.get('game_count'),
+                    win_count=cached.get('win_count'),
+                    loss_count=cached.get('loss_count'),
+                    efficiency_percent=float(cached['efficiency_percent']) if cached['efficiency_percent'] else None,
+                    lower_bound=float(cached['lower_bound']) if cached['lower_bound'] else None,
+                    fetched_at=fetched_at
+                )
+
+            if cached.get('ifpa_id') is not None or cached.get('ifpa_rank') is not None:
+                ifpa = MatchplayIFPA(
+                    ifpa_id=cached.get('ifpa_id'),
+                    rank=cached.get('ifpa_rank'),
+                    rating=float(cached['ifpa_rating']) if cached['ifpa_rating'] else None,
+                    womens_rank=cached.get('ifpa_womens_rank')
+                )
+
+    # Fetch fresh profile data if cache is stale (> 24 hours) or missing
+    if cache_stale and client.is_configured():
         try:
-            # Fetch full user profile with rating, IFPA, and counts
+            logger.info(f"Fetching fresh profile data for player {player_key} (cache stale or missing)")
             profile_data = await client.get_user_profile(matchplay_user_id)
 
             if profile_data:
@@ -503,8 +548,44 @@ async def get_player_matchplay_stats(
                 counts = profile_data.get('userCounts', {})
                 tournament_count = counts.get('tournamentPlayCount')
 
-                # Update last_synced in database
+                # Cache the profile data in database
                 with get_db_connection() as conn:
+                    # Delete old cached rating for this user
+                    conn.execute(text("""
+                        DELETE FROM matchplay_ratings
+                        WHERE matchplay_user_id = :matchplay_user_id
+                    """), {'matchplay_user_id': matchplay_user_id})
+
+                    # Insert new cached profile data
+                    conn.execute(text("""
+                        INSERT INTO matchplay_ratings
+                            (matchplay_user_id, rating_value, rating_rd, game_count, win_count,
+                             loss_count, efficiency_percent, lower_bound, ifpa_id, ifpa_rank,
+                             ifpa_rating, ifpa_womens_rank, tournament_count, location, avatar, fetched_at)
+                        VALUES
+                            (:matchplay_user_id, :rating_value, :rating_rd, :game_count, :win_count,
+                             :loss_count, :efficiency_percent, :lower_bound, :ifpa_id, :ifpa_rank,
+                             :ifpa_rating, :ifpa_womens_rank, :tournament_count, :location, :avatar, :fetched_at)
+                    """), {
+                        'matchplay_user_id': matchplay_user_id,
+                        'rating_value': rating_data.get('rating') if rating_data else None,
+                        'rating_rd': rating_data.get('rd') if rating_data else None,
+                        'game_count': rating_data.get('gameCount') if rating_data else None,
+                        'win_count': rating_data.get('winCount') if rating_data else None,
+                        'loss_count': rating_data.get('lossCount') if rating_data else None,
+                        'efficiency_percent': rating_data.get('efficiencyPercent') if rating_data else None,
+                        'lower_bound': rating_data.get('lowerBound') if rating_data else None,
+                        'ifpa_id': ifpa_data.get('ifpaId') if ifpa_data else None,
+                        'ifpa_rank': ifpa_data.get('rank') if ifpa_data else None,
+                        'ifpa_rating': ifpa_data.get('rating') if ifpa_data else None,
+                        'ifpa_womens_rank': ifpa_data.get('womensRank') if ifpa_data else None,
+                        'tournament_count': tournament_count,
+                        'location': location,
+                        'avatar': avatar,
+                        'fetched_at': datetime.utcnow()
+                    })
+
+                    # Update last_synced in mappings table
                     conn.execute(text("""
                         UPDATE matchplay_player_mappings
                         SET last_synced = :last_synced

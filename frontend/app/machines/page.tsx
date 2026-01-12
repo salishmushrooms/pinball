@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { api } from '@/lib/api';
-import { Machine, MachineDashboardStats } from '@/lib/types';
+import { useMachines, useMachineDashboardStats } from '@/lib/queries';
 import {
   Card,
   PageHeader,
@@ -16,63 +15,27 @@ import {
 import { MachineDashboard } from '@/components/MachineDashboard';
 
 export default function MachinesPage() {
-  const [machines, setMachines] = useState<Machine[]>([]);
-  const [dashboardStats, setDashboardStats] = useState<MachineDashboardStats | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [dashboardLoading, setDashboardLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  // Fetch dashboard stats on mount
+  // Debounce search term
   useEffect(() => {
-    async function fetchDashboardStats() {
-      try {
-        const stats = await api.getMachineDashboardStats();
-        setDashboardStats(stats);
-      } catch (err) {
-        console.error('Failed to fetch dashboard stats:', err);
-      } finally {
-        setDashboardLoading(false);
-      }
-    }
-
-    fetchDashboardStats();
-  }, []);
-
-  // Live search - fetch as user types (only when search term is not empty)
-  useEffect(() => {
-    if (!searchTerm.trim()) {
-      setMachines([]);
-      return;
-    }
-
     const timer = setTimeout(() => {
-      fetchMachines();
-    }, 300); // 300ms debounce
-
+      setDebouncedSearch(searchTerm);
+    }, 300);
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  async function fetchMachines() {
-    if (!searchTerm.trim()) {
-      setMachines([]);
-      return;
-    }
+  // Fetch dashboard stats (cached)
+  const { data: dashboardStats, isLoading: dashboardLoading } = useMachineDashboardStats();
 
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await api.getMachines({
-        limit: 100,
-        search: searchTerm,
-      });
-      setMachines(response.machines);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch machines');
-    } finally {
-      setLoading(false);
-    }
-  }
+  // Fetch machines based on search (only when search term is not empty)
+  const { data: machinesData, isLoading: loading, error } = useMachines(
+    debouncedSearch.trim() ? { limit: 100, search: debouncedSearch } : undefined,
+    { enabled: !!debouncedSearch.trim() }
+  );
+
+  const machines = machinesData?.machines ?? [];
 
   // Format large scores for display (e.g., 1.2M, 500K)
   function formatScore(score: number | null | undefined): string {
@@ -114,7 +77,7 @@ export default function MachinesPage() {
       {/* Error State */}
       {error && (
         <Alert variant="error" title="Error">
-          {error}
+          {error instanceof Error ? error.message : 'Failed to fetch machines'}
         </Alert>
       )}
 
