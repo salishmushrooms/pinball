@@ -19,6 +19,7 @@ import {
   ContentContainer,
   Breadcrumb,
 } from '@/components/ui';
+import type { FilterChipData } from '@/components/ui/FilterChip';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { TeamMultiSelect } from '@/components/TeamMultiSelect';
 import { SUPPORTED_SEASONS, filterSupportedSeasons, formatScore } from '@/lib/utils';
@@ -33,6 +34,7 @@ export default function VenueDetailPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [availableSeasons, setAvailableSeasons] = useState<number[]>([...SUPPORTED_SEASONS]);
   const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Filter states
@@ -43,7 +45,7 @@ export default function VenueDetailPage() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [seasons, setSeasons] = useState<number[]>([]);
 
-  // Fetch available seasons, teams, and top machines (season 22) on mount
+  // Fetch available seasons, teams, and top machines on mount
   useEffect(() => {
     async function fetchInitialData() {
       try {
@@ -52,7 +54,7 @@ export default function VenueDetailPage() {
           api.getTeams({ limit: 500 }),
           api.getVenueMachines(venueKey, {
             current_only: true,
-            seasons: [22],
+            seasons: [22, 23],
           }),
         ]);
         const supported = filterSupportedSeasons(seasonsData.seasons);
@@ -60,7 +62,7 @@ export default function VenueDetailPage() {
         setTeams(teamsData.teams);
         // Default to all supported seasons
         setSeasons(supported);
-        // Top 3 machines by score count in season 22
+        // Top 3 machines by score count
         const sorted = [...topMachinesData].sort((a, b) => b.total_scores - a.total_scores);
         setTopMachines(sorted.slice(0, 3));
       } catch (err) {
@@ -74,7 +76,13 @@ export default function VenueDetailPage() {
   useEffect(() => {
     async function fetchVenueData() {
       try {
-        setLoading(true);
+        // Only set loading true on initial load (when venue is null)
+        // Use fetching for subsequent filter changes to avoid unmounting FilterPanel
+        if (!venue) {
+          setLoading(true);
+        } else {
+          setFetching(true);
+        }
         const [venueData, machinesData] = await Promise.all([
           api.getVenue(venueKey),
           api.getVenueMachines(venueKey, {
@@ -90,6 +98,7 @@ export default function VenueDetailPage() {
         setError(err instanceof Error ? err.message : 'Failed to fetch venue data');
       } finally {
         setLoading(false);
+        setFetching(false);
       }
     }
 
@@ -116,6 +125,42 @@ export default function VenueDetailPage() {
       setSortBy(column);
       setSortDirection(column === 'games' ? 'desc' : 'asc');
     }
+  }
+
+  // Build active filters array for chips display
+  const activeFilters: FilterChipData[] = [];
+
+  if (seasons.length > 0 && seasons.length < availableSeasons.length) {
+    activeFilters.push({
+      key: 'seasons',
+      label: 'Seasons',
+      value: seasons.length <= 2
+        ? seasons.map(s => `S${s}`).join(', ')
+        : `${seasons.length} selected`,
+      onRemove: () => setSeasons(availableSeasons),
+    });
+  }
+
+  if (selectedTeams.length > 0) {
+    const teamName = teams.find(t => t.team_key === selectedTeams[0])?.team_name || selectedTeams[0];
+    activeFilters.push({
+      key: 'team',
+      label: 'Team',
+      value: teamName,
+      onRemove: () => {
+        setSelectedTeams([]);
+        setScoresFrom('venue');
+      },
+    });
+  }
+
+  if (!currentOnly) {
+    activeFilters.push({
+      key: 'status',
+      label: 'Status',
+      value: 'All Machines',
+      onRemove: () => setCurrentOnly(true),
+    });
   }
 
   if (loading) {
@@ -186,12 +231,8 @@ export default function VenueDetailPage() {
         title="Filters"
         collapsible={true}
         defaultOpen={false}
-        activeFilterCount={
-          (seasons.length > 0 && seasons.length < availableSeasons.length ? 1 : 0) +
-          (!currentOnly ? 1 : 0) +
-          (selectedTeams.length > 0 ? 1 : 0)
-        }
-        showClearAll={true}
+        activeFilters={activeFilters}
+        showClearAll={activeFilters.length > 1}
         onClearAll={() => {
           setSeasons(availableSeasons);
           setCurrentOnly(true);
@@ -278,12 +319,12 @@ export default function VenueDetailPage() {
         </div>
       </FilterPanel>
 
-      {/* Top Machines - Season 22 */}
+      {/* Top Machines */}
       {topMachines.length > 0 && (
         <TopMachinesList
           machines={topMachines}
           title="Most Played Machines"
-          subtitle="Season 22 scores"
+          subtitle="Season 22-23 scores"
         />
       )}
 
@@ -291,14 +332,17 @@ export default function VenueDetailPage() {
       <ContentContainer size="lg">
         <Card>
           <Card.Header>
-            <Card.Title>
-              {currentOnly ? 'Current Machines' : 'All Machines'}
-              {selectedTeams.length > 0 && (
-                <span className="text-base font-normal ml-2" style={{ color: 'var(--text-muted)' }}>
-                  - {teams.find((t) => t.team_key === selectedTeams[0])?.team_name} Stats
-                </span>
-              )}
-            </Card.Title>
+            <div className="flex items-center justify-between">
+              <Card.Title>
+                {currentOnly ? 'Current Machines' : 'All Machines'}
+                {selectedTeams.length > 0 && (
+                  <span className="text-base font-normal ml-2" style={{ color: 'var(--text-muted)' }}>
+                    - {teams.find((t) => t.team_key === selectedTeams[0])?.team_name} Stats
+                  </span>
+                )}
+              </Card.Title>
+              {fetching && <LoadingSpinner size="sm" text="Updating..." />}
+            </div>
           </Card.Header>
           <Card.Content>
             {machines.length === 0 ? (

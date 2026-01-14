@@ -34,7 +34,7 @@ export default function MachineDetailPage() {
   const [availableSeasons, setAvailableSeasons] = useState<number[]>([...SUPPORTED_SEASONS]);
   const [selectedVenue, setSelectedVenue] = useState<string>('all');
   const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
-  const [selectedSeasons, setSelectedSeasons] = useState<number[]>([22]);
+  const [selectedSeasons, setSelectedSeasons] = useState<number[]>([22, 23]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,8 +45,10 @@ export default function MachineDetailPage() {
         const data = await api.getSeasons();
         const supported = filterSupportedSeasons(data.seasons);
         setAvailableSeasons(supported);
-        // Default to most recent supported season
-        if (supported.length > 0) {
+        // Default to seasons 22 and 23 if available
+        if (supported.includes(22) && supported.includes(23)) {
+          setSelectedSeasons([22, 23]);
+        } else if (supported.length > 0) {
           setSelectedSeasons([Math.max(...supported)]);
         }
       } catch (err) {

@@ -16,6 +16,7 @@ import {
   Breadcrumb,
   Tooltip,
 } from '@/components/ui';
+import type { FilterChipData } from '@/components/ui/FilterChip';
 import PlayerMachineProgressionChart from '@/components/PlayerMachineProgressionChart';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
@@ -36,7 +37,7 @@ export default function PlayerDetailPage() {
   // Filter state
   const [sortBy, setSortBy] = useState<'avg_percentile' | 'games_played' | 'avg_score' | 'win_percentage'>('games_played');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [seasonsFilter, setSeasonsFilter] = useState<number[]>([22]);
+  const [seasonsFilter, setSeasonsFilter] = useState<number[]>([22, 23]);
   const [venueFilter, setVenueFilter] = useState<string>('');
 
   // Chart-related state
@@ -232,13 +233,32 @@ export default function PlayerDetailPage() {
     }
   }
 
-  // Count active filters
-  const activeFilterCount =
-    (seasonsFilter.length > 0 && seasonsFilter.length < availableSeasons.length ? 1 : 0) +
-    (venueFilter ? 1 : 0);
+  // Build active filters array for chips display
+  const activeFilters: FilterChipData[] = [];
+
+  if (seasonsFilter.length > 0 && seasonsFilter.length < availableSeasons.length) {
+    activeFilters.push({
+      key: 'seasons',
+      label: 'Seasons',
+      value: seasonsFilter.length <= 2
+        ? seasonsFilter.map(s => `S${s}`).join(', ')
+        : `${seasonsFilter.length} selected`,
+      onRemove: () => setSeasonsFilter([22, 23]),
+    });
+  }
+
+  if (venueFilter) {
+    const venueName = venues.find(v => v.venue_key === venueFilter)?.venue_name || venueFilter;
+    activeFilters.push({
+      key: 'venue',
+      label: 'Venue',
+      value: venueName,
+      onRemove: () => setVenueFilter(''),
+    });
+  }
 
   function clearFilters() {
-    setSeasonsFilter([22]);
+    setSeasonsFilter([22, 23]);
     setVenueFilter('');
   }
 
@@ -303,8 +323,8 @@ export default function PlayerDetailPage() {
       <FilterPanel
         title="Filters"
         collapsible={true}
-        activeFilterCount={activeFilterCount}
-        showClearAll={activeFilterCount > 0}
+        activeFilters={activeFilters}
+        showClearAll={activeFilters.length > 1}
         onClearAll={clearFilters}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

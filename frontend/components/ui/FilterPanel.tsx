@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card } from './Card';
 import { Badge } from './Badge';
 import { FilterChips, type FilterChipData } from './FilterChip';
 import { cn } from '@/lib/utils';
@@ -62,19 +61,44 @@ export function FilterPanel({
   // Calculate filter count from activeFilters if provided, otherwise use activeFilterCount
   const effectiveFilterCount = activeFilters.length > 0 ? activeFilters.length : activeFilterCount;
 
+  // Filter icon SVG component
+  const FilterIcon = () => (
+    <svg
+      className="w-5 h-5"
+      style={{ color: 'var(--filter-icon, #3b82f6)' }}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+      />
+    </svg>
+  );
+
   if (!collapsible) {
-    // Non-collapsible mode: standard Card layout
+    // Non-collapsible mode: styled container
     return (
       <div className="space-y-3">
         {/* Filter chips always visible */}
         {activeFilters.length > 0 && (
           <FilterChips filters={activeFilters} onClearAll={onClearAll} />
         )}
-        <Card className={className}>
-          <Card.Header>
-            <div className="flex items-center justify-between">
+        <div
+          className={cn('border-2 rounded-lg', className)}
+          style={{
+            borderColor: 'var(--filter-border, #bfdbfe)',
+            backgroundColor: 'var(--filter-bg, #eff6ff)',
+          }}
+        >
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <Card.Title>{title}</Card.Title>
+                <FilterIcon />
+                <span className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</span>
                 {effectiveFilterCount > 0 && activeFilters.length === 0 && (
                   <Badge variant="info">{effectiveFilterCount} active</Badge>
                 )}
@@ -82,15 +106,16 @@ export function FilterPanel({
               {showClearAll && onClearAll && effectiveFilterCount > 0 && activeFilters.length === 0 && (
                 <button
                   onClick={onClearAll}
-                  className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                  className="text-sm font-medium"
+                  style={{ color: 'var(--text-link)' }}
                 >
                   Clear All
                 </button>
               )}
             </div>
-          </Card.Header>
-          <Card.Content>{children}</Card.Content>
-        </Card>
+            {children}
+          </div>
+        </div>
       </div>
     );
   }
@@ -103,16 +128,20 @@ export function FilterPanel({
         <FilterChips filters={activeFilters} onClearAll={onClearAll} />
       )}
       <div
-        className={cn('border rounded-lg', className)}
-        style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg)' }}
+        className={cn('border-2 rounded-lg', className)}
+        style={{
+          borderColor: 'var(--filter-border, #bfdbfe)',
+          backgroundColor: 'var(--filter-bg, #eff6ff)',
+        }}
       >
-        <div className="px-6 py-4 flex items-center justify-between transition-colors hover:opacity-80">
+        <div className="px-6 py-4 flex items-center justify-between transition-colors hover:opacity-90">
           <button
             onClick={() => setIsOpen(!isOpen)}
             className="flex items-center gap-3 flex-1"
             aria-expanded={isOpen}
             aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${title}`}
           >
+            <FilterIcon />
             <span className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</span>
             {effectiveFilterCount > 0 && activeFilters.length === 0 && (
               <Badge variant="info">{effectiveFilterCount} active</Badge>
@@ -154,7 +183,7 @@ export function FilterPanel({
           </div>
         </div>
         {isOpen && (
-          <div className="px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>{children}</div>
+          <div className="px-6 py-4 border-t" style={{ borderColor: 'var(--filter-border, #bfdbfe)' }}>{children}</div>
         )}
       </div>
     </div>

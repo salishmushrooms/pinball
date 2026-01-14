@@ -69,7 +69,7 @@ app = FastAPI(
     ## Data Source
 
     Data is sourced from the Monday Night Pinball (MNP) match archives.
-    Currently includes Seasons 18-22 with 936 players, 400+ machines, and 56,000+ scores across 943 matches.
+    Currently includes Seasons 18-23 with 936+ players, 400+ machines, and 56,000+ scores across 943+ matches.
 
     ## Tips
 
@@ -126,7 +126,7 @@ def read_root(request: Request):
 
     # Query actual database statistics
     data_summary = {
-        "description": "Monday Night Pinball Seasons 20-22 data",
+        "description": "Monday Night Pinball Seasons 20-23 data",
         "players": 0,
         "machines": 0,
         "venues": 0,
@@ -212,8 +212,8 @@ def get_seasons(request: Request):
     except Exception as e:
         logger.error(f"Failed to fetch seasons: {e}")
         return {
-            "seasons": [20, 21, 22],  # Fallback to known seasons
-            "count": 3
+            "seasons": [20, 21, 22, 23],  # Fallback to known seasons
+            "count": 4
         }
 
 

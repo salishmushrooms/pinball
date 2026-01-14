@@ -69,6 +69,11 @@
   --table-row-hover-enhanced: #f3f4f6;
   --table-row-stripe: #fafbfc;
   --table-border: #e5e7eb;
+
+  /* Filter Panel */
+  --filter-bg: #eff6ff;
+  --filter-border: #bfdbfe;
+  --filter-icon: #3b82f6;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -141,6 +146,11 @@
     --table-row-hover-enhanced: #2a2a2a;
     --table-row-stripe: #1e1e1e;
     --table-border: #333333;
+
+    /* Filter Panel - Dark Mode */
+    --filter-bg: #1e3a5f;
+    --filter-border: #1e40af;
+    --filter-icon: #60a5fa;
   }
 }
 

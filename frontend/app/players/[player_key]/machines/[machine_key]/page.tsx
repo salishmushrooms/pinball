@@ -31,7 +31,7 @@ export default function PlayerMachineGamesPage() {
   const machineKey = params.machine_key as string;
 
   // Get initial filter values from URL params
-  const initialSeasons = searchParams.get('seasons')?.split(',').map(Number) || [22];
+  const initialSeasons = searchParams.get('seasons')?.split(',').map(Number) || [22, 23];
   const initialVenue = searchParams.get('venue_key') || '';
 
   // Filter state
@@ -97,7 +97,7 @@ export default function PlayerMachineGamesPage() {
     (venueFilter ? 1 : 0);
 
   function clearFilters() {
-    setSeasonsFilter([22]);
+    setSeasonsFilter([22, 23]);
     setVenueFilter('');
   }
 

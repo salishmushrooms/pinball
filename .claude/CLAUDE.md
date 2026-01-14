@@ -12,7 +12,7 @@ Production-deployed full-stack data analysis platform for Monday Night Pinball (
 - **API**: FastAPI + PostgreSQL (LIVE on Railway)
 - **Frontend**: Next.js 16 (LIVE on Vercel)
 - **ETL**: Python scripts for data loading
-- **Data**: 9 seasons (14-22) in git submodule, 5 seasons (18-22) in production DB
+- **Data**: 10 seasons (14-23) in git submodule, 6 seasons (18-23) in production DB
 
 **Production URLs:**
 - API: https://pinball-production.up.railway.app
@@ -28,8 +28,8 @@ Production-deployed full-stack data analysis platform for Monday Night Pinball (
 - **Deployment**: Railway ($5/month) + Vercel
 
 ### Production Stats
-- **Seasons**: 18-22 (5 seasons loaded)
-- **Matches**: 943 | **Scores**: 56,504 | **Players**: 938
+- **Seasons**: 18-23 (6 seasons loaded)
+- **Matches**: 943+ | **Scores**: 56,504+ | **Players**: 938+
 
 ### Key Locations
 ```
