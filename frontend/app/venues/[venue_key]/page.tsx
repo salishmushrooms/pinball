@@ -143,11 +143,9 @@ export default function VenueDetailPage() {
           title={venue.venue_name}
           description={
             <>
-              {(venue.city || venue.state) && (
+              {venue.neighborhood && (
                 <div className="text-lg text-gray-600">
-                  {venue.city && venue.state
-                    ? `${venue.city}, ${venue.state}`
-                    : venue.city || venue.state}
+                  {venue.neighborhood}
                 </div>
               )}
               {venue.address && (
