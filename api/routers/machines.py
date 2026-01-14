@@ -44,7 +44,7 @@ def get_machine_dashboard_stats():
     # Get latest season
     latest_season_query = "SELECT MAX(season) as latest FROM scores"
     latest_season_result = execute_query(latest_season_query)
-    latest_season = latest_season_result[0]['latest'] if latest_season_result else 22
+    latest_season = latest_season_result[0]['latest'] if latest_season_result and latest_season_result[0]['latest'] is not None else 22
 
     # Get total unique machines across all seasons
     total_machines_query = "SELECT COUNT(DISTINCT machine_key) as total FROM machines"

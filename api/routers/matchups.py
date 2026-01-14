@@ -433,9 +433,9 @@ def get_matchup_analysis(
     - Multiple seasons: `/matchups?home_team=TRL&away_team=ETB&venue=T4B&seasons=21&seasons=22`
     """
 
-    # Default to season 22 if not specified
+    # Default to season 23 if not specified
     if not seasons or len(seasons) == 0:
-        seasons = [22]
+        seasons = [23]
 
     # Validate teams exist in at least one season
     home_team_query = "SELECT team_name, home_venue_key, season FROM teams WHERE team_key = :team_key AND season = ANY(:seasons) ORDER BY season DESC LIMIT 1"

@@ -46,7 +46,7 @@ export default function MatchupsPage() {
         // Get available seasons (filtered to supported) and use the latest one
         const seasonsData = await api.getSeasons();
         const supportedSeasons = filterSupportedSeasons(seasonsData.seasons);
-        const latestSeason = supportedSeasons.length > 0 ? Math.max(...supportedSeasons) : 22;
+        const latestSeason = supportedSeasons.length > 0 ? Math.max(...supportedSeasons) : 23;
         setCurrentSeason(latestSeason);
 
         // Check season status to see if it's completed
@@ -93,7 +93,7 @@ export default function MatchupsPage() {
         home_team: match.home_key,
         away_team: match.away_key,
         venue: match.venue.key,
-        seasons: currentSeason ? [currentSeason] : [22],
+        seasons: currentSeason ? [currentSeason] : [23],
       });
       setMatchup(data);
 

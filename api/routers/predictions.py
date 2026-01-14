@@ -24,7 +24,7 @@ router = APIRouter(
 )
 
 
-def get_venue_machines(venue_key: str, season: int = 22) -> List[str]:
+def get_venue_machines(venue_key: str, season: int = 23) -> List[str]:
     """
     Get the current machine lineup for a venue by checking the most recent match.
     Returns list of machine keys that are currently at this venue.
@@ -62,8 +62,8 @@ def predict_machine_picks(
     round_num: int = Query(..., ge=1, le=4, description="Round number (1-4)"),
     venue_key: str = Query(..., description="Venue where match is being played"),
     seasons: Optional[List[int]] = Query(
-        default=[21, 22],
-        description="Seasons to analyze for prediction (default: [21, 22])"
+        default=[22, 23],
+        description="Seasons to analyze for prediction (default: [22, 23])"
     ),
     limit: int = Query(default=10, ge=1, le=20, description="Number of predictions to return")
 ):

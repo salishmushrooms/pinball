@@ -10,6 +10,7 @@ import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
 import { useDebouncedEffect } from '@/lib/hooks';
 import { Table, Card, PageHeader, FilterPanel, Alert, LoadingSpinner, WinPercentage, Breadcrumb, TeamLogo } from '@/components/ui';
+import type { FilterChipData } from '@/components/ui/FilterChip';
 import { SUPPORTED_SEASONS, filterSupportedSeasons, formatScore, cn } from '@/lib/utils';
 
 export default function TeamDetailPage() {
@@ -35,7 +36,7 @@ export default function TeamDetailPage() {
   const [sortBy, setSortBy] = useState<'games_played' | 'avg_score' | 'best_score' | 'win_percentage' | 'median_score' | 'machine_name'>('games_played');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [seasonsFilter, setSeasonsFilter] = useState<number[]>(
-    initialSeason ? [parseInt(initialSeason)] : [22]
+    initialSeason ? [parseInt(initialSeason)] : [22, 23]
   );
   const [venueFilter, setVenueFilter] = useState<string>('');
   const [roundsFilter, setRoundsFilter] = useState<number[]>([1, 2, 3, 4]);
@@ -219,15 +220,50 @@ export default function TeamDetailPage() {
     });
   }, [players, rosterSortBy, rosterSortDirection]);
 
-  // Count active filters
-  const activeFilterCount =
-    (seasonsFilter.length > 0 && seasonsFilter.length < availableSeasons.length ? 1 : 0) +
-    (venueFilter ? 1 : 0) +
-    (roundsFilter.length > 0 && roundsFilter.length < 4 ? 1 : 0) +
-    (excludeSubs ? 0 : 1); // excludeSubs is default on, so only count when off
+  // Build active filters array for chips display
+  const activeFilters: FilterChipData[] = [];
+
+  if (seasonsFilter.length > 0 && seasonsFilter.length < availableSeasons.length) {
+    activeFilters.push({
+      key: 'seasons',
+      label: 'Seasons',
+      value: seasonsFilter.length <= 2
+        ? seasonsFilter.map(s => `S${s}`).join(', ')
+        : `${seasonsFilter.length} selected`,
+      onRemove: () => setSeasonsFilter([22, 23]),
+    });
+  }
+
+  if (venueFilter) {
+    const venueName = venues.find(v => v.venue_key === venueFilter)?.venue_name || venueFilter;
+    activeFilters.push({
+      key: 'venue',
+      label: 'Venue',
+      value: venueName,
+      onRemove: () => setVenueFilter(''),
+    });
+  }
+
+  if (roundsFilter.length > 0 && roundsFilter.length < 4) {
+    activeFilters.push({
+      key: 'rounds',
+      label: 'Rounds',
+      value: roundsFilter.map(r => `R${r}`).join(', '),
+      onRemove: () => setRoundsFilter([1, 2, 3, 4]),
+    });
+  }
+
+  if (!excludeSubs) {
+    activeFilters.push({
+      key: 'subs',
+      label: 'Include',
+      value: 'Substitutes',
+      onRemove: () => setExcludeSubs(true),
+    });
+  }
 
   function clearFilters() {
-    setSeasonsFilter([22]);
+    setSeasonsFilter([22, 23]);
     setVenueFilter('');
     setRoundsFilter([1, 2, 3, 4]);
     setExcludeSubs(true);
@@ -301,8 +337,8 @@ export default function TeamDetailPage() {
       <FilterPanel
         title="Filters"
         collapsible={true}
-        activeFilterCount={activeFilterCount}
-        showClearAll={activeFilterCount > 0}
+        activeFilters={activeFilters}
+        showClearAll={activeFilters.length > 1}
         onClearAll={clearFilters}
       >
         <div className="space-y-4">
