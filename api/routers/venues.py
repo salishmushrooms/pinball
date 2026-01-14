@@ -78,7 +78,7 @@ def list_venues(
 
     # Get paginated results
     query = f"""
-        SELECT venue_key, venue_name, address, neighborhood as state
+        SELECT venue_key, venue_name, address, neighborhood
         FROM venues v
         WHERE {where_clause}
         ORDER BY venue_name

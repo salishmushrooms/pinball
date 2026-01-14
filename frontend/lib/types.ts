@@ -298,8 +298,8 @@ export interface MachineTeam {
 export interface Venue {
   venue_key: string;
   venue_name: string;
-  city: string | null;
-  state: string | null;
+  address: string | null;
+  neighborhood: string | null;
 }
 
 export interface VenueHomeTeam {
@@ -309,7 +309,6 @@ export interface VenueHomeTeam {
 }
 
 export interface VenueDetail extends Venue {
-  address: string | null;
   home_teams: VenueHomeTeam[];
 }
 
@@ -349,7 +348,7 @@ export interface VenueMachineStats {
 }
 
 export interface VenueQueryParams {
-  state?: string;
+  neighborhood?: string;
   search?: string;
   active_only?: boolean;
   limit?: number;

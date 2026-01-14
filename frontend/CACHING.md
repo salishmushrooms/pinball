@@ -15,27 +15,27 @@ All React Query hooks use consistent cache timing defined in [lib/queries.ts](li
 
 | Page | Route | Rendering | Data Fetching | Caching |
 |------|-------|-----------|---------------|---------|
-| Dashboard | `/` | Client | `useEffect` + direct API | None (fresh each load) |
-| Teams List | `/teams` | Client | `useEffect` + direct API | None (fresh each load) |
+| Dashboard | `/` | Client | `useApiInfo` | 5 min stale / 30 min gc |
+| Teams List | `/teams` | Client | `useTeams` | 5 min stale / 30 min gc |
 | Team Detail | `/teams/[team_key]` | Client | `useEffect` + `useDebouncedEffect` | None (fresh each load) |
 | Players List | `/players` | Client | `useEffect` + direct API | None (fresh each load) |
 | Player Detail | `/players/[player_key]` | Client | React Query hooks | 5 min stale / 30 min gc |
 | Player Machine | `/players/[player_key]/machines/[machine_key]` | Client | React Query hooks | 5 min stale / 30 min gc |
-| Machines List | `/machines` | Client | `useEffect` + direct API | None (fresh each load) |
+| Machines List | `/machines` | Client | `useMachineDashboardStats`, `useMachines` | 5 min stale / 30 min gc |
 | Machine Detail | `/machines/[machine_key]` | Client | `useEffect` + direct API | None (fresh each load) |
-| Venues List | `/venues` | Client | `useEffect` + direct API | None (fresh each load) |
+| Venues List | `/venues` | Client | `useVenuesWithStats` | 5 min stale / 30 min gc |
 | Venue Detail | `/venues/[venue_key]` | Client | `useEffect` + direct API | None (fresh each load) |
 | Matchups | `/matchups` | Client | `useEffect` + direct API | None (fresh each load) |
 
-## Key Observations
+## Caching Benefits
 
-### Current State
-- **All pages are client-side rendered** (`'use client'` directive)
-- **No Next.js SSR/ISR caching** is used (no `revalidate` exports, no server components)
-- **React Query caching is available** but only used on Player Detail and Player Machine pages
-- **Most pages fetch fresh data** on every navigation via `useEffect`
+Pages using React Query hooks benefit from:
+- **Instant navigation**: Return visits within 5 minutes show cached data immediately
+- **Background refetch**: Stale data is updated in the background
+- **Request deduplication**: Multiple components requesting the same data share one request
+- **Memory efficiency**: Unused data is garbage collected after 30 minutes
 
-### React Query Hooks Available
+## React Query Hooks Available
 
 The following hooks provide automatic caching when used:
 
@@ -46,6 +46,7 @@ useSeasons()
 
 // Players
 usePlayers(params?)
+usePlayerDashboardStats()
 usePlayer(playerKey)
 usePlayerMachineStats(playerKey, params?)
 usePlayerMachineScoreHistory(playerKey, machineKey, params?)
@@ -53,6 +54,7 @@ usePlayerMachineGames(playerKey, machineKey, params?)
 
 // Machines
 useMachines(params?)
+useMachineDashboardStats()
 useMachine(machineKey)
 useMachinePercentiles(machineKey, params?)
 useMachineScores(machineKey, params?)
@@ -76,16 +78,13 @@ useMatchup(params)
 useSeasonSchedule(season)
 ```
 
-### Potential Improvements
+## Pages Still Using Direct API Calls
 
-Pages that could benefit from React Query migration:
+These pages could benefit from React Query migration:
 
 | Page | Current | Benefit of Migration |
 |------|---------|---------------------|
-| Dashboard (`/`) | Direct API | Cache API stats across navigation |
-| Teams List (`/teams`) | Direct API | Instant team list on return visits |
-| Machines List (`/machines`) | Direct API | Cache machine list and dashboard stats |
-| Venues List (`/venues`) | Direct API | Cache venue data |
+| Players List (`/players`) | Direct API | Cache player list and dashboard stats |
 | Machine Detail | Direct API | Cache percentiles and scores |
 | Venue Detail | Direct API | Cache venue machines |
 | Team Detail | Direct API + debounce | Cache team data, players, machine stats |
@@ -102,4 +101,4 @@ In addition to React Query, standard browser caching applies:
 
 - [lib/queries.ts](lib/queries.ts) - React Query hooks and cache configuration
 - [lib/api.ts](lib/api.ts) - API client wrapper
-- [providers.tsx](app/providers.tsx) - React Query provider setup
+- [app/providers.tsx](app/providers.tsx) - React Query provider setup
