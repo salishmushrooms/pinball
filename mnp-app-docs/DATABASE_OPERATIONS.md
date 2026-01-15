@@ -103,7 +103,7 @@
 
 4. **Verify production:**
    ```bash
-   curl "https://pinball-production.up.railway.app/seasons"
+   curl "https://your-api.railway.app/seasons"
    ```
 
 ---
@@ -201,7 +201,7 @@ If you need to completely reset the production database:
 
 6. **Verify:**
    ```bash
-   curl "https://pinball-production.up.railway.app/seasons"
+   curl "https://your-api.railway.app/seasons"
    ```
 
 ---
@@ -228,7 +228,7 @@ If you need to completely reset the production database:
 
 ### API works but frontend shows errors
 - Check NEXT_PUBLIC_API_URL in Vercel
-- Must point to Railway URL: `https://pinball-production.up.railway.app`
+- Must point to Railway URL: `https://your-api.railway.app`
 - Redeploy Vercel after changing env vars
 
 ---
@@ -324,7 +324,7 @@ For the matchups page to work properly, you need:
 
 You can test the season status endpoint directly:
 ```bash
-curl "https://pinball-production.up.railway.app/seasons/22/status"
+curl "https://your-api.railway.app/seasons/22/status"
 ```
 
 Expected response:

@@ -94,7 +94,7 @@ DATABASE_URL=postgresql://user:password@host:port/database
 NEXT_PUBLIC_API_URL=http://localhost:8000
 
 # Production
-# NEXT_PUBLIC_API_URL=https://pinball-production.up.railway.app
+# NEXT_PUBLIC_API_URL=https://your-api.railway.app
 ```
 
 ---
@@ -530,7 +530,7 @@ pg_dump -h localhost -U mnp_user -d mnp_analyzer --data-only --no-owner --no-acl
 railway connect postgres < season_23_data.sql
 
 # 7. Verify production
-curl https://pinball-production.up.railway.app/seasons
+curl https://your-api.railway.app/seasons
 ```
 
 ### Add New API Endpoint

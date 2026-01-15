@@ -15,8 +15,8 @@ Production-deployed full-stack data analysis platform for Monday Night Pinball (
 - **Data**: 10 seasons (14-23) in git submodule, 6 seasons (18-23) in production DB
 
 **Production URLs:**
-- API: https://pinball-production.up.railway.app
-- API Docs: https://pinball-production.up.railway.app/docs
+- API: https://your-api.railway.app
+- API Docs: https://your-api.railway.app/docs
 
 ---
 
@@ -175,7 +175,7 @@ git submodule update --remote mnp-data-archive
 - **Project overview**: [README.md](../README.md)
 - **Data structure**: [MNP_Data_Structure_Reference.md](../MNP_Data_Structure_Reference.md)
 - **Machine lookups**: [machine_variations.json](../machine_variations.json)
-- **API reference**: https://pinball-production.up.railway.app/docs
+- **API reference**: https://your-api.railway.app/docs
 - **Database operations**: [mnp-app-docs/DATABASE_OPERATIONS.md](../mnp-app-docs/DATABASE_OPERATIONS.md)
 
 ---
