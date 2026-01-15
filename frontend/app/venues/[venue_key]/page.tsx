@@ -23,10 +23,29 @@ import type { FilterChipData } from '@/components/ui/FilterChip';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { TeamMultiSelect } from '@/components/TeamMultiSelect';
 import { SUPPORTED_SEASONS, filterSupportedSeasons, formatScore } from '@/lib/utils';
+import { useURLFilters, filterConfigs } from '@/lib/hooks';
 
 export default function VenueDetailPage() {
   const params = useParams();
   const venueKey = params.venue_key as string;
+
+  // URL-synced filters
+  // Note: seasons default is set dynamically after fetching availableSeasons
+  const { filters, getSeasonChips } = useURLFilters({
+    seasons: filterConfigs.seasons(SUPPORTED_SEASONS as unknown as number[]),
+    teams: filterConfigs.teams(),
+    currentOnly: filterConfigs.boolean('currentOnly', true),
+    scoresFrom: filterConfigs.string('scoresFrom', 'venue'),
+  });
+
+  const seasons = filters.seasons.value;
+  const setSeasons = filters.seasons.setValue;
+  const selectedTeams = filters.teams.value;
+  const setSelectedTeams = filters.teams.setValue;
+  const currentOnly = filters.currentOnly.value;
+  const setCurrentOnly = filters.currentOnly.setValue;
+  const scoresFrom = filters.scoresFrom.value as 'venue' | 'all';
+  const setScoresFrom = (v: 'venue' | 'all') => filters.scoresFrom.setValue(v);
 
   const [venue, setVenue] = useState<VenueDetail | null>(null);
   const [machines, setMachines] = useState<VenueMachineStats[]>([]);
@@ -37,13 +56,9 @@ export default function VenueDetailPage() {
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Filter states
-  const [currentOnly, setCurrentOnly] = useState(true);
-  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
-  const [scoresFrom, setScoresFrom] = useState<'venue' | 'all'>('venue');
+  // Sort state (not URL-synced)
   const [sortBy, setSortBy] = useState<'name' | 'games'>('games');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [seasons, setSeasons] = useState<number[]>([]);
 
   // Fetch available seasons, teams, and top machines on mount
   useEffect(() => {
@@ -60,8 +75,10 @@ export default function VenueDetailPage() {
         const supported = filterSupportedSeasons(seasonsData.seasons);
         setAvailableSeasons(supported);
         setTeams(teamsData.teams);
-        // Default to all supported seasons
-        setSeasons(supported);
+        // If seasons haven't been set from URL, default to all supported seasons
+        if (filters.seasons.isDefault) {
+          setSeasons(supported);
+        }
         // Top 3 machines by score count
         const sorted = [...topMachinesData].sort((a, b) => b.total_scores - a.total_scores);
         setTopMachines(sorted.slice(0, 3));
@@ -128,29 +145,27 @@ export default function VenueDetailPage() {
   }
 
   // Build active filters array for chips display
-  const activeFilters: FilterChipData[] = [];
+  const activeFilters: FilterChipData[] = [
+    // Individual season chips
+    ...getSeasonChips(seasons, availableSeasons.length),
+  ];
 
-  if (seasons.length > 0 && seasons.length < availableSeasons.length) {
-    activeFilters.push({
-      key: 'seasons',
-      label: 'Seasons',
-      value: seasons.length <= 2
-        ? seasons.map(s => `S${s}`).join(', ')
-        : `${seasons.length} selected`,
-      onRemove: () => setSeasons(availableSeasons),
-    });
-  }
-
+  // Individual team chips
   if (selectedTeams.length > 0) {
-    const teamName = teams.find(t => t.team_key === selectedTeams[0])?.team_name || selectedTeams[0];
-    activeFilters.push({
-      key: 'team',
-      label: 'Team',
-      value: teamName,
-      onRemove: () => {
-        setSelectedTeams([]);
-        setScoresFrom('venue');
-      },
+    selectedTeams.forEach(teamKey => {
+      const teamName = teams.find(t => t.team_key === teamKey)?.team_name || teamKey;
+      activeFilters.push({
+        key: `team-${teamKey}`,
+        label: 'Team',
+        value: teamName,
+        onRemove: () => {
+          const remaining = selectedTeams.filter(t => t !== teamKey);
+          setSelectedTeams(remaining);
+          if (remaining.length === 0) {
+            setScoresFrom('venue');
+          }
+        },
+      });
     });
   }
 
@@ -162,6 +177,14 @@ export default function VenueDetailPage() {
       onRemove: () => setCurrentOnly(true),
     });
   }
+
+  // Helper to clear all filters
+  const clearAllFilters = () => {
+    setSeasons(availableSeasons);
+    setCurrentOnly(true);
+    setSelectedTeams([]);
+    setScoresFrom('venue');
+  };
 
   if (loading) {
     return <LoadingSpinner fullPage text="Loading venue details..." />;
@@ -233,12 +256,7 @@ export default function VenueDetailPage() {
         defaultOpen={false}
         activeFilters={activeFilters}
         showClearAll={activeFilters.length > 1}
-        onClearAll={() => {
-          setSeasons(availableSeasons);
-          setCurrentOnly(true);
-          setSelectedTeams([]);
-          setScoresFrom('venue');
-        }}
+        onClearAll={clearAllFilters}
       >
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

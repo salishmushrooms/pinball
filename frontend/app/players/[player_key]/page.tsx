@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { PlayerMachineStat, PlayerMachineScoreHistory } from '@/lib/types';
@@ -22,6 +22,7 @@ import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
 import { MatchplaySection } from '@/components/MatchplaySection';
 import { SUPPORTED_SEASONS, filterSupportedSeasons, formatScore } from '@/lib/utils';
+import { useURLFilters, filterConfigs } from '@/lib/hooks';
 import {
   usePlayer,
   usePlayerMachineStats,
@@ -34,11 +35,20 @@ export default function PlayerDetailPage() {
   const params = useParams();
   const playerKey = params.player_key as string;
 
-  // Filter state
+  // URL-synced filters
+  const { filters, getSeasonChips, clearAllFilters } = useURLFilters({
+    seasons: filterConfigs.seasons(),
+    venue: filterConfigs.venue(),
+  });
+
+  const seasonsFilter = filters.seasons.value;
+  const setSeasonsFilter = filters.seasons.setValue;
+  const venueFilter = filters.venue.value;
+  const setVenueFilter = filters.venue.setValue;
+
+  // Sort state (not URL-synced as it's less important to share)
   const [sortBy, setSortBy] = useState<'avg_percentile' | 'games_played' | 'avg_score' | 'win_percentage'>('games_played');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [seasonsFilter, setSeasonsFilter] = useState<number[]>([22, 23]);
-  const [venueFilter, setVenueFilter] = useState<string>('');
 
   // Chart-related state
   const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
@@ -234,18 +244,9 @@ export default function PlayerDetailPage() {
   }
 
   // Build active filters array for chips display
-  const activeFilters: FilterChipData[] = [];
-
-  if (seasonsFilter.length > 0 && seasonsFilter.length < availableSeasons.length) {
-    activeFilters.push({
-      key: 'seasons',
-      label: 'Seasons',
-      value: seasonsFilter.length <= 2
-        ? seasonsFilter.map(s => `S${s}`).join(', ')
-        : `${seasonsFilter.length} selected`,
-      onRemove: () => setSeasonsFilter([22, 23]),
-    });
-  }
+  const activeFilters: FilterChipData[] = [
+    ...getSeasonChips(seasonsFilter, availableSeasons.length),
+  ];
 
   if (venueFilter) {
     const venueName = venues.find(v => v.venue_key === venueFilter)?.venue_name || venueFilter;
@@ -255,11 +256,6 @@ export default function PlayerDetailPage() {
       value: venueName,
       onRemove: () => setVenueFilter(''),
     });
-  }
-
-  function clearFilters() {
-    setSeasonsFilter([22, 23]);
-    setVenueFilter('');
   }
 
   if (loading) {
@@ -325,7 +321,7 @@ export default function PlayerDetailPage() {
         collapsible={true}
         activeFilters={activeFilters}
         showClearAll={activeFilters.length > 1}
-        onClearAll={clearFilters}
+        onClearAll={clearAllFilters}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <SeasonMultiSelect
