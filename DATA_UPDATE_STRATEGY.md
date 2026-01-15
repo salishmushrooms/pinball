@@ -119,7 +119,7 @@ psql "postgresql://postgres:YOUR_PASSWORD@shinkansen.proxy.rlwy.net:49342/railwa
 
 ```bash
 # Check production API
-curl "https://pinball-production.up.railway.app/seasons/23/status"
+curl "https://your-api.railway.app/seasons/23/status"
 
 # Expected response:
 {
@@ -224,7 +224,7 @@ psql "$RAILWAY_DB" < /tmp/mnp_data.sql
 
 echo ""
 echo "=== Update Complete ==="
-echo "Verify at: https://pinball-production.up.railway.app/seasons/$SEASON/status"
+echo "Verify at: https://your-api.railway.app/seasons/$SEASON/status"
 ```
 
 Usage:
@@ -458,8 +458,8 @@ psql "$RAILWAY_URL" < /tmp/mnp_data.sql
 
 ### Verify Production
 ```bash
-curl "https://pinball-production.up.railway.app/seasons/23/status"
-curl "https://pinball-production.up.railway.app/seasons/23/matches"
+curl "https://your-api.railway.app/seasons/23/status"
+curl "https://your-api.railway.app/seasons/23/matches"
 ```
 
 ---

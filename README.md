@@ -15,24 +15,24 @@ This project visualizes MNP league data to help players and teams:
 
 The API is publicly available for read-only access:
 
-- **API Base URL**: https://pinball-production.up.railway.app
-- **Interactive Docs**: https://pinball-production.up.railway.app/docs
-- **ReDoc**: https://pinball-production.up.railway.app/redoc
+- **API Base URL**: https://your-api.railway.app
+- **Interactive Docs**: https://your-api.railway.app/docs
+- **ReDoc**: https://your-api.railway.app/redoc
 
 ### Quick API Examples
 
 ```bash
 # Get all available seasons
-curl https://pinball-production.up.railway.app/seasons
+curl https://your-api.railway.app/seasons
 
 # Search for players
-curl https://pinball-production.up.railway.app/players?search=smith
+curl https://your-api.railway.app/players?search=smith
 
 # Get machine percentiles
-curl "https://pinball-production.up.railway.app/machines/MM/percentiles?seasons=22"
+curl "https://your-api.railway.app/machines/MM/percentiles?seasons=22"
 
 # Get team matchup predictions
-curl "https://pinball-production.up.railway.app/matchups/analyze?team1=SKP&team2=TRL&season=22"
+curl "https://your-api.railway.app/matchups/analyze?team1=SKP&team2=TRL&season=22"
 ```
 
 **API Usage Guidelines:**
