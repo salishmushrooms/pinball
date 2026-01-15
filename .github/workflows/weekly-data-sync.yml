@@ -79,10 +79,29 @@ jobs:
           set -e
 
           SEASONS="${{ steps.detect.outputs.seasons }}"
-          echo "Running ETL for seasons: $SEASONS"
+          echo "Detected seasons with changes: $SEASONS"
+
+          # Filter to only seasons with matches directory
+          VALID_SEASONS=""
+          for season in $SEASONS; do
+            if [ -d "mnp-data-archive/season-$season/matches" ]; then
+              VALID_SEASONS="$VALID_SEASONS $season"
+            else
+              echo "Skipping season $season - no matches directory yet"
+            fi
+          done
+
+          VALID_SEASONS=$(echo "$VALID_SEASONS" | xargs)  # Trim whitespace
+
+          if [ -z "$VALID_SEASONS" ]; then
+            echo "No seasons with match data to process"
+            exit 0
+          fi
+
+          echo "Running ETL for seasons: $VALID_SEASONS"
 
           SEASON_ARGS=""
-          for season in $SEASONS; do
+          for season in $VALID_SEASONS; do
             SEASON_ARGS="$SEASON_ARGS --season $season"
           done
 
