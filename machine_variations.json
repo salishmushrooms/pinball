@@ -493,7 +493,9 @@
   "Indy": {
     "name": "Indiana Jones Adventure (Williams)",
     "variations": [
-      "indy", "indiana jones", "indiana jones adventure"
+      "indy",
+      "indiana jones",
+      "indiana jones adventure"
     ]
   },
   "Indy500": {
@@ -547,8 +549,7 @@
   },
   "Jurassic": {
     "name": "Jurassic Park (deprecated)",
-    "variations": [
-    ]
+    "variations": []
   },
   "KISS": {
     "name": "KISS (Stern)",
@@ -686,7 +687,7 @@
       "nitro"
     ]
   },
-  "Party Animal" : {
+  "Party Animal": {
     "name": "Party Animal",
     "variations": [
       "partyanimal",
@@ -1405,10 +1406,11 @@
     ]
   },
   "TBL": {
-    "name": "The Big Lewbowski",
+    "name": "The Big Lebowski",
     "variations": [
       "tbl",
-      "The Big Lewbowski"
+      "The Big Lebowski",
+      "Big Lebowski"
     ]
   },
   "Arena": {
@@ -1557,7 +1559,9 @@
   "BKSoR": {
     "name": "Black Knight Sword of Rage",
     "variations": [
-      "bksor"
+      "bksor",
+      "Black Knight SOR",
+      "black knight sor"
     ]
   },
   "ID": {
@@ -1748,7 +1752,11 @@
       "James Bond",
       "Bond 007",
       "Thunderball",
-      "Dr No"
+      "Dr No",
+      "James Bond '007",
+      "James Bond 007",
+      "james bond '007",
+      "james bond 007"
     ]
   },
   "Halloween": {
@@ -1840,300 +1848,410 @@
       "jw",
       "John Wick"
     ]
-},
-"Funhouse 2.0 Rudy's Nightmare": {
-  "name": "Funhouse 2.0 Rudy's Nightmare",
-  "variations": [
-    "funhouse 2.0 rudy's nightmare"
-  ]
-},
-"The Amazing Spider-Man": {
-  "name": "The Amazing Spider-Man",
-  "variations": [
-    "the amazing spider-man"
-  ]
-},
-"The Godfather": {
-  "name": "The Godfather",
-  "variations": [
-    "the godfather",
-    "the godfather (jjp)"
-  ]
-},
-"Venom": {
-  "name": "Venom",
-  "variations": [
-    "venom",
-    "venom right",
-    "venom left",
-    "venom (r)"
-  ]
-},
-"Alien Star": {
-  "name": "Alien Star",
-  "variations": [
-    "alien star"
-  ]
-},
-"Jaws": {
-  "name": "Jaws",
-  "variations": [
-    "jaws",
-    "jaws "
-  ]
-},
-"Toy Story": {
-  "name": "Toy Story",
-  "variations": [
-    "toy story",
-    "toy story"
-  ]
-},
-"Scooby-Doo": {
-  "name": "Scooby-Doo",
-  "variations": [
-    "scooby-doo",
-    "scooby-doo"
-  ]
-},
-"TX Sector": {
-  "name": "TX Sector",
-  "variations": [
-    "tx sector",
-    "tx sector"
-  ]
-},
-"Trident": {
-  "name": "Trident",
-  "variations": [
-    "trident",
-    "trident",
-    "Trident "
-  ]
-},
-"Viking": {
-  "name": "Viking",
-  "variations": [
-    "viking",
-    "viking",
-    "Viking "
-  ]
-},
-"Lights Camera Action": {
-  "name": "Lights Camera Action",
-  "variations": [
-    "lights camera action",
-    "lights camera action",
-    "Lights Camera Action!"
-  ]
-},
-"Frontier": {
-  "name": "Frontier",
-  "variations": [
-    "frontier",
-    "frontier",
-    "Frontier "
-  ]
-},
-"Sharkey's Shootout": {
-  "name": "Sharkey's Shootout",
-  "variations": [
-    "sharkey's shootout",
-    "sharkey's shootout",
-    "Sharkey's Shootout "
-  ]
-},
-"PULP": {
-  "name": "Pulp Fiction",
-  "variations": [
-    "pulp",
-    "pulp fiction",
-    "Pulp Fiction"
-  ]
-},
-"AS": {
-  "name": "Alien Star",
-  "variations": [
-    "as",
-    "Alien Star"
-  ]
-},
-"BOPP": {
-  "name": "Bobby Orr Power Player",
-  "variations": [
-    "bopp",
-    "Bobby Orr Power Player"
-  ]
-},
-"BallyTrek": {
-  "name": "Star Trek (Bally)",
-  "variations": [
-    "ballytrek",
-    "Star Trek (Bally)"
-  ]
-},
-"Cactus Canyon Remake": {
-  "name": "Cactus Canyon Remake",
-  "variations": [
-    "cactus canyon remake"
-  ]
-},
-"Captain fantastic": {
-  "name": "Captain Fantastic",
-  "variations": [
-    "captain fantastic"
-  ]
-},
-"DRAGON": {
-  "name": "Dragon",
-  "variations": [
-    "dragon"
-  ]
-},
-"DUNE": {
-  "name": "Dune",
-  "variations": [
-    "dune"
-  ]
-},
-"FHRN": {
-  "name": "Funhouse Rudy's Nightmare",
-  "variations": [
-    "fhrn",
-    "Funhouse Rudy's Nightmare"
-  ]
-},
-"GF": {
-  "name": "Godfather",
-  "variations": [
-    "gf",
-    "Godfather"
-  ]
-},
-"Gamatron": {
-  "name": "Gamatron",
-  "variations": [
-    "gamatron",
-    "GAMA"
-  ]
-},
-"HW": {
-  "name": "Hot Wheels",
-  "variations": [
-    "hw",
-    "Hot Wheels"
-  ]
-},
-"JB60": {
-  "name": "James Bond 007 (60th)",
-  "variations": [
-    "jb60",
-    "James Bond 007 (60th)"
-  ]
-},
-"KONG": {
-  "name": "King Kong",
-  "variations": [
-    "kong",
-    "King Kong"
-  ]
-},
-"LAB": {
-  "name": "Labyrinth",
-  "variations": [
-    "lab",
-    "Labyrinth"
-  ]
-},
-"METREM": {
-  "name": "Metallica Remastered",
-  "variations": [
-    "metrem",
-    "Metallica Remastered"
-  ]
-},
-"MH": {
-  "name": "Mata Hari",
-  "variations": [
-    "mh",
-    "Mata Hari"
-  ]
-},
-"Outer Space": {
-  "name": "Outer Space",
-  "variations": [
-    "outer space",
-    "OuterSpace"
-  ]
-},
-"PHAR": {
-  "name": "Pharaoh",
-  "variations": [
-    "phar",
-    "Pharaoh"
-  ]
-},
-"QS": {
-  "name": "Quicksilver",
-  "variations": [
-    "qs",
-    "Quicksilver"
-  ]
-},
-"RUSH": {
-  "name": "Rush",
-  "variations": [
-    "rush"
-  ]
-},
-"SB": {
-  "name": "Sinbad",
-  "variations": [
-    "sb",
-    "Sinbad"
-  ]
-},
-"SG": {
-  "name": "Star Gazer",
-  "variations": [
-    "sg",
-    "Star Gazer"
-  ]
-},
-"SWFOTE": {
-  "name": "Star Wars: Fall of the Empire",
-  "variations": [
-    "swfote",
-    "Star Wars: Fall of the Empire"
-  ]
-},
-"TS": {
-  "name": "Toy Story",
-  "variations": [
-    "ts",
-    "Toy Story"
-  ]
-},
-"ULTRA": {
-  "name": "Ultraman",
-  "variations": [
-    "ultra",
-    "Ultraman"
-  ]
-},
-"VEN": {
-  "name": "Venom",
-  "variations": [
-    "ven",
-    "Venom"
-  ]
-},
-"TBL": {
-  "name": "The Big Lebowski",
-  "variations": [
-    "tbl",
-    "The Big Lebowski",
-    "Big Lebowski"
-  ]
-}
+  },
+  "Funhouse 2.0 Rudy's Nightmare": {
+    "name": "Funhouse 2.0 Rudy's Nightmare",
+    "variations": [
+      "funhouse 2.0 rudy's nightmare"
+    ]
+  },
+  "The Amazing Spider-Man": {
+    "name": "The Amazing Spider-Man",
+    "variations": [
+      "the amazing spider-man"
+    ]
+  },
+  "The Godfather": {
+    "name": "The Godfather",
+    "variations": [
+      "the godfather",
+      "the godfather (jjp)"
+    ]
+  },
+  "Venom": {
+    "name": "Venom",
+    "variations": [
+      "venom",
+      "venom right",
+      "venom left",
+      "venom (r)"
+    ]
+  },
+  "Alien Star": {
+    "name": "Alien Star",
+    "variations": [
+      "alien star"
+    ]
+  },
+  "Jaws": {
+    "name": "Jaws",
+    "variations": [
+      "jaws",
+      "jaws "
+    ]
+  },
+  "Toy Story": {
+    "name": "Toy Story",
+    "variations": [
+      "toy story",
+      "toy story"
+    ]
+  },
+  "Scooby-Doo": {
+    "name": "Scooby-Doo",
+    "variations": [
+      "scooby-doo",
+      "scooby-doo",
+      "Scooby Doo",
+      "scooby doo",
+      "SD",
+      "sd"
+    ]
+  },
+  "TX Sector": {
+    "name": "TX Sector",
+    "variations": [
+      "tx sector",
+      "tx sector"
+    ]
+  },
+  "Trident": {
+    "name": "Trident",
+    "variations": [
+      "trident",
+      "trident",
+      "Trident "
+    ]
+  },
+  "Viking": {
+    "name": "Viking",
+    "variations": [
+      "viking",
+      "viking",
+      "Viking "
+    ]
+  },
+  "Lights Camera Action": {
+    "name": "Lights Camera Action",
+    "variations": [
+      "lights camera action",
+      "lights camera action",
+      "Lights Camera Action!"
+    ]
+  },
+  "Frontier": {
+    "name": "Frontier",
+    "variations": [
+      "frontier",
+      "frontier",
+      "Frontier "
+    ]
+  },
+  "Sharkey's Shootout": {
+    "name": "Sharkey's Shootout",
+    "variations": [
+      "sharkey's shootout",
+      "sharkey's shootout",
+      "Sharkey's Shootout "
+    ]
+  },
+  "PULP": {
+    "name": "Pulp Fiction",
+    "variations": [
+      "pulp",
+      "pulp fiction",
+      "Pulp Fiction"
+    ]
+  },
+  "AS": {
+    "name": "Alien Star",
+    "variations": [
+      "as",
+      "Alien Star"
+    ]
+  },
+  "BOPP": {
+    "name": "Bobby Orr Power Player",
+    "variations": [
+      "bopp",
+      "Bobby Orr Power Player"
+    ]
+  },
+  "BallyTrek": {
+    "name": "Star Trek (Bally)",
+    "variations": [
+      "ballytrek",
+      "Star Trek (Bally)"
+    ]
+  },
+  "Cactus Canyon Remake": {
+    "name": "Cactus Canyon Remake",
+    "variations": [
+      "cactus canyon remake"
+    ]
+  },
+  "Captain fantastic": {
+    "name": "Captain Fantastic",
+    "variations": [
+      "captain fantastic"
+    ]
+  },
+  "DRAGON": {
+    "name": "Dragon",
+    "variations": [
+      "dragon"
+    ]
+  },
+  "DUNE": {
+    "name": "Dune",
+    "variations": [
+      "dune"
+    ]
+  },
+  "FHRN": {
+    "name": "Funhouse Rudy's Nightmare",
+    "variations": [
+      "fhrn",
+      "Funhouse Rudy's Nightmare"
+    ]
+  },
+  "GF": {
+    "name": "Godfather",
+    "variations": [
+      "gf",
+      "Godfather"
+    ]
+  },
+  "Gamatron": {
+    "name": "Gamatron",
+    "variations": [
+      "gamatron",
+      "GAMA"
+    ]
+  },
+  "HW": {
+    "name": "Hot Wheels",
+    "variations": [
+      "hw",
+      "Hot Wheels"
+    ]
+  },
+  "JB60": {
+    "name": "James Bond 007 (60th)",
+    "variations": [
+      "jb60",
+      "James Bond 007 (60th)"
+    ]
+  },
+  "KONG": {
+    "name": "King Kong",
+    "variations": [
+      "kong",
+      "King Kong"
+    ]
+  },
+  "LAB": {
+    "name": "Labyrinth",
+    "variations": [
+      "lab",
+      "Labyrinth"
+    ]
+  },
+  "METREM": {
+    "name": "Metallica Remastered",
+    "variations": [
+      "metrem",
+      "Metallica Remastered"
+    ]
+  },
+  "MH": {
+    "name": "Mata Hari",
+    "variations": [
+      "mh",
+      "Mata Hari"
+    ]
+  },
+  "Outer Space": {
+    "name": "Outer Space",
+    "variations": [
+      "outer space",
+      "OuterSpace"
+    ]
+  },
+  "PHAR": {
+    "name": "Pharaoh",
+    "variations": [
+      "phar",
+      "Pharaoh"
+    ]
+  },
+  "QS": {
+    "name": "Quicksilver",
+    "variations": [
+      "qs",
+      "Quicksilver"
+    ]
+  },
+  "RUSH": {
+    "name": "Rush",
+    "variations": [
+      "rush"
+    ]
+  },
+  "SB": {
+    "name": "Sinbad",
+    "variations": [
+      "sb",
+      "Sinbad"
+    ]
+  },
+  "SG": {
+    "name": "Star Gazer",
+    "variations": [
+      "sg",
+      "Star Gazer"
+    ]
+  },
+  "SWFOTE": {
+    "name": "Star Wars: Fall of the Empire",
+    "variations": [
+      "swfote",
+      "Star Wars: Fall of the Empire"
+    ]
+  },
+  "TS": {
+    "name": "Toy Story",
+    "variations": [
+      "ts",
+      "Toy Story"
+    ]
+  },
+  "ULTRA": {
+    "name": "Ultraman",
+    "variations": [
+      "ultra",
+      "Ultraman"
+    ]
+  },
+  "VEN": {
+    "name": "Venom",
+    "variations": [
+      "ven",
+      "Venom"
+    ]
+  },
+  "4Aces": {
+    "name": "4 Aces",
+    "variations": [
+      "4 aces",
+      "4aces",
+      "four aces"
+    ]
+  },
+  "Alien": {
+    "name": "Alien",
+    "manufacturer": "Data East",
+    "year": 1980,
+    "variations": [
+      "alien"
+    ]
+  },
+  "BarryOs": {
+    "name": "Barry O's BBQ Challenge",
+    "variations": [
+      "barry o's bbq challenge",
+      "barry os bbq challenge",
+      "barryos",
+      "barry o's"
+    ]
+  },
+  "BigGame": {
+    "name": "Big Game",
+    "manufacturer": "Stern",
+    "year": 1980,
+    "variations": [
+      "big game",
+      "biggame"
+    ]
+  },
+  "BuckRogers": {
+    "name": "Buck Rogers",
+    "manufacturer": "Gottlieb",
+    "year": 1980,
+    "variations": [
+      "buck rogers",
+      "buckrogers",
+      "BR"
+    ]
+  },
+  "DrDude": {
+    "name": "Dr. Dude",
+    "manufacturer": "Bally",
+    "year": 1990,
+    "variations": [
+      "dr dude",
+      "drdude",
+      "dr. dude",
+      "DRD",
+      "drd",
+      "Dr Dude"
+    ]
+  },
+  "EightBallBeyond": {
+    "name": "Eight Ball Beyond",
+    "manufacturer": "Multimorphic",
+    "year": 2024,
+    "variations": [
+      "eight ball beyond",
+      "eightballbeyond",
+      "8 ball beyond",
+      "EBB"
+    ]
+  },
+  "MysteryC": {
+    "name": "Mystery Castle",
+    "variations": [
+      "mystery castle",
+      "mysterycastle",
+      "Mystery Castle"
+    ]
+  },
+  "Sorcerer": {
+    "name": "Sorcerer",
+    "manufacturer": "Williams",
+    "year": 1985,
+    "variations": [
+      "sorcerer",
+      "Sorcerer - Williams",
+      "sorcerer - williams"
+    ]
+  },
+  "SpringBreak": {
+    "name": "Spring Break",
+    "manufacturer": "Gottlieb",
+    "year": 1987,
+    "variations": [
+      "spring break",
+      "springbreak"
+    ]
+  },
+  "TimeMachine": {
+    "name": "Time Machine",
+    "manufacturer": "Data East",
+    "year": 1988,
+    "variations": [
+      "time machine",
+      "timemachine"
+    ]
+  },
+  "TCM": {
+    "name": "Texas Chainsaw Massacre",
+    "manufacturer": "Spooky",
+    "year": 2022,
+    "variations": [
+      "tcm",
+      "texas chainsaw massacre",
+      "texaschainsawmassacre"
+    ]
+  }
 }

@@ -2,7 +2,7 @@
 
 **Guide for loading data, running migrations, and maintaining the production database.**
 
-**Last Updated:** 2025-12-08
+**Last Updated:** 2026-01-15
 
 ---
 
@@ -18,16 +18,22 @@
 2. **Railway CLI authenticated:**
    ```bash
    railway login
+   # Use --browserless flag if needed: railway login --browserless
    ```
 
 3. **Project linked:**
    ```bash
-   cd /Users/test_1/Pinball/MNP/pinball
+   cd /Users/JJC/Pinball/MNP
    railway link
    # Select the "airy-acceptance" project
    ```
 
 4. **Local database running** (for data export)
+
+5. **Conda environment activated:**
+   ```bash
+   conda activate mnp
+   ```
 
 ---
 
@@ -35,10 +41,12 @@
 
 | Task | Command |
 |------|---------|
-| Connect to Railway PostgreSQL | `railway connect postgres` |
+| Connect to Railway PostgreSQL | `railway connect Postgres--OkR` |
 | View Railway logs | `railway logs -s pinball` |
 | Export local data | `pg_dump -h localhost -U mnp_user -d mnp_analyzer --data-only --no-owner --no-acl > /tmp/mnp_data.sql` |
-| Import to Railway | `railway connect postgres < /tmp/mnp_data.sql` |
+| Import to Railway | `railway connect Postgres--OkR < /tmp/mnp_data.sql` |
+
+> **Note:** The PostgreSQL service is named `Postgres--OkR` in Railway. Use this exact name for all `railway connect` commands.
 
 ---
 
@@ -53,58 +61,79 @@
    cd ..
    ```
 
-2. **Run the ETL pipeline locally:**
+2. **For a season WITH match data (completed/in-progress season):**
    ```bash
-   # Activate conda environment
    conda activate mnp
 
-   # Load the new season
-   python etl/load_season.py 23
+   # Load the season data
+   python etl/load_season.py --season 23
 
-   # Recalculate percentiles
-   python etl/calculate_percentiles.py
+   # Recalculate aggregates for this season
+   python etl/calculate_percentiles.py --season 23
+   python etl/calculate_player_stats.py --season 23
+   python etl/calculate_team_machine_picks.py --season 23
+   python etl/calculate_match_points.py --season 23
 
-   # Recalculate player stats
-   python etl/calculate_player_stats.py
-
-   # Recalculate team machine picks
-   python etl/calculate_team_machine_picks.py
+   # Recalculate cross-season totals
+   python etl/calculate_player_totals.py
    ```
 
-3. **Verify locally:**
-   - Start local API: `cd api && uvicorn main:app --reload`
-   - Check http://localhost:8000/seasons - should show season 23
+3. **For a PRESEASON (no matches yet, only rosters):**
+   ```bash
+   conda activate mnp
+
+   # Load preseason metadata (teams, players, venues, scheduled matches)
+   python etl/load_preseason.py --season 23
+   ```
+
+   > **Note:** The preseason loader will reuse existing player keys when players already exist in the database, preventing duplicate player entries.
+
+4. **Verify locally:**
+   ```bash
+   # Start local API
+   uvicorn api.main:app --reload --port 8000
+
+   # In another terminal, check data
+   curl http://localhost:8000/players | jq '.total'
+   curl http://localhost:8000/seasons
+   ```
 
 ### Step 2: Export and Import to Production
+
+**Recommended: Full Database Reset** (cleanest approach)
 
 1. **Export local database:**
    ```bash
    pg_dump -h localhost -U mnp_user -d mnp_analyzer --data-only --no-owner --no-acl > /tmp/mnp_data.sql
    ```
 
-2. **Clear production tables (keep schema):**
+2. **Reset production schema:**
    ```bash
-   railway connect postgres
+   railway connect Postgres--OkR
    ```
-
-   Then run:
    ```sql
-   TRUNCATE TABLE scores, games, matches, player_machine_stats,
-                  score_percentiles, team_machine_picks, venue_machines
-   RESTART IDENTITY CASCADE;
-   -- Keep players, teams, machines, venues as they have references
+   DROP SCHEMA public CASCADE;
+   CREATE SCHEMA public;
    \q
    ```
 
-3. **Import fresh data:**
+3. **Import schema then data:**
    ```bash
-   railway connect postgres < /tmp/mnp_data.sql
+   railway connect Postgres--OkR < schema/migrations/001_complete_schema.sql
+   railway connect Postgres--OkR < /tmp/mnp_data.sql
    ```
 
 4. **Verify production:**
    ```bash
-   curl "https://your-api.railway.app/seasons"
+   railway connect Postgres--OkR
    ```
+   ```sql
+   SELECT COUNT(*) FROM players;
+   SELECT COUNT(*) FROM scores;
+   \q
+   ```
+
+> **Note:** Some duplicate key errors on `schema_version` and `team_aliases` are expected and harmless - these are seed data already inserted by the schema.
 
 ---
 
@@ -114,7 +143,7 @@ When you add new migrations to `schema/migrations/`:
 
 1. **Connect to Railway PostgreSQL:**
    ```bash
-   railway connect postgres
+   railway connect Postgres--OkR
    ```
 
 2. **Run the new migration:**
@@ -155,12 +184,32 @@ After loading new data, recalculate aggregates:
 ```bash
 conda activate mnp
 
-# Recalculate all aggregates
-python etl/calculate_percentiles.py
-python etl/calculate_player_stats.py
-python etl/calculate_team_machine_picks.py
+# Recalculate aggregates for specific seasons (run for each loaded season)
+python etl/calculate_percentiles.py --season 18
+python etl/calculate_percentiles.py --season 19
+# ... repeat for each season ...
+
+python etl/calculate_player_stats.py --season 18
+python etl/calculate_player_stats.py --season 19
+# ... repeat for each season ...
+
+python etl/calculate_team_machine_picks.py --season 18
+# ... repeat for each season ...
+
+python etl/calculate_match_points.py --season 18
+# ... repeat for each season ...
+
+# Cross-season totals (no season flag needed)
 python etl/calculate_player_totals.py
-python etl/calculate_match_points.py
+```
+
+### Using the Pipeline (easier)
+```bash
+# Load and calculate for multiple seasons at once
+python etl/run_full_pipeline.py --seasons 18 19 20 21 22
+
+# Or just recalculate aggregates (skip loading)
+python etl/run_full_pipeline.py --seasons 18 19 20 21 22 --skip-load
 ```
 
 ### Production (if running ETL on Railway)
@@ -179,7 +228,7 @@ If you need to completely reset the production database:
 
 2. **Connect to Railway PostgreSQL:**
    ```bash
-   railway connect postgres
+   railway connect Postgres--OkR
    ```
 
 3. **Drop and recreate schema:**
@@ -191,12 +240,12 @@ If you need to completely reset the production database:
 
 4. **Run consolidated schema:**
    ```bash
-   railway connect postgres < schema/migrations/001_complete_schema.sql
+   railway connect Postgres--OkR < schema/migrations/001_complete_schema.sql
    ```
 
 5. **Import data:**
    ```bash
-   railway connect postgres < /tmp/mnp_data.sql
+   railway connect Postgres--OkR < /tmp/mnp_data.sql
    ```
 
 6. **Verify:**
@@ -237,7 +286,7 @@ If you need to completely reset the production database:
 
 Check current data counts:
 ```bash
-railway connect postgres
+railway connect Postgres--OkR
 ```
 
 ```sql
@@ -342,4 +391,4 @@ Expected response:
 
 ---
 
-**Last Updated:** 2025-12-12
+**Last Updated:** 2026-01-15

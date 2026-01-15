@@ -140,7 +140,6 @@
 │   └── IPR.csv                        # Individual Player Ratings
 │
 ├── mnp-app-docs/                      # Comprehensive documentation
-│   ├── INDEX.md                       # Documentation index
 │   ├── README.md                      # Docs overview
 │   ├── DATABASE_OPERATIONS.md         # Database operations guide
 │   ├── DEPLOYMENT_CHECKLIST.md        # Deployment checklist

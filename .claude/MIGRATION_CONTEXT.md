@@ -96,7 +96,7 @@ Expected: ~939 players, ~56,000 scores, ~948 matches
 ### Step 5: Deploy Code Changes
 
 ```bash
-cd /Users/test_1/Pinball/MNP/pinball
+cd /Users/JJC/Pinball/MNP
 git add -A
 git commit -m "Fix venue schema alignment and null latest_season bug"
 git push

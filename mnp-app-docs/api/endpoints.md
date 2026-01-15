@@ -1,5 +1,8 @@
 # API Endpoints Specification
 
+> ⚠️ **Note:** This document was created during planning phase.
+> See actual API docs at https://your-api.railway.app/docs for current implementation.
+
 ## Overview
 
 The MNP Analyzer API is a RESTful API built with FastAPI. It provides access to player statistics, team intelligence, machine data, and performance analytics.
@@ -1113,5 +1116,7 @@ Allowed origins:
 ---
 
 **API Version**: 1.0
-**Last Updated**: 2025-01-23
-**Status**: Design Phase - Not yet implemented
+**Last Updated**: 2026-01-14
+**Status**: Production - Implementation may differ from this spec
+
+> **Note:** This document was created during the planning phase. For current API implementation, see the live API documentation at https://your-api.railway.app/docs
