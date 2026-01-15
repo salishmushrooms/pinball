@@ -251,7 +251,12 @@ export function useURLFilters<T extends Record<string, FilterConfig<any>>>(
     }
 
     const newURL = current.toString() ? `?${current.toString()}` : '';
-    router.replace(`${pathname}${newURL}`, { scroll: false });
+    const currentURL = searchParams.toString() ? `?${searchParams.toString()}` : '';
+
+    // Only update if URL actually changed to prevent infinite loops
+    if (newURL !== currentURL) {
+      router.replace(`${pathname}${newURL}`, { scroll: false });
+    }
   }, [searchParams, router, pathname]);
 
   // Sync URL when filter states change
