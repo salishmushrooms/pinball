@@ -74,6 +74,7 @@ jobs:
         if: steps.detect.outputs.seasons != ''
         env:
           DATABASE_URL: ${{ secrets.RAILWAY_DATABASE_URL }}
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           set -e
 
