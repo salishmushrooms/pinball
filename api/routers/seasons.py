@@ -1,13 +1,11 @@
 """
 Seasons Router
 
-Endpoints for fetching season schedule data from season.json files.
+Endpoints for fetching season schedule data from the database.
 """
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
 from datetime import datetime, timedelta
-import json
-import os
 import logging
 
 from api.dependencies import execute_query
@@ -117,34 +115,91 @@ def get_season_status(season: int):
 @router.get("/{season}/schedule")
 def get_season_schedule(season: int):
     """
-    Get the complete schedule for a specific season from season.json
+    Get the complete schedule for a specific season from the database.
 
     Returns all weeks and matches for the season, including team schedules.
     """
     try:
-        season_file = f"mnp-data-archive/season-{season}/season.json"
+        # Get all matches for this season from database
+        matches_query = """
+            SELECT
+                m.match_key,
+                m.season,
+                m.week,
+                m.date,
+                m.state,
+                m.venue_key,
+                v.venue_name,
+                m.home_team_key,
+                ht.team_name as home_name,
+                m.away_team_key,
+                at.team_name as away_name
+            FROM matches m
+            LEFT JOIN venues v ON m.venue_key = v.venue_key
+            LEFT JOIN teams ht ON m.home_team_key = ht.team_key AND ht.season = m.season
+            LEFT JOIN teams at ON m.away_team_key = at.team_key AND at.season = m.season
+            WHERE m.season = :season
+            ORDER BY m.week, m.match_key
+        """
+        matches_result = execute_query(matches_query, {"season": season})
 
-        if not os.path.exists(season_file):
+        if not matches_result:
             raise HTTPException(
                 status_code=404,
                 detail=f"Season {season} schedule not found"
             )
 
-        with open(season_file, 'r') as f:
-            season_data = json.load(f)
+        # Get teams for this season
+        teams_query = """
+            SELECT
+                t.team_key,
+                t.team_name,
+                t.home_venue_key,
+                v.venue_name as home_venue_name
+            FROM teams t
+            LEFT JOIN venues v ON t.home_venue_key = v.venue_key
+            WHERE t.season = :season
+            ORDER BY t.team_key
+        """
+        teams_result = execute_query(teams_query, {"season": season})
 
-        return season_data
+        # Build teams dict
+        teams = {}
+        for row in teams_result:
+            teams[row['team_key']] = {
+                "name": row['team_name'],
+                "venue": row['home_venue_key']
+            }
 
-    except FileNotFoundError:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Season {season} schedule not found"
-        )
-    except json.JSONDecodeError:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Invalid JSON in season {season} file"
-        )
+        # Group matches by week
+        weeks_dict = {}
+        for row in matches_result:
+            week_num = row['week']
+            if week_num not in weeks_dict:
+                weeks_dict[week_num] = {
+                    "week": week_num,
+                    "date": row['date'].strftime("%m/%d/%Y") if row['date'] else None,
+                    "matches": []
+                }
+
+            match_info = {
+                "match_key": row['match_key'],
+                "home": row['home_team_key'],
+                "away": row['away_team_key'],
+                "venue": row['venue_key']
+            }
+            weeks_dict[week_num]["matches"].append(match_info)
+
+        weeks = [weeks_dict[k] for k in sorted(weeks_dict.keys())]
+
+        return {
+            "season": season,
+            "weeks": weeks,
+            "teams": teams
+        }
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching season {season} schedule: {e}")
         raise HTTPException(
@@ -253,47 +308,87 @@ def get_team_schedule(season: int, team_key: str):
     Get the schedule for a specific team in a season
 
     Returns the team's complete schedule including home and away games.
+    Queries from database (works in production without filesystem access).
     """
     try:
-        season_file = f"mnp-data-archive/season-{season}/season.json"
+        team_key_upper = team_key.upper()
 
-        if not os.path.exists(season_file):
-            raise HTTPException(
-                status_code=404,
-                detail=f"Season {season} not found"
-            )
+        # Get team info
+        team_query = """
+            SELECT t.team_key, t.team_name, t.home_venue_key
+            FROM teams t
+            WHERE t.team_key = :team_key AND t.season = :season
+        """
+        team_result = execute_query(team_query, {"team_key": team_key_upper, "season": season})
 
-        with open(season_file, 'r') as f:
-            season_data = json.load(f)
-
-        # Find the team in the teams object
-        team_data = season_data.get('teams', {}).get(team_key.upper())
-
-        if not team_data:
+        if not team_result:
             raise HTTPException(
                 status_code=404,
                 detail=f"Team {team_key} not found in season {season}"
             )
 
+        team_info = team_result[0]
+
+        # Get team's matches
+        matches_query = """
+            SELECT
+                m.match_key,
+                m.week,
+                m.date,
+                m.venue_key,
+                m.home_team_key,
+                m.away_team_key,
+                m.state,
+                ht.team_name as home_name,
+                at.team_name as away_name
+            FROM matches m
+            LEFT JOIN teams ht ON m.home_team_key = ht.team_key AND ht.season = m.season
+            LEFT JOIN teams at ON m.away_team_key = at.team_key AND at.season = m.season
+            WHERE m.season = :season
+            AND (m.home_team_key = :team_key OR m.away_team_key = :team_key)
+            ORDER BY m.week
+        """
+        matches_result = execute_query(matches_query, {"team_key": team_key_upper, "season": season})
+
+        # Build schedule list
+        schedule = []
+        for row in matches_result:
+            is_home = row['home_team_key'] == team_key_upper
+            opponent_key = row['away_team_key'] if is_home else row['home_team_key']
+            opponent_name = row['away_name'] if is_home else row['home_name']
+
+            schedule.append({
+                "week": row['week'],
+                "date": row['date'].strftime("%m/%d/%Y") if row['date'] else None,
+                "opponent": opponent_key,
+                "opponent_name": opponent_name,
+                "venue": row['venue_key'],
+                "is_home": is_home,
+                "state": row['state']
+            })
+
+        # Get roster (players who have played for this team in this season)
+        roster_query = """
+            SELECT DISTINCT s.player_key, p.name as player_name
+            FROM scores s
+            INNER JOIN players p ON s.player_key = p.player_key
+            WHERE s.team_key = :team_key AND s.season = :season
+            ORDER BY p.name
+        """
+        roster_result = execute_query(roster_query, {"team_key": team_key_upper, "season": season})
+        roster = [row['player_key'] for row in roster_result]
+
         return {
             "season": season,
-            "team_key": team_key.upper(),
-            "team_name": team_data.get('name'),
-            "home_venue": team_data.get('venue'),
-            "schedule": team_data.get('schedule', []),
-            "roster": team_data.get('roster', [])
+            "team_key": team_key_upper,
+            "team_name": team_info['team_name'],
+            "home_venue": team_info['home_venue_key'],
+            "schedule": schedule,
+            "roster": roster
         }
 
-    except FileNotFoundError:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Season {season} not found"
-        )
-    except json.JSONDecodeError:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Invalid JSON in season {season} file"
-        )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching team {team_key} schedule for season {season}: {e}")
         raise HTTPException(
