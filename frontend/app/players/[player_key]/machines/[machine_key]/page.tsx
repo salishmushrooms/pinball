@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useMemo } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { GamePlayer } from '@/lib/types';
 import {
@@ -13,9 +13,11 @@ import {
   Breadcrumb,
   FilterPanel,
 } from '@/components/ui';
+import type { FilterChipData } from '@/components/ui/FilterChip';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
 import { SUPPORTED_SEASONS, filterSupportedSeasons, formatScore } from '@/lib/utils';
+import { useURLFilters, filterConfigs } from '@/lib/hooks';
 import {
   usePlayer,
   useMachine,
@@ -26,17 +28,19 @@ import {
 
 export default function PlayerMachineGamesPage() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const playerKey = params.player_key as string;
   const machineKey = params.machine_key as string;
 
-  // Get initial filter values from URL params
-  const initialSeasons = searchParams.get('seasons')?.split(',').map(Number) || [22, 23];
-  const initialVenue = searchParams.get('venue_key') || '';
+  // URL-synced filters (note: uses 'venue' in URL, but venue_key for API compat)
+  const { filters, getSeasonChips, clearAllFilters } = useURLFilters({
+    seasons: filterConfigs.seasons(),
+    venue: filterConfigs.venue(),
+  });
 
-  // Filter state
-  const [seasonsFilter, setSeasonsFilter] = useState<number[]>(initialSeasons);
-  const [venueFilter, setVenueFilter] = useState<string>(initialVenue);
+  const seasonsFilter = filters.seasons.value;
+  const setSeasonsFilter = filters.seasons.setValue;
+  const venueFilter = filters.venue.value;
+  const setVenueFilter = filters.venue.setValue;
 
   // React Query hooks - data fetching with automatic caching
   const {
@@ -91,14 +95,19 @@ export default function PlayerMachineGamesPage() {
     machineError instanceof Error ? machineError.message :
     gamesError instanceof Error ? gamesError.message : null;
 
-  // Count active filters
-  const activeFilterCount =
-    (seasonsFilter.length > 0 && seasonsFilter.length < availableSeasons.length ? 1 : 0) +
-    (venueFilter ? 1 : 0);
+  // Build active filters array for chips display
+  const activeFilters: FilterChipData[] = [
+    ...getSeasonChips(seasonsFilter, availableSeasons.length),
+  ];
 
-  function clearFilters() {
-    setSeasonsFilter([22, 23]);
-    setVenueFilter('');
+  if (venueFilter) {
+    const venueName = venues.find(v => v.venue_key === venueFilter)?.venue_name || venueFilter;
+    activeFilters.push({
+      key: 'venue',
+      label: 'Venue',
+      value: venueName,
+      onRemove: () => setVenueFilter(''),
+    });
   }
 
   // Helper function to get player position class for styling
@@ -162,9 +171,9 @@ export default function PlayerMachineGamesPage() {
       <FilterPanel
         title="Filters"
         collapsible={true}
-        activeFilterCount={activeFilterCount}
-        showClearAll={activeFilterCount > 0}
-        onClearAll={clearFilters}
+        activeFilters={activeFilters}
+        showClearAll={activeFilters.length > 1}
+        onClearAll={clearAllFilters}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <SeasonMultiSelect

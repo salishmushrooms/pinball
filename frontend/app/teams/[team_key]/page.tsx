@@ -1,23 +1,40 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Team, TeamMachineStat, TeamPlayer, Venue, MatchplayRatingInfo } from '@/lib/types';
 import { RoundMultiSelect } from '@/components/RoundMultiSelect';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
-import { useDebouncedEffect } from '@/lib/hooks';
+import { useDebouncedEffect, useURLFilters, filterConfigs, DEFAULT_SEASONS, DEFAULT_ROUNDS } from '@/lib/hooks';
 import { Table, Card, PageHeader, FilterPanel, Alert, LoadingSpinner, WinPercentage, Breadcrumb, TeamLogo } from '@/components/ui';
 import type { FilterChipData } from '@/components/ui/FilterChip';
 import { SUPPORTED_SEASONS, filterSupportedSeasons, formatScore, cn } from '@/lib/utils';
 
 export default function TeamDetailPage() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const teamKey = params.team_key as string;
-  const initialSeason = searchParams.get('season');
+
+  // URL-synced filters
+  const { filters, getSeasonChips, clearAllFilters } = useURLFilters({
+    seasons: filterConfigs.seasons(),
+    venue: filterConfigs.venue(),
+    rounds: filterConfigs.rounds(),
+    includeSubs: filterConfigs.boolean('includeSubs', false),
+  });
+
+  // Destructure for easier access
+  const seasonsFilter = filters.seasons.value;
+  const setSeasonsFilter = filters.seasons.setValue;
+  const venueFilter = filters.venue.value;
+  const setVenueFilter = filters.venue.setValue;
+  const roundsFilter = filters.rounds.value;
+  const setRoundsFilter = filters.rounds.setValue;
+  // Note: includeSubs=true in URL means excludeSubs=false
+  const excludeSubs = !filters.includeSubs.value;
+  const setExcludeSubs = (exclude: boolean) => filters.includeSubs.setValue(!exclude);
 
   const [team, setTeam] = useState<Team | null>(null);
   const [machineStats, setMachineStats] = useState<TeamMachineStat[]>([]);
@@ -35,12 +52,6 @@ export default function TeamDetailPage() {
   // Note: 'machine_name' is client-side only; API supports: games_played, avg_score, best_score, win_percentage, median_score
   const [sortBy, setSortBy] = useState<'games_played' | 'avg_score' | 'best_score' | 'win_percentage' | 'median_score' | 'machine_name'>('games_played');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [seasonsFilter, setSeasonsFilter] = useState<number[]>(
-    initialSeason ? [parseInt(initialSeason)] : [22, 23]
-  );
-  const [venueFilter, setVenueFilter] = useState<string>('');
-  const [roundsFilter, setRoundsFilter] = useState<number[]>([1, 2, 3, 4]);
-  const [excludeSubs, setExcludeSubs] = useState<boolean>(true);
 
   // Sorting for Team Roster (client-side)
   const [rosterSortBy, setRosterSortBy] = useState<'player_name' | 'current_ipr' | 'games_played' | 'win_percentage'>('games_played');
@@ -221,18 +232,10 @@ export default function TeamDetailPage() {
   }, [players, rosterSortBy, rosterSortDirection]);
 
   // Build active filters array for chips display
-  const activeFilters: FilterChipData[] = [];
-
-  if (seasonsFilter.length > 0 && seasonsFilter.length < availableSeasons.length) {
-    activeFilters.push({
-      key: 'seasons',
-      label: 'Seasons',
-      value: seasonsFilter.length <= 2
-        ? seasonsFilter.map(s => `S${s}`).join(', ')
-        : `${seasonsFilter.length} selected`,
-      onRemove: () => setSeasonsFilter([22, 23]),
-    });
-  }
+  const activeFilters: FilterChipData[] = [
+    // Individual season chips from the hook
+    ...getSeasonChips(seasonsFilter, availableSeasons.length),
+  ];
 
   if (venueFilter) {
     const venueName = venues.find(v => v.venue_key === venueFilter)?.venue_name || venueFilter;
@@ -249,7 +252,7 @@ export default function TeamDetailPage() {
       key: 'rounds',
       label: 'Rounds',
       value: roundsFilter.map(r => `R${r}`).join(', '),
-      onRemove: () => setRoundsFilter([1, 2, 3, 4]),
+      onRemove: () => setRoundsFilter(DEFAULT_ROUNDS),
     });
   }
 
@@ -262,12 +265,7 @@ export default function TeamDetailPage() {
     });
   }
 
-  function clearFilters() {
-    setSeasonsFilter([22, 23]);
-    setVenueFilter('');
-    setRoundsFilter([1, 2, 3, 4]);
-    setExcludeSubs(true);
-  }
+  // clearFilters is provided by the hook as clearAllFilters
 
   if (loading) {
     return (
@@ -339,7 +337,7 @@ export default function TeamDetailPage() {
         collapsible={true}
         activeFilters={activeFilters}
         showClearAll={activeFilters.length > 1}
-        onClearAll={clearFilters}
+        onClearAll={clearAllFilters}
       >
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -22,19 +22,31 @@ import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
 import { TeamMultiSelect } from '@/components/TeamMultiSelect';
 import { SUPPORTED_SEASONS, filterSupportedSeasons } from '@/lib/utils';
+import { useURLFilters, filterConfigs } from '@/lib/hooks';
 
 export default function MachineDetailPage() {
   const params = useParams();
   const machineKey = params.machine_key as string;
+
+  // URL-synced filters
+  const { filters, getSeasonChips, clearAllFilters } = useURLFilters({
+    seasons: filterConfigs.seasons(),
+    venue: filterConfigs.venue(),
+    teams: filterConfigs.teams(),
+  });
+
+  const selectedSeasons = filters.seasons.value;
+  const setSelectedSeasons = filters.seasons.setValue;
+  const selectedVenue = filters.venue.value || 'all';
+  const setSelectedVenue = (v: string) => filters.venue.setValue(v === 'all' ? '' : v);
+  const selectedTeams = filters.teams.value;
+  const setSelectedTeams = filters.teams.setValue;
 
   const [machine, setMachine] = useState<Machine | null>(null);
   const [scores, setScores] = useState<MachineScore[]>([]);
   const [venues, setVenues] = useState<MachineVenue[]>([]);
   const [teams, setTeams] = useState<MachineTeam[]>([]);
   const [availableSeasons, setAvailableSeasons] = useState<number[]>([...SUPPORTED_SEASONS]);
-  const [selectedVenue, setSelectedVenue] = useState<string>('all');
-  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
-  const [selectedSeasons, setSelectedSeasons] = useState<number[]>([22, 23]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,12 +57,6 @@ export default function MachineDetailPage() {
         const data = await api.getSeasons();
         const supported = filterSupportedSeasons(data.seasons);
         setAvailableSeasons(supported);
-        // Default to seasons 22 and 23 if available
-        if (supported.includes(22) && supported.includes(23)) {
-          setSelectedSeasons([22, 23]);
-        } else if (supported.length > 0) {
-          setSelectedSeasons([Math.max(...supported)]);
-        }
       } catch (err) {
         console.error('Failed to load seasons:', err);
       }
@@ -171,19 +177,10 @@ export default function MachineDetailPage() {
   const stats = calculateStats();
 
   // Build active filters for chips display
-  const activeFilters: FilterChipData[] = [];
-
-  // Season filter - only show if not "all seasons"
-  if (selectedSeasons.length > 0 && selectedSeasons.length < availableSeasons.length) {
-    activeFilters.push({
-      key: 'season',
-      label: 'Season',
-      value: selectedSeasons.length === 1
-        ? String(selectedSeasons[0])
-        : selectedSeasons.sort((a, b) => b - a).join(', '),
-      onRemove: () => setSelectedSeasons([...availableSeasons]),
-    });
-  }
+  const activeFilters: FilterChipData[] = [
+    // Individual season chips
+    ...getSeasonChips(selectedSeasons, availableSeasons.length),
+  ];
 
   // Venue filter
   if (selectedVenue !== 'all') {
@@ -196,24 +193,18 @@ export default function MachineDetailPage() {
     });
   }
 
-  // Team filter
+  // Team filter - individual chips for each team
   if (selectedTeams.length > 0) {
-    const teamNames = selectedTeams.map(tk =>
-      teams.find(t => t.team_key === tk)?.team_name || tk
-    );
-    activeFilters.push({
-      key: 'team',
-      label: selectedTeams.length === 1 ? 'Team' : 'Teams',
-      value: teamNames.length <= 2 ? teamNames.join(', ') : `${teamNames.length} selected`,
-      onRemove: () => setSelectedTeams([]),
+    selectedTeams.forEach(teamKey => {
+      const teamName = teams.find(t => t.team_key === teamKey)?.team_name || teamKey;
+      activeFilters.push({
+        key: `team-${teamKey}`,
+        label: 'Team',
+        value: teamName,
+        onRemove: () => setSelectedTeams(selectedTeams.filter(t => t !== teamKey)),
+      });
     });
   }
-
-  const handleClearAllFilters = () => {
-    setSelectedSeasons([Math.max(...availableSeasons)]);
-    setSelectedVenue('all');
-    setSelectedTeams([]);
-  };
 
   return (
     <div className="space-y-6">
@@ -267,7 +258,7 @@ export default function MachineDetailPage() {
         collapsible={true}
         defaultOpen={false}
         activeFilters={activeFilters}
-        onClearAll={handleClearAllFilters}
+        onClearAll={clearAllFilters}
       >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <SeasonMultiSelect
