@@ -1,5 +1,9 @@
 # ETL Pipeline Documentation
 
+> ⚠️ **Outdated:** This is conceptual documentation from planning phase.
+> See [ACTUAL_ETL_SCRIPTS.md](ACTUAL_ETL_SCRIPTS.md) for actual implementation.
+> For operational guidance, see [DATA_UPDATE_STRATEGY.md](../../DATA_UPDATE_STRATEGY.md).
+
 ## Overview
 
 The ETL (Extract, Transform, Load) pipeline is responsible for loading MNP match data from JSON files into the PostgreSQL database. It handles data extraction, normalization, validation, and loading into the appropriate database tables.
@@ -801,5 +805,5 @@ def test_full_etl_pipeline():
 ---
 
 **Document Version**: 1.0
-**Last Updated**: 2025-01-23
-**Status**: Design Phase
+**Last Updated**: 2026-01-14
+**Status**: Conceptual documentation - See actual scripts in /etl

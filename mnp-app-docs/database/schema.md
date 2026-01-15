@@ -467,7 +467,9 @@ Assuming 10 seasons of data, 20 teams per season, 10 matches per team, 4 rounds 
 | team_machine_picks | 10,000 | 500 KB |
 | **Total** | | **~18 MB** |
 
-**Note:** Indexes will approximately double storage requirements. Total database < 50 MB, well within free tier limits.
+> **Note:** These are initial estimates from the planning phase. The actual production database is larger with 6 seasons (18-23) loaded, containing 943+ matches and 56,504+ scores. Check Railway dashboard for current storage usage.
+
+**Additional Note:** Indexes will approximately double storage requirements.
 
 ## Maintenance Procedures
 
@@ -501,10 +503,12 @@ Assuming 10 seasons of data, 20 teams per season, 10 matches per team, 4 rounds 
 ```
 
 ### Schema Evolution
-- Use Alembic migrations for all changes
+- Use SQL migrations in `schema/migrations/` directory
 - Never modify existing columns (add new, deprecate old)
 - Maintain backwards compatibility for API
 - Version migrations with semantic versioning
+
+> **Note:** Originally planned to use Alembic, but implementation uses raw SQL migrations in `schema/migrations/` directory.
 
 ## Future Enhancements
 
@@ -525,5 +529,7 @@ If data grows beyond 1M rows in scores table:
 ---
 
 **Schema Version**: 1.0.0
-**Last Updated**: 2025-01-23
-**Status**: Design Phase - Not yet implemented
+**Last Updated**: 2026-01-14
+**Status**: Implemented - Using PostgreSQL 15 on Railway
+
+> **Note:** This document was created during the planning phase. The actual implementation is in use on Railway and local development, but some details may differ from the original design specifications.

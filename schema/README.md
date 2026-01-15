@@ -248,5 +248,5 @@ psql postgres -c "CREATE DATABASE mnp_analyzer;"
 ---
 
 **Schema Version**: 1.0.0
-**Last Updated**: 2025-01-23
-**Status**: Ready for use
+**Last Updated**: 2026-01-14
+**Status**: Production - In use on Railway and local development

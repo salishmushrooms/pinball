@@ -1,0 +1,124 @@
+name: Weekly Data Sync
+
+on:
+  schedule:
+    - cron: '0 17 * * 3'  # Wednesday 9 AM PST / 10 AM PDT
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  sync-data:
+    name: Sync MNP Data to Production
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to push submodule updates
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Update submodule to latest
+        id: submodule
+        run: |
+          BEFORE=$(git submodule status mnp-data-archive | awk '{print $1}' | sed 's/^+//')
+          echo "before=$BEFORE" >> $GITHUB_OUTPUT
+
+          git submodule update --remote mnp-data-archive
+
+          AFTER=$(git submodule status mnp-data-archive | awk '{print $1}' | sed 's/^+//')
+          echo "after=$AFTER" >> $GITHUB_OUTPUT
+
+          if [ "$BEFORE" = "$AFTER" ]; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes in data archive"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Submodule updated from $BEFORE to $AFTER"
+          fi
+
+      - name: Detect changed seasons
+        id: detect
+        if: steps.submodule.outputs.changed == 'true'
+        run: |
+          cd mnp-data-archive
+
+          CHANGED_FILES=$(git diff --name-only ${{ steps.submodule.outputs.before }}..${{ steps.submodule.outputs.after }})
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          SEASONS=$(echo "$CHANGED_FILES" | grep -oP 'season-\K\d+' | sort -nu | tr '\n' ' ')
+
+          if [ -z "$SEASONS" ]; then
+            echo "No season data files changed"
+            echo "seasons=" >> $GITHUB_OUTPUT
+          else
+            echo "Changed seasons: $SEASONS"
+            echo "seasons=$SEASONS" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Load data to production database
+        if: steps.detect.outputs.seasons != ''
+        env:
+          DATABASE_URL: ${{ secrets.RAILWAY_DATABASE_URL }}
+        run: |
+          set -e
+
+          SEASONS="${{ steps.detect.outputs.seasons }}"
+          echo "Running ETL for seasons: $SEASONS"
+
+          SEASON_ARGS=""
+          for season in $SEASONS; do
+            SEASON_ARGS="$SEASON_ARGS --season $season"
+          done
+
+          python etl/update_season.py $SEASON_ARGS
+
+          echo "ETL completed successfully"
+
+      - name: Commit and push submodule update
+        if: steps.submodule.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add mnp-data-archive
+          git commit -m "Update mnp-data-archive submodule to ${{ steps.submodule.outputs.after }}"
+          git push
+
+      - name: Create workflow summary
+        if: always()
+        run: |
+          echo "# MNP Data Sync Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflow Run:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.submodule.outputs.changed }}" != "true" ]; then
+            echo "## No Changes" >> $GITHUB_STEP_SUMMARY
+            echo "Data archive is up to date. No ETL execution needed." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.detect.outputs.seasons }}" = "" ]; then
+            echo "## Submodule Changed" >> $GITHUB_STEP_SUMMARY
+            echo "Submodule updated but no season match data was affected." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ job.status }}" = "success" ]; then
+            echo "## Sync Successful" >> $GITHUB_STEP_SUMMARY
+            echo "Processed seasons: **${{ steps.detect.outputs.seasons }}**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Submodule updated and committed to repo." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Sync Failed" >> $GITHUB_STEP_SUMMARY
+            echo "Check logs above for details." >> $GITHUB_STEP_SUMMARY
+          fi

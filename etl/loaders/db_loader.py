@@ -21,6 +21,36 @@ class DatabaseLoader:
         if not self.db.engine:
             self.db.connect()
 
+    def get_player_key_by_name(self, name: str) -> str | None:
+        """
+        Look up a player's key by their name.
+
+        Args:
+            name: Player name to look up
+
+        Returns:
+            player_key if found, None otherwise
+        """
+        with self.db.engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT player_key FROM players WHERE name = :name LIMIT 1
+            """), {'name': name})
+            row = result.fetchone()
+            return row[0] if row else None
+
+    def get_all_player_keys_by_name(self) -> Dict[str, str]:
+        """
+        Get a mapping of all player names to their keys.
+
+        Returns:
+            Dictionary mapping player names to player_keys
+        """
+        with self.db.engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT name, player_key FROM players
+            """))
+            return {row[0]: row[1] for row in result}
+
     def load_venues(self, venues: List[Dict]) -> int:
         """Load venues with upsert logic"""
         if not venues:

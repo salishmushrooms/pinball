@@ -41,7 +41,13 @@ logger = logging.getLogger(__name__)
 
 
 def generate_player_key(name: str) -> str:
-    """Generate a player key from name (lowercase, spaces replaced with underscores)"""
+    """
+    Generate a player key from name (lowercase, spaces replaced with underscores).
+
+    Note: This is only used as a fallback when the player doesn't already exist
+    in the database. The load_preseason_data function will first check for
+    existing players by name to preserve their original keys.
+    """
     return name.strip().lower().replace(' ', '_').replace('.', '').replace("'", '')
 
 
@@ -179,11 +185,16 @@ def load_preseason_data(season: int):
     # Step 4: Load players from rosters.csv
     logger.info("Step 4: Loading players from rosters...")
     players_loaded = 0
+    players_reused = 0
     try:
         rosters_csv = season_path / "rosters.csv"
         players = {}
 
         if rosters_csv.exists():
+            # First, get all existing player name -> key mappings to avoid duplicates
+            existing_players = loader.get_all_player_keys_by_name()
+            logger.info(f"  Found {len(existing_players)} existing players in database")
+
             with open(rosters_csv, 'r') as f:
                 reader = csv.reader(f)
                 for row in reader:
@@ -192,7 +203,13 @@ def load_preseason_data(season: int):
                         # team_key = row[1].strip()  # Not used for player creation
                         # role = row[2].strip() if len(row) >= 3 else 'P'  # P=Player, C=Captain, A=Alternate
 
-                        player_key = generate_player_key(player_name)
+                        # Check if player already exists by name - reuse their key
+                        if player_name in existing_players:
+                            player_key = existing_players[player_name]
+                            players_reused += 1
+                        else:
+                            # Generate new key only for truly new players
+                            player_key = generate_player_key(player_name)
 
                         if player_key not in players:
                             players[player_key] = {
@@ -205,7 +222,7 @@ def load_preseason_data(season: int):
 
             loader.load_players(list(players.values()))
             players_loaded = len(players)
-            logger.info(f"  Loaded {players_loaded} players from rosters.csv")
+            logger.info(f"  Loaded {players_loaded} players from rosters.csv ({players_reused} reused existing keys)")
         else:
             logger.warning(f"  rosters.csv not found at {rosters_csv}")
 

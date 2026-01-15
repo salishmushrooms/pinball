@@ -1,299 +1,351 @@
-# MNP Analyzer - Mobile-First Pinball Analytics App
+# MNP Analyzer Documentation
 
-## Project Overview
+> **Project Status**: 🟢 Production - Deployed on Railway + Vercel
 
-**MNP Analyzer** is a mobile-first Progressive Web App (PWA) designed to provide Monday Night Pinball players with instant access to performance analytics, machine recommendations, and competitive intelligence while at venues.
+Welcome to the MNP Analyzer documentation! This project is a full-stack data analysis platform for Monday Night Pinball league, providing statistical insights, performance analytics, and match predictions.
 
-## Core Value Proposition
+---
 
-- **Quick machine selection** based on your historical performance at the current venue
-- **Score targets** to know what percentile you're hitting during a game
-- **Team intelligence** to understand opponent preferences and strengths
-- **Player comparisons** for strategic matchup decisions
-- **Historical trends** to track improvement and identify opportunities
+## 🚀 Quick Start
 
-## Target Users
+### Live Deployments
 
-- **Primary**: MNP players using mobile devices at venues during matches
-- **Secondary**: Team captains doing pre-match strategy planning
-- **Tertiary**: League statisticians and analysts
+- **API Base URL**: https://your-api.railway.app
+- **API Documentation**: https://your-api.railway.app/docs (Interactive Swagger UI)
+- **API ReDoc**: https://your-api.railway.app/redoc (Alternative documentation view)
+- **Frontend Application**: Deployed on Vercel
 
-## Technology Stack
+### Quick API Examples
 
-### Frontend (Mobile-First PWA)
-- **Framework**: Next.js 14 (App Router, React Server Components)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS + shadcn/ui components
-- **State Management**: Zustand
-- **Data Fetching**: TanStack Query (React Query)
-- **Charts**: Recharts (mobile-optimized)
-- **PWA**: next-pwa for offline support
+```bash
+# Get all available seasons
+curl https://your-api.railway.app/seasons
 
-### Backend API
-- **Framework**: FastAPI (Python 3.11+)
-- **ORM**: SQLAlchemy 2.0
-- **Validation**: Pydantic v2
-- **Database**: PostgreSQL 15+
-- **Caching**: Redis (optional, phase 2)
-- **CORS**: Configured for Vercel frontend
+# Search for players
+curl https://your-api.railway.app/players?search=smith
 
-### Database
-- **Primary**: PostgreSQL
-- **Schema**: Normalized with denormalized query tables for performance
-- **Indexing**: Strategic indexes on high-frequency query patterns
-- **Migrations**: Alembic
+# Get machine percentiles
+curl "https://your-api.railway.app/machines/MM/percentiles?seasons=22"
+
+# Get team matchup predictions
+curl "https://your-api.railway.app/matchups/analyze?team1=SKP&team2=TRL&season=22"
+```
+
+---
+
+## 📚 Documentation Index
+
+### Operational Guides (For Contributors)
+
+**Start here if you're maintaining or contributing to the project:**
+
+- **[DATABASE_OPERATIONS.md](DATABASE_OPERATIONS.md)** - Database management, loading data, running migrations
+- **[DATA_UPDATE_STRATEGY.md](../DATA_UPDATE_STRATEGY.md)** - Weekly data update workflow and ETL pipeline
+- **[Main README.md](../README.md)** - Project overview and quick start guide
+
+These operational guides reflect the **current production implementation** and are kept up-to-date.
+
+### API & Frontend Reference
+
+- **[API Documentation](https://your-api.railway.app/docs)** - Live interactive API docs (Swagger UI)
+- **[Frontend Design System](../frontend/DESIGN_SYSTEM.md)** - UI components, patterns, and conventions
+
+### Data Structure Reference
+
+Essential references for understanding MNP data:
+
+- **[MNP Data Structure Reference](../MNP_Data_Structure_Reference.md)** - Match JSON format and data conventions
+- **[MNP Match Data Analysis Guide](../MNP_Match_Data_Analysis_Guide.md)** - Analysis methodology and best practices
+- **[Machine Variations](../machine_variations.json)** - Machine name lookups and aliases
+
+### LLM Context Documentation
+
+For AI assistants and comprehensive project context:
+
+- **[.claude/CLAUDE.md](../.claude/CLAUDE.md)** - Essential LLM context and project guide
+- **[.claude/DEVELOPMENT_GUIDE.md](../.claude/DEVELOPMENT_GUIDE.md)** - Development workflows and commands
+- **[.claude/PROJECT_STRUCTURE.md](../.claude/PROJECT_STRUCTURE.md)** - Detailed directory structure
+- **[.claude/DATA_CONVENTIONS.md](../.claude/DATA_CONVENTIONS.md)** - MNP-specific data patterns
+
+### Design Documentation (Historical Reference)
+
+> ⚠️ **Note**: These documents were created during the planning phase and may not match the current implementation. They are preserved for historical reference and architectural context. For accurate implementation details, consult the actual code or live API documentation.
+
+- **[api/endpoints.md](api/endpoints.md)** - Original API design specification
+- **[database/schema.md](database/schema.md)** - Database schema design document
+- **[frontend/ui-design.md](frontend/ui-design.md)** - Original UI/UX mockups and design concepts
+- **[data-pipeline/etl-process.md](data-pipeline/etl-process.md)** - ETL conceptual documentation
+
+**When to use these:** Refer to design docs when you need to understand the original architectural vision or design decisions. For current implementation, always check the actual code in `/api`, `/frontend`, `/etl`, and `/schema` directories.
+
+---
+
+## 🛠️ Tech Stack
+
+**Current Production Implementation:**
+
+### Backend
+- **Python 3.12** - Modern Python with type hints
+- **FastAPI** - High-performance async web framework
+- **PostgreSQL 15** - Production database on Railway
+- **SQLAlchemy** - ORM for database operations
+- **Pydantic v2** - Data validation and serialization
+
+### Frontend
+- **Next.js 16** - React framework with App Router
+- **React 19** - Latest React with Server Components
+- **TypeScript** - Type-safe development
+- **Tailwind CSS v4** - Utility-first styling
+- **shadcn/ui** - Component library
 
 ### Deployment
-- **Frontend**: Vercel (free tier)
-- **Backend**: Railway or Render (free tier initially)
-- **Database**: Included with Railway/Render, or Supabase
-- **Domain**: TBD (mnp-analyzer.vercel.app initially)
+- **Railway** - Backend API + PostgreSQL database hosting ($5/month)
+- **Vercel** - Frontend hosting (free tier)
 
-## Architecture Overview
+### Data Processing
+- **Python ETL Scripts** - Located in `/etl` directory
+- **Raw SQL Migrations** - Located in `/schema/migrations`
+- **Git Submodule** - Match data in `/mnp-data-archive`
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Mobile Browser (PWA)                     │
-│  ┌────────────┐  ┌────────────┐  ┌─────────────┐           │
-│  │ Home/Search│  │ Machine    │  │ Team Intel  │           │
-│  │            │  │ Picker     │  │             │           │
-│  └────────────┘  └────────────┘  └─────────────┘           │
-│         │                │                 │                 │
-│         └────────────────┴─────────────────┘                │
-│                          │                                   │
-│                 Next.js Frontend (Vercel)                    │
-│                          │                                   │
-│                    TanStack Query                            │
-│                   (caching & sync)                           │
-└──────────────────────────┼───────────────────────────────────┘
-                           │ HTTPS/REST
-┌──────────────────────────┼───────────────────────────────────┐
-│                   FastAPI Backend                            │
-│                   (Railway/Render)                           │
-│  ┌────────────┐  ┌────────────┐  ┌─────────────┐           │
-│  │ Player     │  │ Team       │  │ Machine     │           │
-│  │ Endpoints  │  │ Endpoints  │  │ Endpoints   │           │
-│  └────────────┘  └────────────┘  └─────────────┘           │
-│         │                │                 │                 │
-│         └────────────────┴─────────────────┘                │
-│                          │                                   │
-│                   SQLAlchemy ORM                             │
-│                          │                                   │
-│  ┌───────────────────────┴──────────────────────┐           │
-│  │         PostgreSQL Database                  │           │
-│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐     │           │
-│  │  │ Core     │ │ Stats    │ │ Cache    │     │           │
-│  │  │ Tables   │ │ Tables   │ │ Tables   │     │           │
-│  │  └──────────┘ └──────────┘ └──────────┘     │           │
-│  └──────────────────────────────────────────────┘           │
-└──────────────────────────────────────────────────────────────┘
-                           ▲
-                           │
-                    ETL Pipeline (Python)
-                           │
-                  ┌────────┴─────────┐
-                  │ mnp-data-archive │
-                  │  (Season JSONs)  │
-                  └──────────────────┘
+---
+
+## 📊 Current Data
+
+**Production Database Statistics (as of last update):**
+
+- **Seasons Loaded**: 18-23 (6 complete seasons)
+- **Matches**: 943+
+- **Individual Scores**: 56,504+
+- **Players**: 938+
+- **Machines**: 400+
+- **Venues**: Multiple across Seattle area
+
+**Data Source**: Monday Night Pinball league match data stored in the `mnp-data-archive` git submodule.
+
+---
+
+## 🔄 Common Operations
+
+### Updating Data Weekly
+
+After Monday night matches complete:
+
+1. Pull latest match data: `cd mnp-data-archive && git pull origin main && cd ..`
+2. Run ETL locally: `python etl/load_season.py --season 23`
+3. Recalculate aggregates: `python etl/calculate_percentiles.py && python etl/calculate_player_stats.py`
+4. Export and import to Railway (see [DATA_UPDATE_STRATEGY.md](../DATA_UPDATE_STRATEGY.md))
+
+### Connecting to Production Database
+
+```bash
+# Install Railway CLI
+npm install -g @railway/cli
+
+# Login and link project
+railway login
+railway link
+
+# Connect to PostgreSQL
+railway connect postgres
 ```
 
-## Key Features
+### Starting Local Development
 
-### Phase 1 (MVP - 4 weeks)
-1. **Player Stats Lookup**
-   - Search for any player by name
-   - View their machine performance at specific venues
-   - See median scores and percentile rankings
+```bash
+# Backend API
+conda activate mnp
+uvicorn api.main:app --reload --port 8000
 
-2. **Machine Picker**
-   - Filter machines by current venue
-   - Rank by player's historical percentile performance
-   - Show sample size (games played)
+# Frontend
+cd frontend
+npm run dev
 
-3. **Score Distribution**
-   - View percentile curves for any machine
-   - Calculate "what score do I need for X percentile?"
-   - Compare venue-specific vs. all-venue stats
-
-4. **Team Machine Picks**
-   - Most frequently picked machines by team
-   - Filter by home/away and singles/doubles
-   - See success rates
-
-5. **Player Comparison**
-   - Compare two players on a specific machine
-   - Head-to-head matchup statistics
-
-### Phase 2 (4-8 weeks)
-- Real-time match tracking
-- Match prediction engine
-- Team roster optimization
-- Historical trend analysis
-- Export/share reports
-- Push notifications for league updates
-
-### Phase 3 (Future)
-- Machine learning predictions
-- Social features (comments, strategy sharing)
-- Tournament mode
-- Integration with IFPA data
-- Advanced visualizations
-
-## Core Questions Answered
-
-The app is designed to answer these specific analytical questions:
-
-1. **What machines does player X most often pick?**
-   - Filtered for machines currently at the venue where the match is taking place
-   - Endpoint: `GET /api/players/{player_key}/machine-picks?venue={venue}`
-
-2. **What machines does team X pick at home most often?**
-   - Separate filters for singles vs. doubles rounds
-   - Endpoint: `GET /api/teams/{team_key}/machine-picks?home=true&round_type={singles|doubles}`
-
-3. **What is the distribution of scores on machine X at venue Y?**
-   - Percentile curves and targets
-   - Endpoint: `GET /api/machines/{machine_key}/scores?venue={venue}`
-
-4. **Which player on team X has the highest median score on machine Y?**
-   - Team roster rankings by machine
-   - Endpoint: `GET /api/teams/{team_key}/player-stats?machine={machine}`
-
-5. **For player X at venue Y, what are their best machines?**
-   - Ranked by median percentile compared to all other player scores on those machines at that venue
-   - Endpoint: `GET /api/players/{player_key}/best-machines?venue={venue}`
-
-## Data Sources
-
-### Primary Data
-- **MNP Data Archive**: `/mnp-data-archive/season-*/matches/*.json`
-- **Machine Variations**: `/machine_variations.json`
-- **Venue Data**: `/mnp-data-archive/season-*/venues.csv`
-- **Team Data**: `/mnp-data-archive/season-*/teams.csv`
-- **Player Rosters**: `/mnp-data-archive/season-*/rosters.csv`
-
-### Data Refresh Strategy
-- **Initial Load**: Full ETL of all historical seasons
-- **Weekly Updates**: Incremental load of new matches
-- **Real-time**: Manual trigger or webhook (Phase 2)
-
-## Performance Requirements
-
-### Mobile-First Constraints
-- **Initial page load**: < 2 seconds on 4G
-- **API response time**: < 500ms for cached queries
-- **PWA offline**: Core lookup features work without connection
-- **Bundle size**: < 200KB initial JS bundle
-- **Data usage**: Minimal - aggressive caching
-
-### Database Query Performance
-- **Player lookup**: < 100ms
-- **Machine stats**: < 200ms
-- **Percentile calculation**: Pre-calculated, < 50ms lookup
-- **Search**: < 300ms with autocomplete
-
-## Security & Privacy
-
-- **No authentication required** (Phase 1 - public data)
-- **Rate limiting**: Prevent abuse (100 requests/minute/IP)
-- **Player data**: Already public through league website
-- **CORS**: Locked to production domain
-- **HTTPS only**: All communication encrypted
-
-## Documentation Structure
-
-```
-mnp-app-docs/
-├── README.md (this file)
-├── database/
-│   ├── schema.md              # Full database schema with relationships
-│   ├── indexes.md             # Index strategy and rationale
-│   ├── sample-queries.sql     # Example queries for common use cases
-│   └── migration-plan.md      # Schema evolution strategy
-├── api/
-│   ├── endpoints.md           # Complete API specification
-│   ├── response-formats.md    # JSON response schemas
-│   ├── error-handling.md      # Error codes and messages
-│   └── authentication.md      # Future auth strategy
-├── frontend/
-│   ├── ui-design.md           # Screen mockups and user flows
-│   ├── components.md          # Component library documentation
-│   ├── state-management.md    # Data flow and caching strategy
-│   └── pwa-strategy.md        # Offline support and caching
-├── data-pipeline/
-│   ├── etl-process.md         # ETL pipeline documentation
-│   ├── data-quality.md        # Data validation and cleaning rules
-│   └── percentile-calculation.md  # Algorithm documentation
-└── deployment/
-    ├── infrastructure.md      # Hosting setup and configuration
-    ├── ci-cd.md              # Build and deployment pipeline
-    └── monitoring.md          # Logging and error tracking
+# Local database
+psql -h localhost -U mnp_user -d mnp_analyzer
 ```
 
-## Project Timeline
+---
 
-### Week 1-2: Backend Foundation
-- Database schema creation
-- ETL pipeline development
-- Load Season 22 data
-- Basic FastAPI setup
+## 🤝 Contributing
 
-### Week 3-4: API Development
-- Implement core endpoints
-- Response validation
-- Caching strategy
-- API documentation
-- Backend deployment
+### Getting Started
 
-### Week 5-6: Frontend Core
-- Next.js project setup
-- Component library
-- Mobile-responsive layout
-- API integration
-- PWA configuration
+1. **Clone the repository** with submodules:
+   ```bash
+   git clone <repository-url>
+   cd MNP
+   git submodule update --init --recursive
+   ```
 
-### Week 7-8: Feature Implementation
-- All 5 core features
-- Data visualizations
-- Search functionality
-- Performance optimization
+2. **Set up local environment**:
+   - Follow setup instructions in [Main README.md](../README.md)
+   - Configure local PostgreSQL database
+   - Load sample data using ETL scripts
 
-### Week 9: Testing & Launch
-- Mobile device testing
-- Performance tuning
-- Bug fixes
-- Production deployment
-- User documentation
+3. **Read the documentation**:
+   - Start with [DATABASE_OPERATIONS.md](DATABASE_OPERATIONS.md) for database setup
+   - Review [DATA_UPDATE_STRATEGY.md](../DATA_UPDATE_STRATEGY.md) for ETL workflow
+   - Check [.claude/DEVELOPMENT_GUIDE.md](../.claude/DEVELOPMENT_GUIDE.md) for development commands
 
-## Success Metrics
+### Code Organization
 
-### Phase 1 (MVP)
-- **Functionality**: All 5 core questions answered accurately
-- **Performance**: < 2s initial load, < 500ms API responses
-- **Usability**: Can complete a lookup in < 10 seconds
-- **Accuracy**: Data matches existing report generators
+```
+MNP/
+├── api/                    # FastAPI backend (8 routers)
+├── frontend/               # Next.js frontend (19+ UI components)
+├── etl/                    # Data loading and processing scripts
+├── schema/                 # Database schema and migrations
+├── reports/                # Analysis report generators
+├── mnp-data-archive/       # Match data (git submodule)
+└── mnp-app-docs/           # This documentation directory
+```
 
-### Phase 2 (Adoption)
-- **Usage**: 10+ unique users per week
-- **Engagement**: 3+ queries per user per match day
-- **Reliability**: 99% uptime during match nights
-- **Feedback**: Positive response from team captains
+### Making Changes
 
-## Development Setup (Future)
+- **Backend changes**: Modify files in `/api`, test locally, update API docs if endpoints change
+- **Frontend changes**: Modify files in `/frontend`, follow the [Design System](../frontend/DESIGN_SYSTEM.md)
+- **Database changes**: Create new migration in `/schema/migrations`, test locally before production
+- **ETL changes**: Modify scripts in `/etl`, test with local database first
 
-This section will be expanded with:
-- Local development environment setup
-- Database seeding instructions
-- Frontend dev server configuration
-- API testing procedures
+---
 
-## Contributing
+## 📝 Documentation Guidelines
 
-Currently a single-developer project. Future expansion may include:
-- Code style guidelines
-- PR review process
-- Testing requirements
+When updating or creating documentation:
 
-## License
+1. **Classify the document type**:
+   - **Operational**: Current implementation, how-to guides, workflows → Keep current
+   - **Design/Historical**: Planning documents, original specs → Mark with warnings
+   - **Reference**: Data structures, API specs → Update when implementation changes
 
-TBD - Likely MIT or similar open source license for code
+2. **Keep operational docs current**:
+   - Update `DATABASE_OPERATIONS.md` when database procedures change
+   - Update `DATA_UPDATE_STRATEGY.md` when ETL workflow changes
+   - Update this README when tech stack or deployment changes
+
+3. **Mark historical docs clearly**:
+   - Add warning banners if design docs diverge from implementation
+   - Preserve them for architectural context
+   - Don't delete unless completely obsolete
+
+4. **Update dates**:
+   - Always update "Last Updated" dates when modifying docs
+   - Include version numbers for major changes
+
+5. **Test instructions**:
+   - Verify all commands and code snippets work
+   - Test database operations on local instance first
+   - Validate API endpoints before documenting them
+
+---
+
+## 🎯 Project Goals
+
+### Current Focus
+
+- **Data Quality**: Ensure accurate, up-to-date match data across all seasons
+- **Performance**: Fast API responses and efficient database queries
+- **Usability**: Intuitive web interface for exploring statistics
+- **Reliability**: 99%+ uptime during match nights
+
+### Future Enhancements
+
+- **Real-time Updates**: Automatic data refresh after matches
+- **Advanced Analytics**: Machine learning predictions and trend analysis
+- **Mobile App**: Native iOS/Android companion apps
+- **Social Features**: Player profiles, strategy sharing, comments
+
+---
+
+## 🆘 Getting Help
+
+### Quick Resources
+
+- **Project Overview**: [Main README.md](../README.md)
+- **Database Questions**: [DATABASE_OPERATIONS.md](DATABASE_OPERATIONS.md)
+- **Data Updates**: [DATA_UPDATE_STRATEGY.md](../DATA_UPDATE_STRATEGY.md)
+- **API Reference**: https://your-api.railway.app/docs
+- **Machine Lookups**: [machine_variations.json](../machine_variations.json)
+
+### Troubleshooting
+
+Common issues and solutions are documented in:
+- [DATABASE_OPERATIONS.md](DATABASE_OPERATIONS.md) - Database and deployment issues
+- [DATA_UPDATE_STRATEGY.md](../DATA_UPDATE_STRATEGY.md) - ETL and data loading issues
+
+### Support
+
+- **Issues**: Open an issue in the repository
+- **Questions**: Check existing documentation first
+- **Security Issues**: Create a private issue report
+
+---
+
+## 📈 Production Status
+
+### Current Deployment
+
+- **Backend**: ✅ Live on Railway
+- **Frontend**: ✅ Live on Vercel
+- **Database**: ✅ PostgreSQL 15 on Railway
+- **Data**: ✅ Seasons 18-23 loaded and updated
+
+### API Endpoints
+
+The production API has **8 active routers**:
+
+1. **Players** - Player statistics and performance data
+2. **Machines** - Machine stats, percentiles, and difficulty analysis
+3. **Venues** - Venue information and home advantage analysis
+4. **Teams** - Team performance and machine selection patterns
+5. **Matchups** - Head-to-head predictions and analysis
+6. **Seasons** - Season information and status
+7. **Predictions** - Match outcome predictions
+8. **Matchplay** - External tournament data integration
+
+See [live API documentation](https://your-api.railway.app/docs) for complete endpoint details.
+
+### Frontend Pages
+
+The Next.js frontend includes:
+
+- **Home/Search** - Quick player and machine lookups
+- **Players** - Player profiles and statistics
+- **Machines** - Machine stats and score distributions
+- **Teams** - Team analysis and comparisons
+- **Venues** - Venue information and statistics
+- **Matchups** - Match predictions and analysis
+
+---
+
+## 🔐 Security & Privacy
+
+- **Data**: Public league data only (no personal information beyond player names)
+- **API**: Read-only public access with rate limiting
+- **Credentials**: Managed via Railway/Vercel environment variables
+- **HTTPS**: All communication encrypted
+- **Git**: Never commit `.env` files or secrets
+
+---
+
+## 📜 License
+
+MIT License - See [LICENSE](../LICENSE) file for details
+
+---
+
+## 🙏 Acknowledgments
+
+- **Monday Night Pinball** - League organizers and players
+- **Matchplay.events** - Tournament management platform
+- **IFPA** - Player rating systems
+
+---
+
+**Last Updated**: 2026-01-14
+**Maintained By**: JJC
+**Project Version**: Production 1.0
+
+For the most current information, always refer to:
+- Live API: https://your-api.railway.app/docs
+- This documentation: Keep it updated as the project evolves
