@@ -43,10 +43,10 @@ export function TabsList({ children, className }: TabsListProps) {
   return (
     <div
       className={cn(
-        'inline-flex h-12 items-center justify-center rounded-lg p-1',
+        'inline-flex h-12 items-center justify-center rounded-lg p-1.5 gap-1',
         className
       )}
-      style={{ backgroundColor: 'var(--card-bg-secondary)', color: 'var(--text-secondary)' }}
+      style={{ backgroundColor: 'var(--card-bg-secondary)', border: '1px solid var(--border)' }}
       role="tablist"
     >
       {children}
@@ -70,14 +70,16 @@ export function TabsTrigger({ value, children, className }: TabsTriggerProps) {
       aria-selected={isActive}
       onClick={() => setActiveTab(value)}
       className={cn(
-        'inline-flex items-center justify-center whitespace-nowrap rounded-md px-6 py-2 text-sm font-medium transition-all',
+        'inline-flex items-center justify-center whitespace-nowrap rounded-md px-6 py-2 text-sm font-semibold transition-all',
         'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
-        isActive ? 'shadow-sm' : '',
+        isActive
+          ? 'shadow-md border border-blue-500'
+          : 'hover:bg-gray-100 dark:hover:bg-gray-700',
         className
       )}
       style={
         isActive
-          ? { backgroundColor: 'var(--card-bg)', color: 'var(--text-primary)' }
+          ? { backgroundColor: 'var(--card-bg)', color: 'var(--accent-blue)' }
           : { color: 'var(--text-secondary)' }
       }
     >

@@ -484,6 +484,11 @@ export interface PlayerMachinePreference {
   top_machines: MachinePickFrequency[];
 }
 
+export interface MachineInfo {
+  key: string;
+  name: string;
+}
+
 export interface MatchupAnalysis {
   home_team_key: string;
   home_team_name: string;
@@ -493,6 +498,7 @@ export interface MatchupAnalysis {
   venue_name: string;
   season: number | string;  // Can be single season (22) or range (21-22)
   available_machines: string[];
+  available_machines_info?: MachineInfo[];
   home_team_pick_frequency: MachinePickFrequency[];
   away_team_pick_frequency: MachinePickFrequency[];
   home_team_player_preferences: PlayerMachinePreference[];
@@ -510,6 +516,14 @@ export interface MatchupQueryParams {
   seasons?: number[];
 }
 
+// Matchups Init Response (combined endpoint for faster page load)
+export interface MatchupsInitResponse {
+  seasons: number[];
+  current_season: number;
+  season_status: SeasonStatus | null;
+  matches: ScheduleMatch[];
+}
+
 // Season Schedule Types
 export interface ScheduleMatch {
   match_key: string;
@@ -523,10 +537,11 @@ export interface ScheduleMatch {
     key: string;
     name: string;
   };
-  week?: string;
+  week: number;
   week_label?: string;
   date?: string;
   is_playoffs?: boolean;
+  state?: 'scheduled' | 'complete';
 }
 
 export interface SeasonWeek {

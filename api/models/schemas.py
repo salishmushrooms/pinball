@@ -403,6 +403,12 @@ class PlayerMachinePreference(BaseModel):
     top_machines: List[MachinePickFrequency]
 
 
+class MachineInfo(BaseModel):
+    """Machine key and name"""
+    key: str
+    name: str
+
+
 class MatchupAnalysis(BaseModel):
     """Complete matchup analysis between two teams at a venue"""
     home_team_key: str
@@ -413,8 +419,10 @@ class MatchupAnalysis(BaseModel):
     venue_name: str
     season: Union[int, str]  # Can be single season (22) or range (21-22)
 
-    # Available machines at venue
+    # Available machines at venue (keys for backwards compatibility)
     available_machines: List[str]
+    # Available machines with full names
+    available_machines_info: Optional[List[MachineInfo]] = None
 
     # Team machine pick frequency (limited to available machines)
     home_team_pick_frequency: List[MachinePickFrequency]

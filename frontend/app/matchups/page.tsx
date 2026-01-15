@@ -29,6 +29,7 @@ import { filterSupportedSeasons } from '@/lib/utils';
 
 export default function MatchupsPage() {
   const [currentSeason, setCurrentSeason] = useState<number | null>(null);
+  const [currentWeek, setCurrentWeek] = useState<number | null>(null);
   const [seasonStatus, setSeasonStatus] = useState<SeasonStatus | null>(null);
   const [matches, setMatches] = useState<ScheduleMatch[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<string>('');
@@ -38,29 +39,47 @@ export default function MatchupsPage() {
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load current season and matches on mount
+  // Load current season and matches on mount using combined endpoint
   useEffect(() => {
     async function loadCurrentSeasonMatches() {
       setLoadingMatches(true);
       try {
-        // Get available seasons (filtered to supported) and use the latest one
-        const seasonsData = await api.getSeasons();
-        const supportedSeasons = filterSupportedSeasons(seasonsData.seasons);
-        const latestSeason = supportedSeasons.length > 0 ? Math.max(...supportedSeasons) : 23;
+        // Single API call for all initialization data
+        const initData = await api.getMatchupsInit();
+
+        // Filter to supported seasons
+        const supportedSeasons = filterSupportedSeasons(initData.seasons);
+        const latestSeason = supportedSeasons.length > 0
+          ? Math.max(...supportedSeasons)
+          : initData.current_season;
+
         setCurrentSeason(latestSeason);
+        setSeasonStatus(initData.season_status);
 
-        // Check season status to see if it's completed
-        try {
-          const status = await api.getSeasonStatus(latestSeason);
-          setSeasonStatus(status);
-        } catch (statusErr) {
-          console.warn('Failed to fetch season status:', statusErr);
-          // Continue without status - matches will still load
-        }
+        // Filter to only show matches from the next incomplete week
+        const allMatches = initData.matches;
 
-        // Load matches for the current season
-        const matchesData = await api.getSeasonMatches(latestSeason);
-        setMatches(matchesData.matches);
+        // Find the first week that has incomplete matches (or week 1 if preseason)
+        const incompleteWeeks = new Set<number>();
+        allMatches.forEach((match) => {
+          if (match.state !== 'complete') {
+            incompleteWeeks.add(match.week);
+          }
+        });
+
+        // Get the lowest incomplete week number (or show all if all complete)
+        const nextWeek = incompleteWeeks.size > 0
+          ? Math.min(...Array.from(incompleteWeeks))
+          : null;
+
+        setCurrentWeek(nextWeek);
+
+        // Filter to only show matches from the next incomplete week
+        const filteredMatches = nextWeek !== null
+          ? allMatches.filter((match) => match.week === nextWeek)
+          : allMatches; // Show all if season is complete (for historical analysis)
+
+        setMatches(filteredMatches);
       } catch (err) {
         console.error('Failed to load matches:', err);
         setError('Failed to load season schedule');
@@ -89,11 +108,16 @@ export default function MatchupsPage() {
     setMatchup(null);
 
     try {
+      // Use current season + previous season for better data coverage
+      const seasonsToAnalyze = currentSeason
+        ? [currentSeason, currentSeason - 1]
+        : [23, 22];
+
       const data = await api.getMatchupAnalysis({
         home_team: match.home_key,
         away_team: match.away_key,
         venue: match.venue.key,
-        seasons: currentSeason ? [currentSeason] : [23],
+        seasons: seasonsToAnalyze,
       });
       setMatchup(data);
 
@@ -129,16 +153,6 @@ export default function MatchupsPage() {
     }
     return score.toString();
   };
-
-  // Group matches by week for easier selection
-  const matchesByWeek = matches.reduce((acc, match) => {
-    const week = match.week || 'Unknown';
-    if (!acc[week]) {
-      acc[week] = [];
-    }
-    acc[week].push(match);
-    return acc;
-  }, {} as Record<string, ScheduleMatch[]>);
 
   // Check if season is completed (off-season)
   const isOffSeason = seasonStatus?.status === 'completed';
@@ -195,32 +209,29 @@ export default function MatchupsPage() {
       {!loadingMatches && matches.length > 0 && (
         <Card>
           <Card.Header>
-            <Card.Title>Select Match</Card.Title>
+            <Card.Title>
+              {currentWeek !== null
+                ? `Week ${currentWeek} Matchups`
+                : 'Select Match'}
+            </Card.Title>
             <p className="text-sm text-gray-500 mt-1">
               {isOffSeason
                 ? 'Browse completed matches from the season'
-                : 'Choose from the official league schedule'}
+                : `Analysis uses data from Season ${currentSeason} and ${(currentSeason || 23) - 1}`}
             </p>
           </Card.Header>
           <Card.Content>
             <Select
-              label={currentSeason ? `Season ${currentSeason} Matches` : 'Match'}
+              label={currentWeek !== null ? `Week ${currentWeek} Matches` : 'Match'}
               value={selectedMatch}
               onChange={(e) => setSelectedMatch(e.target.value)}
               disabled={loadingMatches}
               options={[
                 { value: '', label: 'Select a match' },
-                ...Object.entries(matchesByWeek).flatMap(([week, weekMatches]) => [
-                  {
-                    value: `week-${week}`,
-                    label: `─── Week ${week} ───`,
-                    disabled: true,
-                  },
-                  ...weekMatches.map((match) => ({
-                    value: match.match_key,
-                    label: `${match.away_name} @ ${match.home_name} (${match.venue.name})`,
-                  })),
-                ]),
+                ...matches.map((match) => ({
+                  value: match.match_key,
+                  label: `${match.away_name} @ ${match.home_name} (${match.venue.name})`,
+                })),
               ]}
             />
 
@@ -265,26 +276,32 @@ export default function MatchupsPage() {
             </Card.Content>
           </Card>
 
-          {/* Available Machines */}
-          <Card>
-            <Card.Header>
-              <Card.Title>
-                Available Machines
-                <Badge variant="info" className="ml-2">
-                  {matchup.available_machines.length}
-                </Badge>
-              </Card.Title>
-            </Card.Header>
-            <Card.Content>
-              <div className="flex flex-wrap gap-2">
-                {matchup.available_machines.map((machine) => (
-                  <Badge key={machine} variant="default">
-                    {machine}
-                  </Badge>
-                ))}
-              </div>
-            </Card.Content>
-          </Card>
+          {/* Available Machines - Collapsible */}
+          <Collapsible
+            title="Available Machines"
+            badge={
+              <Badge variant="info">
+                {matchup.available_machines.length}
+              </Badge>
+            }
+            defaultOpen={false}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+              {(matchup.available_machines_info || matchup.available_machines.map(k => ({ key: k, name: k }))).map((machine) => (
+                <div
+                  key={typeof machine === 'string' ? machine : machine.key}
+                  className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm"
+                >
+                  <span className="font-medium text-gray-900">
+                    {typeof machine === 'string' ? machine : machine.name}
+                  </span>
+                  <span className="text-xs text-gray-500 ml-2">
+                    {typeof machine === 'string' ? '' : machine.key}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </Collapsible>
 
           {/* Machine Pick Predictions */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -332,19 +349,22 @@ export default function MatchupsPage() {
 
                 {/* Machine Pick Frequency - Collapsible */}
                 <Collapsible
-                  title="Most Picked Machines"
+                  title="Team Pick History"
                   badge={
                     <Badge variant="default">
                       {matchup.home_team_pick_frequency.length}
                     </Badge>
                   }
                 >
+                  <p className="text-sm text-gray-500 mb-3">
+                    Machines this team has historically picked in doubles rounds
+                  </p>
                   <MachinePickTable picks={matchup.home_team_pick_frequency} />
                 </Collapsible>
 
                 {/* Player Preferences - Collapsible */}
                 <Collapsible
-                  title="Player Preferences"
+                  title="Roster Player Preferences"
                   badge={
                     <Badge variant="default">
                       {matchup.home_team_player_preferences.length} players
@@ -359,13 +379,13 @@ export default function MatchupsPage() {
 
                 {/* Player-Specific Expected Scores - Collapsible */}
                 <Collapsible
-                  title="Player-Specific Expected Scores"
+                  title="Roster Player Expected Scores"
                   badge={
                     <Badge variant="info">Requires 5+ games</Badge>
                   }
                 >
                   <p className="text-sm text-gray-600 mb-4">
-                    Only showing players with 5 or more games on each machine for
+                    Only showing roster players with 5 or more games on each machine for
                     statistical confidence (95% confidence interval).
                   </p>
                   <PlayerConfidenceGrid
@@ -398,19 +418,22 @@ export default function MatchupsPage() {
 
                 {/* Machine Pick Frequency - Collapsible */}
                 <Collapsible
-                  title="Most Picked Machines"
+                  title="Team Pick History"
                   badge={
                     <Badge variant="default">
                       {matchup.away_team_pick_frequency.length}
                     </Badge>
                   }
                 >
+                  <p className="text-sm text-gray-500 mb-3">
+                    Machines this team has historically picked in doubles rounds
+                  </p>
                   <MachinePickTable picks={matchup.away_team_pick_frequency} />
                 </Collapsible>
 
                 {/* Player Preferences - Collapsible */}
                 <Collapsible
-                  title="Player Preferences"
+                  title="Roster Player Preferences"
                   badge={
                     <Badge variant="default">
                       {matchup.away_team_player_preferences.length} players
@@ -425,13 +448,13 @@ export default function MatchupsPage() {
 
                 {/* Player-Specific Expected Scores - Collapsible */}
                 <Collapsible
-                  title="Player-Specific Expected Scores"
+                  title="Roster Player Expected Scores"
                   badge={
                     <Badge variant="info">Requires 5+ games</Badge>
                   }
                 >
                   <p className="text-sm text-gray-600 mb-4">
-                    Only showing players with 5 or more games on each machine for
+                    Only showing roster players with 5 or more games on each machine for
                     statistical confidence (95% confidence interval).
                   </p>
                   <PlayerConfidenceGrid

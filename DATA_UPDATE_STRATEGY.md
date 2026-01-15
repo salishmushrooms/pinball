@@ -1,22 +1,52 @@
 # MNP Data Update Strategy
 
-**Last Updated:** 2025-11-26
+**Last Updated:** 2026-01-14
 **Purpose:** Guide for updating database when new match data becomes available
 
 ---
 
-## 📋 Overview
+## Overview
 
-This document outlines the strategy for updating the MNP database during an active season (ongoing) and when adding historical seasons (complete).
+This document outlines the strategy for updating the MNP database across three scenarios:
 
-### Two Update Scenarios
+1. **Preseason Setup** - Loading scheduled matches, teams, players, and venues before a season starts
+2. **Weekly Match Updates** - Loading completed match data during an active season
+3. **Historical Season Loading** - One-time backfill of complete seasons
 
-1. **Active Season Updates** - Weekly updates during a 10-14 week season as new match data arrives
-2. **Historical Season Loading** - One-time backfill of complete seasons (18-21)
+### Architecture Note
+
+The production database runs on Railway (remote). Running ETL scripts directly against Railway is **slow** due to network latency on individual INSERT statements. The recommended approach is:
+
+1. Run all ETL locally (fast)
+2. Export local database
+3. Bulk import to Railway (fast)
 
 ---
 
-## 🔄 Data Pipeline Order
+## Environment Setup
+
+### Database URLs
+
+Your `.env` file likely points to Railway:
+```
+DATABASE_URL=postgresql://postgres:...@shinkansen.proxy.rlwy.net:49342/railway
+```
+
+For local ETL, override with:
+```bash
+DATABASE_URL=postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer
+```
+
+### Local Database Prefix
+
+All ETL commands should use this prefix for local execution:
+```bash
+LOCAL_DB="DATABASE_URL=postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer"
+```
+
+---
+
+## Data Pipeline Order
 
 The ETL pipeline has **dependencies** - some steps must happen before others:
 
@@ -32,356 +62,407 @@ The ETL pipeline has **dependencies** - some steps must happen before others:
 
 ---
 
-## 📊 Active Season Updates (During Season)
+## Preseason Setup (Before Season Starts)
 
-### When to Update
+Use this workflow when a new season's schedule is posted but matches haven't been played yet.
 
-- **Frequency:** Weekly (after Monday night matches)
-- **Timing:** Tuesday morning after all match data is verified
-- **Duration:** ~5-10 minutes for Season 22 data
+### When to Use
 
-### Update Commands
+- Season schedule has been published
+- Teams, rosters, and venues are finalized
+- No match results exist yet
+
+### Data Requirements
+
+Ensure these files exist in `mnp-data-archive/season-{N}/`:
+- `matches.csv` - Schedule (week, date, away_team, home_team, venue)
+- `teams.csv` - Team definitions (team_key, venue_key, team_name)
+- `rosters.csv` - Player rosters (player_name, team_key, role)
+- `venues.csv` - Venue definitions (venue_key, venue_name)
+
+### Preseason Commands
 
 ```bash
 # 1. Activate environment
 conda activate mnp
-cd /Users/JJC/Pinball/MNP
 
-# 2. Load new match data for the current season
-python etl/load_season.py --season 22
+# 2. Pull latest data from archive
+cd mnp-data-archive && git pull origin main && cd ..
 
-# This will:
-# - Load new matches from mnp-data-archive/season-22/matches/
-# - Skip existing matches (based on match_key)
-# - Add new scores, games, players, teams
+# 3. Ensure local PostgreSQL is running
+pg_isready -h localhost -p 5432
 
-# 3. Recalculate percentiles for current season
-python etl/calculate_percentiles.py --season 22
+# 4. Load preseason data locally (fast)
+DATABASE_URL=postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer \
+  python etl/load_preseason.py --season 23
 
-# This will:
-# - Delete existing percentiles for season 22
-# - Recalculate based on ALL scores (old + new)
-# - Takes ~15 seconds
+# 5. Export local database
+pg_dump -h localhost -U mnp_user -d mnp_analyzer \
+  --data-only --no-owner --no-acl > /tmp/mnp_data.sql
 
-# 4. Recalculate player stats for current season
-python etl/calculate_player_stats.py --season 22
-
-# This will:
-# - Delete existing player stats for season 22
-# - Recalculate aggregations including new percentiles
-# - Takes ~30-45 seconds
+# 6. Import to Railway (bulk - fast)
+psql "postgresql://postgres:YOUR_PASSWORD@shinkansen.proxy.rlwy.net:49342/railway" \
+  < /tmp/mnp_data.sql
 ```
 
-### Is Weekly Recalculation Practical?
+### What Preseason Loads
 
-**Yes!** ✅ Here's why:
+| Data | Source | Notes |
+|------|--------|-------|
+| Machines | `machine_variations.json` | Canonical machine names + aliases |
+| Venues | `venues.csv` + `venues.json` | Venue keys, names, addresses |
+| Teams | `teams.csv` | Team keys, names, home venues |
+| Players | `rosters.csv` | Player keys and names |
+| Matches | `matches.csv` | Scheduled matches (state='scheduled') |
 
-| Step | Time | Why Fast |
-|------|------|----------|
-| Load matches | ~10-20s | Only loads NEW matches (skips duplicates) |
-| Calculate percentiles | ~15s | Only 1 season, ~140 machines |
-| Calculate player stats | ~30-45s | Only 1 season, ~6,000 records |
-| **Total** | **~1-2 min** | Fully automated, no manual steps |
-
-**Performance:**
-- Season 22 has ~11,000 scores → percentiles in 15s
-- Season 22 has ~6,000 player×machine combos → stats in 45s
-- **Total update time: < 2 minutes per week**
-
-### Automation Potential
-
-You could easily automate this with a simple script:
+### Verify Preseason Load
 
 ```bash
-#!/bin/bash
-# update_current_season.sh
+# Check production API
+curl "https://pinball-production.up.railway.app/seasons/23/status"
 
-SEASON=22
-
-echo "Starting Season $SEASON update..."
-conda activate mnp
-
-echo "1. Loading new matches..."
-python etl/load_season.py --season $SEASON
-
-echo "2. Recalculating percentiles..."
-python etl/calculate_percentiles.py --season $SEASON
-
-echo "3. Recalculating player stats..."
-python etl/calculate_player_stats.py --season $SEASON
-
-echo "✓ Season $SEASON updated successfully!"
-```
-
-Run this every Tuesday morning:
-```bash
-chmod +x update_current_season.sh
-./update_current_season.sh
+# Expected response:
+{
+  "season": 23,
+  "status": "upcoming",
+  "message": "Season 23 starts on February 03, 2025",
+  "total_matches": 100,
+  "upcoming_matches": 100
+}
 ```
 
 ---
 
-## 🗃️ Historical Season Loading (One-Time)
+## Weekly Match Updates (During Season)
+
+Use this workflow after Monday night matches complete and JSON files are added to the archive.
+
+### When to Update
+
+- **Frequency:** Weekly (after Monday night matches)
+- **Timing:** Tuesday morning after match data is verified and committed
+- **Duration:** ~2-3 minutes total
+
+### Weekly Update Commands
+
+```bash
+# 1. Activate environment
+conda activate mnp
+
+# 2. Pull latest match data
+cd mnp-data-archive && git pull origin main && cd ..
+
+# 3. Ensure local PostgreSQL is running
+pg_isready -h localhost -p 5432
+
+# 4. Load new match data locally
+DATABASE_URL=postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer \
+  python etl/load_season.py --season 23
+
+# 5. Recalculate percentiles (required before player stats)
+DATABASE_URL=postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer \
+  python etl/calculate_percentiles.py
+
+# 6. Recalculate player stats
+DATABASE_URL=postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer \
+  python etl/calculate_player_stats.py
+
+# 7. Export local database
+pg_dump -h localhost -U mnp_user -d mnp_analyzer \
+  --data-only --no-owner --no-acl > /tmp/mnp_data.sql
+
+# 8. Import to Railway
+psql "postgresql://postgres:YOUR_PASSWORD@shinkansen.proxy.rlwy.net:49342/railway" \
+  < /tmp/mnp_data.sql
+```
+
+### Weekly Update Script
+
+Create `scripts/update_season.sh`:
+
+```bash
+#!/bin/bash
+# Weekly season data update script
+
+SEASON=${1:-23}
+LOCAL_DB="postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer"
+RAILWAY_DB="postgresql://postgres:YOUR_PASSWORD@shinkansen.proxy.rlwy.net:49342/railway"
+
+echo "=== MNP Season $SEASON Update ==="
+echo ""
+
+# Check local postgres
+if ! pg_isready -h localhost -p 5432 > /dev/null 2>&1; then
+    echo "ERROR: Local PostgreSQL is not running"
+    exit 1
+fi
+
+# Pull latest data
+echo "1. Pulling latest data..."
+cd mnp-data-archive && git pull origin main && cd ..
+
+# Load match data
+echo "2. Loading match data..."
+DATABASE_URL=$LOCAL_DB python etl/load_season.py --season $SEASON
+
+# Calculate percentiles
+echo "3. Calculating percentiles..."
+DATABASE_URL=$LOCAL_DB python etl/calculate_percentiles.py
+
+# Calculate player stats
+echo "4. Calculating player stats..."
+DATABASE_URL=$LOCAL_DB python etl/calculate_player_stats.py
+
+# Export
+echo "5. Exporting database..."
+pg_dump -h localhost -U mnp_user -d mnp_analyzer \
+  --data-only --no-owner --no-acl > /tmp/mnp_data.sql
+
+# Import to Railway
+echo "6. Importing to Railway..."
+psql "$RAILWAY_DB" < /tmp/mnp_data.sql
+
+echo ""
+echo "=== Update Complete ==="
+echo "Verify at: https://pinball-production.up.railway.app/seasons/$SEASON/status"
+```
+
+Usage:
+```bash
+chmod +x scripts/update_season.sh
+./scripts/update_season.sh 23
+```
+
+### Performance Expectations
+
+| Step | Local Time | Notes |
+|------|------------|-------|
+| Load matches | ~10-20s | Only loads NEW matches (skips duplicates) |
+| Calculate percentiles | ~15s | All seasons, ~150 machines each |
+| Calculate player stats | ~30-45s | All seasons |
+| pg_dump | ~5s | Full database export |
+| psql import | ~30-60s | Bulk network transfer |
+| **Total** | **~2-3 min** | Fully automated |
+
+---
+
+## Historical Season Loading (One-Time)
+
+Use this workflow when adding a complete historical season or rebuilding the database.
 
 ### Full Season Backfill
 
-When adding a complete historical season (e.g., Season 23 after it's done):
-
 ```bash
-SEASON=23
+SEASON=21
 
-# 1. Load all match data
-python etl/load_season.py --season $SEASON
+# Load all match data
+DATABASE_URL=postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer \
+  python etl/load_season.py --season $SEASON
 
-# 2. Calculate percentiles
-python etl/calculate_percentiles.py --season $SEASON
+# Calculate percentiles
+DATABASE_URL=postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer \
+  python etl/calculate_percentiles.py
 
-# 3. Calculate player stats
-python etl/calculate_player_stats.py --season $SEASON
+# Calculate player stats
+DATABASE_URL=postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer \
+  python etl/calculate_player_stats.py
 ```
 
 ### Batch Loading Multiple Seasons
-
-If you need to reload all seasons (e.g., after schema changes):
 
 ```bash
 #!/bin/bash
 # backfill_all_seasons.sh
 
-for SEASON in 18 19 20 21 22; do
+LOCAL_DB="postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer"
+
+for SEASON in 18 19 20 21 22 23; do
   echo "Processing Season $SEASON..."
-
-  python etl/load_season.py --season $SEASON
-  python etl/calculate_percentiles.py --season $SEASON
-  python etl/calculate_player_stats.py --season $SEASON
-
-  echo "✓ Season $SEASON complete"
+  DATABASE_URL=$LOCAL_DB python etl/load_season.py --season $SEASON
 done
 
-echo "✓ All seasons processed!"
+# Calculate aggregates once after all data loaded
+echo "Calculating percentiles..."
+DATABASE_URL=$LOCAL_DB python etl/calculate_percentiles.py
+
+echo "Calculating player stats..."
+DATABASE_URL=$LOCAL_DB python etl/calculate_player_stats.py
+
+echo "All seasons processed!"
 ```
 
-**Time estimate:** ~2 minutes per season × 5 seasons = ~10 minutes total
+Then export and import to Railway as usual.
 
 ---
 
-## 📁 Data Files Location
+## Data Files Location
 
-### Source Data (Read-Only)
+### Source Data (Git Submodule)
 ```
 mnp-data-archive/
 ├── season-18/matches/*.json    # Historical matches
 ├── season-19/matches/*.json
 ├── season-20/matches/*.json
 ├── season-21/matches/*.json
-├── season-22/matches/*.json    # Current season (growing weekly)
-├── machines.json               # Machine variations
-├── venues.json                 # Venue information
+├── season-22/matches/*.json
+├── season-23/
+│   ├── matches.csv             # Schedule
+│   ├── teams.csv               # Team definitions
+│   ├── rosters.csv             # Player rosters
+│   ├── venues.csv              # Venue definitions
+│   └── matches/*.json          # Completed match data (added weekly)
+├── machine_variations.json     # Machine name mappings
+├── venues.json                 # Venue metadata
 └── IPR.csv                     # Player IPR ratings
 ```
 
-### Database (Updated by ETL)
+### Database Tables
 ```
-PostgreSQL Database: mnp_analyzer
-├── matches                     # Match metadata
-├── scores                      # Individual scores (56,504 total)
+PostgreSQL Database: mnp_analyzer (local) / railway (production)
+├── matches                     # Match metadata (state: scheduled/complete)
+├── games                       # Individual games within matches
+├── scores                      # Individual player scores
 ├── score_percentiles           # Percentile thresholds per machine/season
-├── player_machine_stats        # Aggregated player stats (~31,000 total)
-└── Other tables...
+├── player_machine_stats        # Aggregated player stats
+├── teams                       # Team definitions per season
+├── players                     # Player definitions
+├── venues                      # Venue definitions
+└── machines                    # Machine definitions + aliases
 ```
 
 ---
 
-## 🎯 Current Data Status
+## Current Data Status
 
-### Loaded Seasons
+### Loaded Seasons (Production)
 
-| Season | Matches | Scores | Percentiles | Player Stats | Status |
-|--------|---------|--------|-------------|--------------|--------|
-| 18 | ~190 | ~11,300 | ✅ 163 machines | ✅ 6,379 records | Complete |
-| 19 | ~190 | ~11,300 | ✅ 151 machines | ✅ 6,278 records | Complete |
-| 20 | ~190 | ~11,400 | ✅ 157 machines | ✅ 6,360 records | Complete |
-| 21 | ~190 | ~11,340 | ✅ 154 machines | ✅ 6,129 records | Complete |
-| 22 | ~180 | ~11,000 | ✅ 140 machines | ✅ 5,942 records | In Progress |
-
-**Total:** 943 matches, 56,504 scores, ~31,088 player stats
-
----
-
-## ⚙️ Update Strategy Recommendations
-
-### For Ongoing Season (Season 22+)
-
-**Option 1: Manual Weekly Updates** (Recommended for now)
-- Run 3 commands every Tuesday morning
-- Takes < 2 minutes
-- Simple, predictable, reliable
-
-**Option 2: Automated Updates**
-- Create a cron job or scheduled task
-- Runs `update_current_season.sh` automatically
-- Requires monitoring/alerting for failures
-
-**Option 3: On-Demand via Web Interface** (Future)
-- Add "Update Data" button to frontend
-- Triggers ETL pipeline via API
-- Shows progress/status to user
-
-### For New Seasons
-
-When Season 23 starts:
-1. Update `update_current_season.sh` to use `SEASON=23`
-2. Run the full pipeline once to initialize
-3. Continue weekly updates
-
-When Season 23 ends:
-- The data is already loaded!
-- No backfill needed
-- Just update scripts to `SEASON=24` for next season
+| Season | Status | Matches | Scores | Notes |
+|--------|--------|---------|--------|-------|
+| 18 | Complete | ~190 | ~11,300 | Historical |
+| 19 | Complete | ~190 | ~11,300 | Historical |
+| 20 | Complete | ~190 | ~11,400 | Historical |
+| 21 | Complete | ~190 | ~11,340 | Historical |
+| 22 | Complete | ~191 | ~11,000 | Recently completed |
+| 23 | Upcoming | ~100 | 0 | Scheduled matches only |
 
 ---
 
-## 🚨 Important Notes
+## Important Notes
+
+### Why Local + Export/Import?
+
+Running ETL directly against Railway is **10-100x slower** than local:
+- Individual INSERTs over network: ~50-100ms each
+- 1000 scores = 50-100 seconds just for inserts
+- Local inserts: <1ms each
+- Bulk import via psql: transfers entire dump in seconds
 
 ### Percentile Dependencies
 
 **Player stats MUST be recalculated after percentiles!**
 
-Why? Because `player_machine_stats` includes:
-- `median_percentile` - Calculated from `score_percentiles` table
-- `avg_percentile` - Calculated from `score_percentiles` table
-
-If you calculate player stats before percentiles:
-- Percentile fields will be `NULL`
-- Frontend will show "N/A" for percentiles
+`player_machine_stats` includes percentile rankings calculated from `score_percentiles`. If you calculate player stats before percentiles, percentile fields will be NULL.
 
 **Correct Order:**
 ```bash
-# ✅ CORRECT
-python etl/calculate_percentiles.py --season 22
-python etl/calculate_player_stats.py --season 22
+# CORRECT
+python etl/calculate_percentiles.py
+python etl/calculate_player_stats.py
 
-# ❌ WRONG
-python etl/calculate_player_stats.py --season 22
-python etl/calculate_percentiles.py --season 22  # Too late!
+# WRONG - percentiles will be NULL in player stats
+python etl/calculate_player_stats.py
+python etl/calculate_percentiles.py
 ```
 
-### Data Deletion Strategy
+### ON CONFLICT Behavior
 
-All ETL scripts use **delete and replace** strategy:
+ETL scripts use upsert logic (INSERT ... ON CONFLICT DO UPDATE):
+- Existing records get updated if changed
+- New records get inserted
+- No duplicates created
+- Safe to run multiple times
 
-```python
-# Before inserting new data
-DELETE FROM score_percentiles WHERE season = 22;
-DELETE FROM player_machine_stats WHERE season = 22;
-```
+### Match State Transitions
 
-This means:
-- ✅ No duplicate data
-- ✅ Old stats are replaced with fresh calculations
-- ✅ Safe to run multiple times
-- ⚠️ Each season is independent (no cross-season impact)
+- `scheduled` - Match is planned but not yet played (from preseason load)
+- `complete` - Match has been played (from load_season.py with JSON data)
 
-### Performance Considerations
-
-Current performance (Season 22, ~11,000 scores):
-- Percentiles: ~15 seconds
-- Player stats: ~45 seconds
-
-Projected performance (Season with 15,000 scores):
-- Percentiles: ~20 seconds
-- Player stats: ~60 seconds
-
-**Conclusion:** Weekly recalculation is very practical! 🚀
+The matchups page filters to show only `scheduled` matches for the current season.
 
 ---
 
-## 📝 Quick Reference Commands
+## Troubleshooting
 
-### Check What's Loaded
+### ETL Script Hanging
+
+**Symptom:** Script appears frozen during database operations
+
+**Cause:** `.env` points to Railway, causing slow network inserts
+
+**Fix:** Use DATABASE_URL override:
 ```bash
-# Connect to database
-psql -U mnp_user -d mnp_analyzer
-
-# Count records by season
-SELECT season, COUNT(*) as match_count
-FROM matches
-GROUP BY season
-ORDER BY season DESC;
-
-SELECT season, COUNT(*) as score_count
-FROM scores
-GROUP BY season
-ORDER BY season DESC;
-
-SELECT season, COUNT(*) as percentile_count
-FROM score_percentiles
-GROUP BY season
-ORDER BY season DESC;
-
-SELECT season, COUNT(*) as player_stat_count
-FROM player_machine_stats
-GROUP BY season
-ORDER BY season DESC;
+DATABASE_URL=postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer \
+  python etl/load_preseason.py --season 23
 ```
 
-### Verify Data Quality
+### Local PostgreSQL Not Running
+
 ```bash
-# Check for NULL percentiles (should be 0 after proper load)
-SELECT COUNT(*)
-FROM player_machine_stats
-WHERE season = 22
-  AND median_percentile IS NULL;
+# Check status
+pg_isready -h localhost -p 5432
 
-# Check percentile coverage
-SELECT
-  s.season,
-  COUNT(DISTINCT s.machine_key) as machines_with_scores,
-  COUNT(DISTINCT p.machine_key) as machines_with_percentiles
-FROM scores s
-LEFT JOIN score_percentiles p ON s.machine_key = p.machine_key AND s.season = p.season
-WHERE s.season = 22
-GROUP BY s.season;
+# Start PostgreSQL (macOS with Homebrew)
+brew services start postgresql@15
+```
+
+### Railway Import Errors
+
+**Duplicate key errors:** Usually OK - existing data being re-imported
+
+**Connection refused:** Check Railway database URL is correct
+
+**Permission denied:** Ensure using correct credentials from Railway dashboard
+
+### NULL Percentiles in Player Stats
+
+**Cause:** Player stats calculated before percentiles
+
+**Fix:** Recalculate in correct order:
+```bash
+DATABASE_URL=$LOCAL_DB python etl/calculate_percentiles.py
+DATABASE_URL=$LOCAL_DB python etl/calculate_player_stats.py
+# Then export and import to Railway
 ```
 
 ---
 
-## 🎓 Lessons Learned
+## Quick Reference
 
-1. **Always calculate percentiles before player stats**
-   - Learned this the hard way when seasons 18-21 showed "N/A"
-   - Fixed by running percentiles first, then recalculating player stats
+### Preseason (New Season Setup)
+```bash
+DATABASE_URL=postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer \
+  python etl/load_preseason.py --season 23
+pg_dump -h localhost -U mnp_user -d mnp_analyzer --data-only --no-owner --no-acl > /tmp/mnp_data.sql
+psql "$RAILWAY_URL" < /tmp/mnp_data.sql
+```
 
-2. **Weekly recalculation is fast enough**
-   - < 2 minutes for full season update
-   - No need for incremental/delta updates
+### Weekly Update
+```bash
+cd mnp-data-archive && git pull && cd ..
+DATABASE_URL=$LOCAL_DB python etl/load_season.py --season 23
+DATABASE_URL=$LOCAL_DB python etl/calculate_percentiles.py
+DATABASE_URL=$LOCAL_DB python etl/calculate_player_stats.py
+pg_dump -h localhost -U mnp_user -d mnp_analyzer --data-only --no-owner --no-acl > /tmp/mnp_data.sql
+psql "$RAILWAY_URL" < /tmp/mnp_data.sql
+```
 
-3. **Delete and replace is simple and reliable**
-   - No complex merge logic
-   - No duplicate detection needed
-   - Just wipe season data and recalculate
-
-4. **Performance scales well**
-   - ~15 seconds for 11,000 scores
-   - Even 20,000 scores would be < 30 seconds
-
----
-
-## 🔮 Future Enhancements
-
-### Near-Term
-- Create `update_current_season.sh` automation script
-- Add verification checks after each update
-- Log update history to database table
-
-### Long-Term
-- Web UI for triggering updates
-- Email/Slack notifications when update completes
-- Automatic backup before updates
-- Delta detection (only recalculate changed machines)
+### Verify Production
+```bash
+curl "https://pinball-production.up.railway.app/seasons/23/status"
+curl "https://pinball-production.up.railway.app/seasons/23/matches"
+```
 
 ---
 
-**Last Season Updated:** Season 22 (Week 11 of 14)
-**Next Update Due:** After Week 12 matches (check Tuesday morning)
-**Estimated Time:** < 2 minutes
+**Current Season:** 23 (Upcoming - starts February 2025)
+**Last Update:** 2026-01-14

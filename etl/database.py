@@ -2,9 +2,10 @@
 Database connection and session management.
 """
 
+import os
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import NullPool, QueuePool
 import logging
 
 from etl.config import config
@@ -19,14 +20,41 @@ class Database:
         self.engine = None
         self.Session = None
 
-    def connect(self):
-        """Create database engine and session factory"""
+    def connect(self, use_pool: bool = None):
+        """
+        Create database engine and session factory.
+
+        Args:
+            use_pool: If True, use connection pooling (better for API).
+                     If False, use NullPool (better for ETL batch jobs).
+                     If None, auto-detect based on environment.
+        """
         try:
-            self.engine = create_engine(
-                config.get_database_url(),
-                poolclass=NullPool,  # No connection pooling for ETL
-                echo=False  # Set to True for SQL debug logging
-            )
+            # Auto-detect: use pooling in API mode, NullPool for ETL
+            if use_pool is None:
+                # Check if we're running in API context (e.g., via uvicorn)
+                use_pool = os.environ.get('API_MODE', '').lower() == 'true' or \
+                           'uvicorn' in os.environ.get('SERVER_SOFTWARE', '').lower()
+
+            if use_pool:
+                # Connection pooling for API - keeps connections alive
+                self.engine = create_engine(
+                    config.get_database_url(),
+                    pool_size=5,
+                    max_overflow=10,
+                    pool_pre_ping=True,  # Verify connections before use
+                    pool_recycle=300,  # Recycle connections after 5 minutes
+                    echo=False
+                )
+                logger.info("Database engine created with connection pooling")
+            else:
+                # No pooling for ETL batch jobs
+                self.engine = create_engine(
+                    config.get_database_url(),
+                    poolclass=NullPool,
+                    echo=False
+                )
+                logger.info("Database engine created without connection pooling (ETL mode)")
 
             # Test connection
             with self.engine.connect() as conn:

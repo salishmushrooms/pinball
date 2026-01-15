@@ -15,6 +15,7 @@ from api.models.schemas import (
     PlayerMachineConfidence,
     TeamMachineConfidence,
     ConfidenceInterval,
+    MachineInfo,
     ErrorResponse
 )
 from api.dependencies import execute_query
@@ -53,6 +54,62 @@ def get_current_machines_for_venue(venue_key: str, seasons: List[int]) -> List[s
         return []
     except Exception:
         return []
+
+
+def get_team_roster(team_key: str, season: int) -> List[str]:
+    """
+    Get the roster player keys for a team in a specific season.
+    Returns list of player_key strings from season.json roster.
+    """
+    try:
+        season_file = f"mnp-data-archive/season-{season}/season.json"
+        with open(season_file, 'r') as f:
+            season_data = json.load(f)
+
+        team_data = season_data.get('teams', {}).get(team_key.upper())
+        if not team_data:
+            return []
+
+        roster = team_data.get('roster', [])
+        # Roster entries are player keys (strings)
+        return [p for p in roster if isinstance(p, str)]
+    except Exception:
+        return []
+
+
+def get_machine_names(machine_keys: List[str]) -> Dict[str, str]:
+    """
+    Get full machine names for a list of machine keys.
+    Returns dict mapping machine_key -> machine_name.
+    """
+    if not machine_keys:
+        return {}
+
+    # First try database lookup
+    machine_names_query = """
+        SELECT machine_key, machine_name
+        FROM machines
+        WHERE machine_key = ANY(:machines)
+    """
+    results = execute_query(machine_names_query, {'machines': machine_keys})
+    name_map = {m['machine_key']: m['machine_name'] for m in results}
+
+    # Fall back to machine_variations.json for any missing
+    missing_keys = [k for k in machine_keys if k not in name_map]
+    if missing_keys:
+        try:
+            with open("machine_variations.json", 'r') as f:
+                machine_variations = json.load(f)
+                for key in missing_keys:
+                    if key in machine_variations:
+                        name_map[key] = machine_variations[key].get('name', key)
+                    else:
+                        name_map[key] = key
+        except Exception:
+            for key in missing_keys:
+                name_map[key] = key
+
+    return name_map
 
 
 def calculate_confidence_interval(scores: List[float], confidence_level: float = 95.0) -> Optional[ConfidenceInterval]:
@@ -187,17 +244,33 @@ def get_team_machine_pick_frequency(
 def get_player_machine_preferences(
     team_key: str,
     available_machines: List[str],
-    seasons: List[int]
+    seasons: List[int],
+    roster_players: Optional[List[str]] = None
 ) -> List[PlayerMachinePreference]:
     """
     Get each player's machine picking preferences on this team across multiple seasons.
     OPTIMIZED: Single query to get all player machine counts.
+
+    Args:
+        roster_players: If provided, only include these player keys in results
     """
     if not available_machines:
         return []
 
+    # Build the query with optional roster filtering
+    query_params = {
+        'team_key': team_key,
+        'seasons': seasons,
+        'machines': available_machines
+    }
+
+    roster_filter = ""
+    if roster_players:
+        roster_filter = "AND s.player_key = ANY(:roster_players)"
+        query_params['roster_players'] = roster_players
+
     # Get all player-machine counts in a single query
-    all_picks_query = """
+    all_picks_query = f"""
         SELECT
             s.player_key,
             p.name as player_name,
@@ -210,15 +283,12 @@ def get_player_machine_preferences(
         WHERE s.team_key = :team_key
             AND s.season = ANY(:seasons)
             AND s.machine_key = ANY(:machines)
+            {roster_filter}
         GROUP BY s.player_key, p.name, s.machine_key, m.machine_name
         ORDER BY s.player_key, times_played DESC
     """
 
-    all_picks = execute_query(all_picks_query, {
-        'team_key': team_key,
-        'seasons': seasons,
-        'machines': available_machines
-    })
+    all_picks = execute_query(all_picks_query, query_params)
 
     # Group by player
     player_picks = defaultdict(list)
@@ -259,11 +329,15 @@ def get_player_machine_preferences(
 def get_player_machine_confidence(
     team_key: str,
     available_machines: List[str],
-    seasons: List[int]
+    seasons: List[int],
+    roster_players: Optional[List[str]] = None
 ) -> List[PlayerMachineConfidence]:
     """
     Get confidence intervals for each player on each available machine across multiple seasons.
     OPTIMIZED: Single query to fetch all scores at once.
+
+    Args:
+        roster_players: If provided, only include these player keys in results
     """
     # Get all machine names in one query
     if not available_machines:
@@ -277,8 +351,20 @@ def get_player_machine_confidence(
     machine_names = execute_query(machine_names_query, {'machines': available_machines})
     machine_name_map = {m['machine_key']: m['machine_name'] for m in machine_names}
 
+    # Build query with optional roster filtering
+    query_params = {
+        'team_key': team_key,
+        'seasons': seasons,
+        'machines': available_machines
+    }
+
+    roster_filter = ""
+    if roster_players:
+        roster_filter = "AND s.player_key = ANY(:roster_players)"
+        query_params['roster_players'] = roster_players
+
     # Get ALL scores for this team in a single query
-    all_scores_query = """
+    all_scores_query = f"""
         SELECT
             s.player_key,
             p.name as player_name,
@@ -289,14 +375,11 @@ def get_player_machine_confidence(
         WHERE s.team_key = :team_key
             AND s.season = ANY(:seasons)
             AND s.machine_key = ANY(:machines)
+            {roster_filter}
         ORDER BY s.player_key, s.machine_key, s.score
     """
 
-    all_scores = execute_query(all_scores_query, {
-        'team_key': team_key,
-        'seasons': seasons,
-        'machines': available_machines
-    })
+    all_scores = execute_query(all_scores_query, query_params)
 
     # Group scores by player and machine
     player_machine_scores = defaultdict(lambda: defaultdict(list))
@@ -431,11 +514,18 @@ def get_matchup_analysis(
     Examples:
     - Single season: `/matchups?home_team=TRL&away_team=ETB&venue=T4B&seasons=22`
     - Multiple seasons: `/matchups?home_team=TRL&away_team=ETB&venue=T4B&seasons=21&seasons=22`
+
+    Note: If no seasons specified, defaults to current season + previous season for better data coverage.
     """
 
-    # Default to season 23 if not specified
+    # Default to current season + previous season for better data coverage
+    # This ensures we have enough historical data even for new seasons
     if not seasons or len(seasons) == 0:
-        seasons = [23]
+        # Get the most recent season from the database
+        latest_season_query = "SELECT MAX(season) as max_season FROM matches"
+        latest_result = execute_query(latest_season_query, {})
+        current_season = latest_result[0]['max_season'] if latest_result and latest_result[0]['max_season'] else 23
+        seasons = [current_season, current_season - 1]
 
     # Validate teams exist in at least one season
     home_team_query = "SELECT team_name, home_venue_key, season FROM teams WHERE team_key = :team_key AND season = ANY(:seasons) ORDER BY season DESC LIMIT 1"
@@ -473,6 +563,11 @@ def get_matchup_analysis(
             detail=f"No machine data found for venue '{venue}' in seasons {seasons}"
         )
 
+    # Get current roster for each team (use highest season for current roster)
+    current_season = max(seasons)
+    home_roster = get_team_roster(home_team, current_season)
+    away_roster = get_team_roster(away_team, current_season)
+
     # Get team machine pick frequencies
     # Home team picks Round 4 - show only machines at this venue
     home_pick_freq = get_team_machine_pick_frequency(
@@ -483,13 +578,25 @@ def get_matchup_analysis(
         away_team, away_team_home_venue, available_machines, seasons, is_home_team_at_venue=False
     )
 
-    # Get player machine preferences
-    home_player_prefs = get_player_machine_preferences(home_team, available_machines, seasons)
-    away_player_prefs = get_player_machine_preferences(away_team, available_machines, seasons)
+    # Get player machine preferences - filtered to current roster only
+    home_player_prefs = get_player_machine_preferences(
+        home_team, available_machines, seasons,
+        roster_players=home_roster if home_roster else None
+    )
+    away_player_prefs = get_player_machine_preferences(
+        away_team, available_machines, seasons,
+        roster_players=away_roster if away_roster else None
+    )
 
-    # Get player confidence intervals
-    home_player_confidence = get_player_machine_confidence(home_team, available_machines, seasons)
-    away_player_confidence = get_player_machine_confidence(away_team, available_machines, seasons)
+    # Get player confidence intervals - filtered to current roster only
+    home_player_confidence = get_player_machine_confidence(
+        home_team, available_machines, seasons,
+        roster_players=home_roster if home_roster else None
+    )
+    away_player_confidence = get_player_machine_confidence(
+        away_team, available_machines, seasons,
+        roster_players=away_roster if away_roster else None
+    )
 
     # Get team confidence intervals
     home_team_confidence = get_team_machine_confidence(home_team, available_machines, seasons)
@@ -497,6 +604,15 @@ def get_matchup_analysis(
 
     # Format season display (single number or "21-22" for multiple)
     season_display = seasons[0] if len(seasons) == 1 else f"{min(seasons)}-{max(seasons)}"
+
+    # Get full machine names for available machines
+    machine_name_map = get_machine_names(available_machines)
+    available_machines_info = [
+        MachineInfo(key=key, name=machine_name_map.get(key, key))
+        for key in available_machines
+    ]
+    # Sort by name alphabetically
+    available_machines_info.sort(key=lambda m: m.name)
 
     return MatchupAnalysis(
         home_team_key=home_team,
@@ -507,6 +623,7 @@ def get_matchup_analysis(
         venue_name=venue_name,
         season=season_display,
         available_machines=available_machines,
+        available_machines_info=available_machines_info,
         home_team_pick_frequency=home_pick_freq,
         away_team_pick_frequency=away_pick_freq,
         home_team_player_preferences=home_player_prefs,
