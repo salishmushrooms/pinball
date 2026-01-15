@@ -16,7 +16,11 @@ class Config:
     """ETL Configuration"""
 
     # Database configuration
-    DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer')
+    # Prefer LOCAL_DATABASE_URL for local development, fall back to DATABASE_URL (which might be remote)
+    DATABASE_URL = os.getenv(
+        'LOCAL_DATABASE_URL',
+        os.getenv('DATABASE_URL', 'postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer')
+    )
     DB_HOST = os.getenv('DB_HOST', 'localhost')
     DB_PORT = os.getenv('DB_PORT', '5432')
     DB_NAME = os.getenv('DB_NAME', 'mnp_analyzer')

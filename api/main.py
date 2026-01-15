@@ -4,6 +4,7 @@ MNP Analyzer API
 FastAPI application for Monday Night Pinball data analysis.
 Provides REST endpoints for accessing player stats, machine data, and score percentiles.
 """
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +16,26 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from api.routers import players, machines, venues, teams, matchups, seasons, predictions, matchplay
+from etl.database import db
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifespan context manager for startup/shutdown events.
+    Initialize database with connection pooling on startup.
+    """
+    # Startup: Connect to database with pooling enabled for API performance
+    logger.info("Initializing database connection with pooling...")
+    db.connect(use_pool=True)
+    logger.info("Database connection pool initialized")
+
+    yield
+
+    # Shutdown: Close database connections
+    logger.info("Closing database connections...")
+    db.close()
+    logger.info("Database connections closed")
 
 # Configure logging
 logging.basicConfig(
@@ -48,9 +69,10 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
         return response
 
 
-# Create FastAPI app
+# Create FastAPI app with lifespan for connection pooling
 app = FastAPI(
     title="MNP Analyzer API",
+    lifespan=lifespan,
     description="""
     Monday Night Pinball (MNP) Data Analysis API
 

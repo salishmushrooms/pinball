@@ -24,28 +24,32 @@ router = APIRouter(
 )
 
 
-def get_venue_machines(venue_key: str, season: int = 23) -> List[str]:
+def get_venue_machines(venue_key: str, seasons: List[int]) -> List[str]:
     """
-    Get the current machine lineup for a venue by checking the most recent match.
+    Get the current machine lineup for a venue by checking the most recent match
+    across multiple seasons (prioritizes higher season, then higher week).
     Returns list of machine keys that are currently at this venue.
     """
-    matches_path = f"mnp-data-archive/season-{season}/matches"
+    most_recent_match = None
+    highest_week = -1
+    highest_season = -1
 
     try:
-        match_files = glob.glob(f"{matches_path}/*.json")
+        # Check seasons in reverse order (most recent first)
+        for season in sorted(seasons, reverse=True):
+            matches_path = f"mnp-data-archive/season-{season}/matches"
+            match_files = glob.glob(f"{matches_path}/*.json")
 
-        # Find the most recent match that has this venue
-        most_recent_match = None
-        highest_week = -1
-
-        for match_file in match_files:
-            with open(match_file, 'r') as f:
-                match_data = json.load(f)
-                if match_data.get('venue', {}).get('key') == venue_key:
-                    week = int(match_data.get('week', 0))
-                    if week > highest_week:
-                        highest_week = week
-                        most_recent_match = match_data
+            for match_file in match_files:
+                with open(match_file, 'r') as f:
+                    match_data = json.load(f)
+                    if match_data.get('venue', {}).get('key') == venue_key:
+                        week = int(match_data.get('week', 0))
+                        # Prioritize higher season, then higher week
+                        if (season > highest_season) or (season == highest_season and week > highest_week):
+                            highest_season = season
+                            highest_week = week
+                            most_recent_match = match_data
 
         if most_recent_match and 'venue' in most_recent_match and 'machines' in most_recent_match['venue']:
             return most_recent_match['venue']['machines']
@@ -100,8 +104,8 @@ def predict_machine_picks(
             seasons = [seasons]
         season_list = [int(s) for s in seasons]
 
-        # Get venue machines
-        venue_machines = get_venue_machines(venue_key, max(season_list))
+        # Get venue machines - check across all seasons to find the most recent lineup
+        venue_machines = get_venue_machines(venue_key, season_list)
 
         # Track machine picks across all seasons
         machine_picks = Counter()

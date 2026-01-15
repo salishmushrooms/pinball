@@ -41,6 +41,7 @@ import {
   TeamPlayerList,
   MatchupAnalysis,
   MatchupQueryParams,
+  MatchupsInitResponse,
   SeasonSchedule,
   SeasonMatchesResponse,
   MachinePredictionResponse,
@@ -120,6 +121,14 @@ export const api = {
    */
   getSeasons: (): Promise<SeasonsResponse> => {
     return fetchAPI<SeasonsResponse>('/seasons');
+  },
+
+  /**
+   * Get matchups page initialization data in a single request
+   * Combines seasons, season status, and matches for faster page load
+   */
+  getMatchupsInit: (): Promise<MatchupsInitResponse> => {
+    return fetchAPI<MatchupsInitResponse>('/seasons/matchups-init');
   },
 
   // Player Endpoints
