@@ -4,7 +4,6 @@ Matchup API endpoints for analyzing team vs team matchups
 from typing import Optional, List, Dict, Union
 from fastapi import APIRouter, HTTPException, Query
 import json
-import glob
 import math
 from collections import defaultdict
 
@@ -25,33 +24,26 @@ router = APIRouter(prefix="/matchups", tags=["matchups"])
 
 def get_current_machines_for_venue(venue_key: str, seasons: List[int]) -> List[str]:
     """
-    Get the machine lineup for a venue by checking the most recent match across seasons.
-    Returns list of machine keys that are at this venue.
+    Get the machine lineup for a venue from the database.
+    Returns list of machine keys that are active at this venue for the most recent season requested.
     """
-    most_recent_match = None
-    highest_week = -1
-    highest_season = -1
-
     try:
-        for season in seasons:
-            matches_path = f"mnp-data-archive/season-{season}/matches"
-            match_files = glob.glob(f"{matches_path}/*.json")
-
-            for match_file in match_files:
-                with open(match_file, 'r') as f:
-                    match_data = json.load(f)
-                    if match_data.get('venue', {}).get('key') == venue_key:
-                        week = int(match_data.get('week', 0))
-                        # Prioritize higher season, then higher week
-                        if (season > highest_season) or (season == highest_season and week > highest_week):
-                            highest_season = season
-                            highest_week = week
-                            most_recent_match = match_data
-
-        if most_recent_match and 'venue' in most_recent_match and 'machines' in most_recent_match['venue']:
-            return most_recent_match['venue']['machines']
-
-        return []
+        # Get machines from venue_machines table for the most recent season in the list
+        query = """
+            SELECT vm.machine_key
+            FROM venue_machines vm
+            WHERE vm.venue_key = :venue_key
+            AND vm.season = (
+                SELECT MAX(season)
+                FROM venue_machines
+                WHERE venue_key = :venue_key
+                AND season = ANY(:seasons)
+            )
+            AND vm.active = true
+            ORDER BY vm.machine_key
+        """
+        results = execute_query(query, {'venue_key': venue_key, 'seasons': seasons})
+        return [row['machine_key'] for row in results]
     except Exception:
         return []
 
@@ -59,20 +51,19 @@ def get_current_machines_for_venue(venue_key: str, seasons: List[int]) -> List[s
 def get_team_roster(team_key: str, season: int) -> List[str]:
     """
     Get the roster player keys for a team in a specific season.
-    Returns list of player_key strings from season.json roster.
+    Returns list of player_key strings derived from players who have scores for this team/season.
     """
     try:
-        season_file = f"mnp-data-archive/season-{season}/season.json"
-        with open(season_file, 'r') as f:
-            season_data = json.load(f)
-
-        team_data = season_data.get('teams', {}).get(team_key.upper())
-        if not team_data:
-            return []
-
-        roster = team_data.get('roster', [])
-        # Roster entries are player keys (strings)
-        return [p for p in roster if isinstance(p, str)]
+        # Get distinct players who have played for this team in this season
+        query = """
+            SELECT DISTINCT player_key
+            FROM scores
+            WHERE team_key = :team_key
+            AND season = :season
+            ORDER BY player_key
+        """
+        results = execute_query(query, {'team_key': team_key.upper(), 'season': season})
+        return [row['player_key'] for row in results]
     except Exception:
         return []
 
@@ -148,92 +139,54 @@ def get_team_machine_pick_frequency(
 ) -> List[MachinePickFrequency]:
     """
     Calculate how often a team picks each machine across multiple seasons.
-    Counts with 2x multiplier for doubles rounds (1 & 4).
+    Uses pre-calculated team_machine_picks table from the database.
 
     Strategy:
-    - Counts ALL of the team's doubles picks (Round 1 when away + Round 4 when home)
-      across ALL venues to get comprehensive historical data
+    - Gets ALL of the team's doubles picks from the database
     - Filters results to only show machines in available_machines (at target venue)
     - This provides better predictions by using more data while keeping results relevant
 
     The is_home_team_at_venue parameter is kept for compatibility but both home
     and away teams now use the same logic.
     """
-    machine_picks = defaultdict(int)
-
     try:
-        for season in seasons:
-            matches_path = f"mnp-data-archive/season-{season}/matches"
-            match_files = glob.glob(f"{matches_path}/*.json")
+        if not available_machines:
+            return []
 
-            for match_file in match_files:
-                with open(match_file, 'r') as f:
-                    match_data = json.load(f)
+        # Query team_machine_picks table for doubles picks
+        # Sum picks across all seasons and both home/away contexts
+        query = """
+            SELECT
+                tmp.machine_key,
+                m.machine_name,
+                SUM(tmp.times_picked) as total_picked
+            FROM team_machine_picks tmp
+            INNER JOIN machines m ON tmp.machine_key = m.machine_key
+            WHERE tmp.team_key = :team_key
+            AND tmp.season = ANY(:seasons)
+            AND tmp.round_type = 'doubles'
+            AND tmp.machine_key = ANY(:machines)
+            GROUP BY tmp.machine_key, m.machine_name
+            ORDER BY total_picked DESC
+        """
 
-                    # Only process matches involving this team
-                    home_team = match_data.get('home', {}).get('key')
-                    away_team = match_data.get('away', {}).get('key')
+        results = execute_query(query, {
+            'team_key': team_key,
+            'seasons': seasons,
+            'machines': available_machines
+        })
 
-                    if team_key not in [home_team, away_team]:
-                        continue
-
-                    venue_key = match_data.get('venue', {}).get('key')
-                    is_team_home_in_match = (team_key == home_team)
-                    is_at_team_home_venue = (venue_key == team_home_venue)
-
-                    # Determine which DOUBLES rounds (1 & 4 only) this team picked
-                    # When team is home in match: picks rounds 2 & 4
-                    # When team is away in match: picks rounds 1 & 3
-                    if is_team_home_in_match:
-                        # Team is home - they pick round 4 (doubles)
-                        team_doubles_pick_rounds = [4]
-                    else:
-                        # Team is away - they pick round 1 (doubles)
-                        team_doubles_pick_rounds = [1]
-
-                    # Process rounds - only doubles rounds (1 & 4)
-                    for round_data in match_data.get('rounds', []):
-                        round_num = round_data.get('n')
-
-                        # Only process doubles rounds
-                        if round_num not in [1, 4]:
-                            continue
-
-                        for game in round_data.get('games', []):
-                            machine = game.get('machine')
-
-                            # Count picks only if this team picked this doubles round
-                            if round_num in team_doubles_pick_rounds:
-                                # Count ALL picks (2x multiplier for doubles rounds)
-                                # Filtering to venue machines happens when building results
-                                machine_picks[machine] += 2
-
-        # Build result
+        # Build result with 2x multiplier for doubles (to maintain compatibility)
         result = []
+        for row in results:
+            result.append(MachinePickFrequency(
+                machine_key=row['machine_key'],
+                machine_name=row['machine_name'],
+                times_picked=row['total_picked'] * 2,  # 2x multiplier for doubles
+                total_opportunities=0,  # Deprecated field
+                pick_percentage=0.0  # Deprecated field
+            ))
 
-        # Always filter to only show machines available at the venue
-        # This gives relevant predictions based on comprehensive historical data
-        machines_to_show = available_machines
-
-        for machine_key in machines_to_show:
-            times_picked = machine_picks.get(machine_key, 0)
-
-            if times_picked > 0:
-                # Get machine name
-                machine_name_query = "SELECT machine_name FROM machines WHERE machine_key = :machine_key"
-                machine_result = execute_query(machine_name_query, {'machine_key': machine_key})
-                machine_name = machine_result[0]['machine_name'] if machine_result else machine_key
-
-                result.append(MachinePickFrequency(
-                    machine_key=machine_key,
-                    machine_name=machine_name,
-                    times_picked=times_picked,
-                    total_opportunities=0,  # Deprecated field
-                    pick_percentage=0.0  # Deprecated field
-                ))
-
-        # Sort by times_picked descending
-        result.sort(key=lambda x: x.times_picked, reverse=True)
         return result
 
     except Exception as e:
