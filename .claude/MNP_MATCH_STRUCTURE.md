@@ -48,6 +48,31 @@ A match consists of four rounds with the following structure:
 - Captains review and confirm round [11:05pm]
 - Expected duration: 30 minutes
 
+### CRITICAL: Games Per Round
+
+**Each round contains MULTIPLE games, each on a DIFFERENT machine.**
+
+| Round | Type    | Games | Machines | Players/Team/Game |
+|-------|---------|-------|----------|-------------------|
+| 1     | Doubles | 4     | 4        | 2 (pair)          |
+| 2     | Singles | 7     | 7        | 1                 |
+| 3     | Singles | 7     | 7        | 1                 |
+| 4     | Doubles | 4     | 4        | 2 (pair)          |
+
+**Total per match**: 22 games across 22 different machines (4+7+7+4)
+
+When counting "machine picks" for a team:
+- A team making Round 2 picks selects **7 different machines** (not 1)
+- A team making Round 4 picks selects **4 different machines** (not 1)
+
+**Example**: If TRL picks Round 4 (home team), they select 4 machines like:
+- Game 1: 007
+- Game 2: Baywatch
+- Game 3: Godzilla
+- Game 4: Medieval Madness
+
+This results in **4 separate machine picks** for that round, not 1.
+
 ### Scoring System
 
 #### Doubles Games (5 points total)

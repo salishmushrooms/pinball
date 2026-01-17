@@ -504,7 +504,58 @@ SELECT machine_key, COUNT(*) FROM score_percentiles GROUP BY machine_key ORDER B
 
 ## 📝 Common Tasks
 
-### Add New Season Data
+### Weekly In-Season Updates (Incremental)
+
+During an active season (e.g., season 23), use this lightweight workflow after new match data is added to the archive:
+
+```bash
+# 1. Update submodule with new match data
+git submodule update --remote mnp-data-archive
+
+# 2. Load new match data WITHOUT recalculating aggregates
+python etl/update_season.py --season 23 --skip-aggregations
+
+# 3. (Optional) Sync to production
+python etl/update_season.py --season 23 --skip-aggregations --sync-production
+```
+
+**Why skip aggregations during the season?**
+- **Percentiles/Player Stats**: These are most valuable with complete season data. Mid-season percentiles have limited analytical value and will be recalculated anyway.
+- **Match Points**: Calculated from JSON files, useful to keep current (run manually if needed: `python etl/calculate_match_points.py --season 23`)
+- **Player Totals**: Cross-season totals, minimal value updating weekly
+
+**What gets updated:**
+| Data | Updated? | Notes |
+|------|----------|-------|
+| Matches | ✅ Yes | New matches inserted via UPSERT |
+| Games | ✅ Yes | New games inserted |
+| Scores | ✅ Yes | New scores inserted |
+| Players | ✅ Yes | New players added, existing updated |
+| Machines | ✅ Yes | New machines added (see below) |
+| Percentiles | ❌ Skip | Wait for end of season |
+| Player Stats | ❌ Skip | Wait for end of season |
+| Team Picks | ❌ Skip | Wait for end of season |
+
+### End-of-Season Full Recalculation
+
+When a season is complete, run the full pipeline to generate all aggregations:
+
+```bash
+# Full pipeline with aggregations
+python etl/update_season.py --season 23
+
+# Or sync directly to production
+python etl/update_season.py --season 23 --sync-production
+```
+
+This runs all aggregation calculations:
+1. `calculate_percentiles.py` - Score distribution thresholds
+2. `calculate_player_stats.py` - Player performance by machine
+3. `calculate_team_machine_picks.py` - Team selection patterns
+4. `calculate_match_points.py` - Match point totals
+5. `calculate_player_totals.py` - Cross-season player totals
+
+### Adding a New Season (First Time)
 
 ```bash
 # 1. Update submodule
@@ -532,6 +583,54 @@ railway connect postgres < season_23_data.sql
 # 7. Verify production
 curl https://your-api.railway.app/seasons
 ```
+
+### Handling New Machines Mid-Season
+
+When a venue adds a new pinball machine that hasn't been seen before:
+
+**1. Check if machine key exists:**
+```bash
+# Search for the machine in variations file
+grep -i "machine_name" machine_variations.json
+```
+
+**2. If not found, add to `machine_variations.json`:**
+```json
+{
+  "NewMachine": {
+    "name": "New Machine Full Name",
+    "manufacturer": "Stern",
+    "year": 2024,
+    "variations": [
+      "newmachine",
+      "new machine",
+      "NM"
+    ]
+  }
+}
+```
+
+**3. Then run the update:**
+```bash
+python etl/update_season.py --season 23 --skip-aggregations
+```
+
+**What happens if you don't add the machine first?**
+- The ETL logs a warning: `No canonical key found for: 'UnknownMachine' - using as-is`
+- The raw machine key is used, which may cause inconsistencies if the same machine appears with different names in different matches
+- Best practice: Always add new machines to `machine_variations.json` before loading match data
+
+### Quick Reference: ETL Scripts
+
+| Script | Purpose | When to Run |
+|--------|---------|-------------|
+| `update_season.py` | **Recommended** - Orchestrates full update | Weekly updates, end of season |
+| `load_season.py` | Load raw match data only | Rarely needed directly |
+| `calculate_percentiles.py` | Score percentile thresholds | End of season |
+| `calculate_player_stats.py` | Player performance aggregates | End of season |
+| `calculate_team_machine_picks.py` | Team selection patterns | End of season |
+| `calculate_match_points.py` | Match point totals | Can run anytime |
+| `calculate_player_totals.py` | Cross-season player totals | End of season |
 
 ### Add New API Endpoint
 

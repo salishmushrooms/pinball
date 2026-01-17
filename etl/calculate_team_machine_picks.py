@@ -41,26 +41,31 @@ def fetch_games_with_scores(season: int):
     """
     Fetch all games with their scores for a season.
 
+    Uses the scores table directly since it has denormalized machine_key.
+    This avoids issues with the game_id linkage which may not be correct
+    for all records.
+
     Returns:
         list: Game records with team performance data
     """
     logger.info(f"Fetching games and scores for season {season}...")
 
+    # Use scores table directly - it has machine_key denormalized
+    # This correctly handles multiple machines per round
     query = """
         SELECT
-            g.match_key,
-            g.round_number,
-            g.machine_key,
+            s.match_key,
+            s.round_number,
+            s.machine_key,
             m.home_team_key,
             m.away_team_key,
             s.team_key,
             s.is_home_team,
             s.score
-        FROM games g
-        JOIN matches m ON g.match_key = m.match_key
-        JOIN scores s ON g.game_id = s.game_id
-        WHERE g.season = :season
-        ORDER BY g.match_key, g.round_number, s.team_key
+        FROM scores s
+        JOIN matches m ON s.match_key = m.match_key
+        WHERE s.season = :season
+        ORDER BY s.match_key, s.round_number, s.machine_key, s.team_key
     """
 
     with db.engine.connect() as conn:
@@ -114,14 +119,16 @@ def aggregate_team_picks(scores, season: int):
     """
     logger.info("Aggregating team machine pick statistics...")
 
-    # Group scores by (match_key, round_number, team_key)
-    # Structure: {(match, round, team): {'scores': [], 'machine': str, 'is_home': bool}}
-    game_results = defaultdict(lambda: {'scores': [], 'machine': None, 'is_home': None})
+    # Group scores by (match_key, round_number, machine_key, team_key)
+    # Each round has MULTIPLE games on different machines, so we need machine_key in the key
+    # Structure: {(match, round, machine, team): {'scores': [], 'is_home': bool, ...}}
+    game_results = defaultdict(lambda: {'scores': [], 'is_home': None})
 
     for row in scores:
         match_key, round_num, machine_key, home_team, away_team, team_key, is_home, score = row
 
-        key = (match_key, round_num, team_key)
+        # Include machine_key in the grouping to track each game separately
+        key = (match_key, round_num, machine_key, team_key)
         game_results[key]['scores'].append(score)
         game_results[key]['machine'] = machine_key
         game_results[key]['is_home'] = is_home
@@ -140,10 +147,12 @@ def aggregate_team_picks(scores, season: int):
     })
 
     # Process each game result
+    # Each game is uniquely identified by (match_key, round_number, machine_key)
     processed_games = set()
 
-    for (match_key, round_num, team_key), data in game_results.items():
-        game_key = (match_key, round_num)
+    for (match_key, round_num, machine_key, team_key), data in game_results.items():
+        # Game key now includes machine to handle multiple machines per round
+        game_key = (match_key, round_num, machine_key)
 
         # Skip if we've already processed this game
         if game_key in processed_games:
@@ -157,9 +166,9 @@ def aggregate_team_picks(scores, season: int):
         # Determine who picked this machine
         picking_team, picker_is_home = determine_picking_team(round_num, home_team, away_team)
 
-        # Get scores for both teams in this game
-        home_data = game_results.get((match_key, round_num, home_team), {'scores': []})
-        away_data = game_results.get((match_key, round_num, away_team), {'scores': []})
+        # Get scores for both teams in this game (now keyed by machine too)
+        home_data = game_results.get((match_key, round_num, machine_key, home_team), {'scores': []})
+        away_data = game_results.get((match_key, round_num, machine_key, away_team), {'scores': []})
 
         home_total = sum(home_data['scores'])
         away_total = sum(away_data['scores'])

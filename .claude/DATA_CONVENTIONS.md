@@ -73,15 +73,17 @@ Each match has **4 rounds**:
 
 **Critical for filtering!**
 
-At **HOME** venue:
-- Home team picks machine for **Rounds 2 & 4**
-- Away team picks machine for **Rounds 1 & 3**
+- **Home team** (defined in `match['home']['key']`) picks machines for **Rounds 2 & 4**
+- **Away team** (defined in `match['away']['key']`) picks machines for **Rounds 1 & 3**
 
-At **AWAY** venues:
-- Home team picks machine for **Rounds 2 & 4** (still!)
-- Away team picks machine for **Rounds 1 & 3** (still!)
+**IMPORTANT**: Home/away is defined per-match in the JSON, NOT based on venue!
+- Two teams can share the same home venue
+- Playoffs use neutral venues
+- Always use `match['home']['key']` and `match['away']['key']` to determine picking team
 
-**Note**: "Home team" = team whose venue the match is at (second team in filename).
+**Also Note**: Each round has MULTIPLE games on different machines:
+- Rounds 1 & 4: 4 machines each (doubles)
+- Rounds 2 & 3: 7 machines each (singles)
 
 ### Player Positions
 
@@ -116,51 +118,50 @@ for match_file in match_files:
 
 ### Machine Selection Filtering (Who Picked)
 
+**CRITICAL**: Each round has MULTIPLE games on MULTIPLE machines!
+- Round 1 & 4 (doubles): 4 games, 4 different machines
+- Round 2 & 3 (singles): 7 games, 7 different machines
+
+When a team "picks" a round, they select ALL machines for that round (4 or 7 machines), not just 1.
+
 ```python
-# Determine if team picked the machine for this round
-def team_picked_machine(team_key: str, venue_key: str, team_home_venue_key: str, round_num: int) -> bool:
+# Determine if team picked the machines for this round
+def team_picked_round(team_key: str, match: dict, round_num: int) -> bool:
     """
-    Returns True if the team picked the machine for this round.
+    Returns True if the team picked the machines for this round.
 
     Args:
         team_key: The team we're checking (e.g., "SKP")
-        venue_key: The venue where match was played (e.g., "KRA")
-        team_home_venue_key: The team's home venue (e.g., "KRA" for SKP)
+        match: The match data dict (has 'home' and 'away' keys)
         round_num: Round number (1, 2, 3, or 4)
 
     Returns:
-        True if team picked machine, False if opponent picked
+        True if team picked machines for this round, False if opponent picked
     """
-    # Is this team playing at their home venue?
-    is_home_venue = (venue_key == team_home_venue_key)
+    # Home/away is defined in the match JSON, NOT based on venue
+    is_home_team = (team_key == match['home']['key'])
 
-    # At home: team picks rounds 2 & 4
-    # Away: team picks rounds 1 & 3
-    if is_home_venue:
+    # Home team picks rounds 2 & 4, Away team picks rounds 1 & 3
+    if is_home_team:
         return round_num in [2, 4]
     else:
         return round_num in [1, 3]
 
 
-# Usage example
+# Usage example - counting machine picks
 for match in matches:
-    venue_key = match['venue']['key']
-
     for round_data in match['rounds']:
-        round_num = round_data['round']
-        machine_key = round_data['machine']['key']
+        round_num = round_data['n']
 
-        # Check if SKP picked this machine
-        skp_picked = team_picked_machine(
-            team_key="SKP",
-            venue_key=venue_key,
-            team_home_venue_key="KRA",
-            round_num=round_num
-        )
+        # Check if SKP picked the machines for this round
+        skp_picked = team_picked_round("SKP", match, round_num)
 
         if skp_picked:
-            # Analyze SKP's performance on machines they chose
-            pass
+            # Count EACH game in the round (4 or 7 games, not just 1!)
+            for game in round_data['games']:
+                machine_key = game['machine']
+                # Analyze SKP's pick of this specific machine
+                pass
 ```
 
 ### Reliable Score Filtering
@@ -451,25 +452,35 @@ def analyze_player_machine_performance(player_key, machine_key, matches):
 ### Team Machine Selection Patterns
 
 ```python
-def analyze_team_picks(team_key, team_home_venue, matches):
+def analyze_team_picks(team_key, matches):
     """
     Analyze which machines a team picks and when.
+
+    Note: Each round has MULTIPLE games on different machines.
+    Round 1 & 4 (doubles) = 4 machines each
+    Round 2 & 3 (singles) = 7 machines each
     """
     picked_machines = []
     opponent_picked_machines = []
 
     for match in matches:
-        venue_key = match['venue']['key']
+        # Determine if team is home or away in this match
+        is_home = (team_key == match['home']['key'])
 
         for round_data in match['rounds']:
-            round_num = round_data['round']
-            machine_key = round_data['machine']['key']
+            round_num = round_data['n']
 
-            # Did team pick this machine?
-            if team_picked_machine(team_key, venue_key, team_home_venue, round_num):
-                picked_machines.append(machine_key)
-            else:
-                opponent_picked_machines.append(machine_key)
+            # Home picks 2 & 4, Away picks 1 & 3
+            team_picked = (is_home and round_num in [2, 4]) or (not is_home and round_num in [1, 3])
+
+            # Count EACH game in the round (not just the round!)
+            for game in round_data['games']:
+                machine_key = game['machine']
+
+                if team_picked:
+                    picked_machines.append(machine_key)
+                else:
+                    opponent_picked_machines.append(machine_key)
 
     return {
         'picked': count_frequency(picked_machines),
@@ -549,12 +560,34 @@ performance = {'home': home_avg, 'away': away_avg, 'diff': home_avg - away_avg}
 
 ### 4. Wrong Machine Selection Logic
 ```python
-# ❌ WRONG - Assumes home team is always first team
-team_picked = (team_key == match['homeTeam']['key'] and round_num in [2, 4])
+# ❌ WRONG - Trying to determine home/away from venue
+team_picked = (venue_key == team_home_venue and round_num in [2, 4])
 
-# ✅ CORRECT - Check actual venue
-team_picked = team_picked_machine(team_key, venue_key, team_home_venue, round_num)
+# ✅ CORRECT - Use home/away designation from match JSON directly
+# Home/away is defined in match['home']['key'] and match['away']['key']
+# Home team picks rounds 2 & 4, Away team picks rounds 1 & 3
+is_home_team = (team_key == match['home']['key'])
+team_picked = (is_home_team and round_num in [2, 4]) or (not is_home_team and round_num in [1, 3])
 ```
+
+Note: Home/away is designated per-match, NOT based on venue. Two teams can share a venue, and playoffs use neutral venues.
+
+### 5. Counting Rounds Instead of Games
+```python
+# ❌ WRONG - Counts rounds (only 2 picks per match)
+for round_data in match['rounds']:
+    if team_picked_round(team_key, round_num):
+        picks += 1  # Only increments by 1!
+
+# ✅ CORRECT - Counts games (11 picks per match: 4+7 for doubles+singles rounds)
+for round_data in match['rounds']:
+    if team_picked_round(team_key, round_num):
+        for game in round_data['games']:
+            machine_key = game['machine']
+            picks[machine_key] += 1  # Increments per game/machine
+```
+
+Each match has 22 total games (4+7+7+4), with each team picking 11 machines.
 
 ---
 
