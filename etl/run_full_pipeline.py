@@ -17,13 +17,31 @@ Usage:
     python etl/run_full_pipeline.py --seasons 22 --skip-load
     python etl/run_full_pipeline.py --seasons 22 --only-aggregates
 
+    # Verify team machine picks after calculation
+    python etl/verify_team_machine_picks.py --all-seasons
+
+IMPORTANT - Data Corrections Order:
+    Before running this pipeline, ensure data corrections are applied:
+    1. Update machine_variations.json (run add_missing_machines.py if needed)
+    2. Update player deduplication rules (run deduplicate_players.py if needed)
+    3. THEN run this pipeline
+
+    The load_season.py step normalizes machine keys using machine_variations.json.
+    Aggregate calculations (steps 2-6) depend on correctly normalized data.
+
 Pipeline Steps (in order):
-    1. load_season.py        - Load raw match data (matches, games, scores)
+    1. load_season.py        - Load raw match data with machine key normalization
     2. calculate_percentiles.py - Calculate score percentile thresholds per machine
     3. calculate_player_stats.py - Aggregate player statistics with percentiles
     4. calculate_team_machine_picks.py - Calculate team machine selection patterns
+       NOTE: Each round has MULTIPLE games on different machines.
+       This calculates picks per (team, machine, home/away, round_type).
     5. calculate_player_totals.py - Calculate player season totals
     6. calculate_match_points.py - Calculate match point totals
+
+Verification:
+    After running the pipeline, verify aggregations with:
+    python etl/verify_team_machine_picks.py --all-seasons
 
 Note: Steps 2-6 are aggregate calculations that depend on step 1 completing first.
 """
@@ -35,8 +53,9 @@ from pathlib import Path
 
 # Available seasons in the data archive
 # IMPORTANT: Keep this in sync with production database!
-# Production currently has seasons 20-22 only.
-AVAILABLE_SEASONS = [20, 21, 22]
+# Seasons 18-19 exist in archive but are excluded from aggregations.
+# Production currently has seasons 20-23.
+AVAILABLE_SEASONS = [20, 21, 22, 23]
 
 # ETL scripts in execution order
 # Format: (script_name, description, requires_season_arg)

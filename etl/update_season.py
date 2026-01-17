@@ -51,7 +51,7 @@ logger = logging.getLogger(__name__)
 
 # Seasons that should have aggregations calculated
 # Seasons 18-19 are loaded but excluded from calculations per project decision
-AGGREGATION_SEASONS = [20, 21, 22]
+AGGREGATION_SEASONS = [20, 21, 22, 23]
 
 
 def run_etl_script(script_name: str, args: list = None) -> bool:
