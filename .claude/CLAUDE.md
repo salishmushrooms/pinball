@@ -150,10 +150,10 @@ python etl/calculate_percentiles.py
 ## 🚨 Important Integrations
 
 ### Matchplay.events API
-- **Data lookback**: Machine stats filtered to **past 1 year (365 days)**
-- **Rationale**: Player skill evolves - recent data more relevant
-- **Config**: `MATCHPLAY_DATA_LOOKBACK_DAYS = 365` in `api/services/matchplay_client.py`
-- **Potential duplication**: MNP data may exist in Matchplay - check investigation endpoint
+- **What works**: Player rating, IFPA data, tournament count, win/loss record
+- **What doesn't work**: Per-machine game statistics (API requires tournament IDs)
+- **Documentation**: See [MATCHPLAY_INTEGRATION.md](../mnp-app-docs/api/MATCHPLAY_INTEGRATION.md)
+- **Config**: `MATCHPLAY_API_TOKEN` environment variable required
 
 ### Git Submodule
 ```bash

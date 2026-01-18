@@ -22,7 +22,6 @@ from api.models.schemas import (
     MatchplayPlayerStats,
     MatchplayRating,
     MatchplayIFPA,
-    MatchplayMachineStat,
     ErrorResponse
 )
 from api.services.matchplay_client import MatchplayClient, MatchplayClientError
@@ -358,11 +357,11 @@ async def unlink_player_from_matchplay(player_key: str):
     response_model=MatchplayPlayerStats,
     responses={404: {"model": ErrorResponse}},
     summary="Get Matchplay stats for linked player",
-    description="Get rating, IFPA data, and machine statistics from Matchplay for a linked player"
+    description="Get rating and IFPA data from Matchplay for a linked player"
 )
 async def get_player_matchplay_stats(
     player_key: str,
-    refresh: bool = Query(False, description="Force refresh all data from Matchplay API (profile and machine stats)")
+    refresh: bool = Query(False, description="Force refresh profile data from Matchplay API")
 ):
     """
     Get Matchplay statistics for a linked MNP player.
@@ -371,10 +370,12 @@ async def get_player_matchplay_stats(
     - Rating (value, deviation, game count, win/loss record)
     - IFPA data (rank, rating)
     - Tournament count
-    - Machine statistics (games played, wins, win % per machine)
 
-    Note: Profile data (rating, IFPA) is cached for 24 hours. Machine statistics
-    are cached until manually refreshed. Use refresh=true to force update all data.
+    Note: Profile data (rating, IFPA) is cached for 24 hours.
+    Use refresh=true to force update from Matchplay API.
+
+    Machine statistics are not available due to Matchplay API limitations.
+    See mnp-app-docs/api/MATCHPLAY_INTEGRATION.md for details.
     """
     # Get mapping
     mapping_query = """
@@ -395,66 +396,8 @@ async def get_player_matchplay_stats(
     matchplay_user_id = mapping['matchplay_user_id']
     matchplay_name = mapping['matchplay_name']
 
-    # Initialize client early - we'll need it for refresh or profile fetch
+    # Initialize client for profile fetch
     client = MatchplayClient()
-
-    # If refresh requested, fetch fresh machine stats from past 1 year
-    if refresh and client.is_configured():
-        try:
-            logger.info(f"Refreshing machine stats for player {player_key} (past 1 year)")
-            games = await client.get_all_player_games(matchplay_user_id)
-
-            if games:
-                aggregated_stats = client.aggregate_machine_stats(games, matchplay_user_id)
-
-                # Update database
-                with get_db_connection() as conn:
-                    conn.execute(text("""
-                        DELETE FROM matchplay_player_machine_stats
-                        WHERE matchplay_user_id = :matchplay_user_id
-                    """), {'matchplay_user_id': matchplay_user_id})
-
-                    for arena_name, arena_stats in aggregated_stats.items():
-                        conn.execute(text("""
-                            INSERT INTO matchplay_player_machine_stats
-                                (matchplay_user_id, machine_key, matchplay_arena_name,
-                                 games_played, wins, win_percentage, fetched_at)
-                            VALUES
-                                (:matchplay_user_id, NULL, :arena_name,
-                                 :games_played, :wins, :win_percentage, :fetched_at)
-                        """), {
-                            'matchplay_user_id': matchplay_user_id,
-                            'arena_name': arena_name,
-                            'games_played': arena_stats['games_played'],
-                            'wins': arena_stats['wins'],
-                            'win_percentage': arena_stats['win_percentage'],
-                            'fetched_at': datetime.utcnow()
-                        })
-                    conn.commit()
-
-                logger.info(f"Refreshed {len(aggregated_stats)} machines from {len(games)} games")
-        except MatchplayClientError as e:
-            logger.warning(f"Failed to refresh machine stats: {e}")
-
-    # Get cached machine stats (possibly just refreshed)
-    stats_query = """
-        SELECT machine_key, matchplay_arena_name, games_played, wins, win_percentage
-        FROM matchplay_player_machine_stats
-        WHERE matchplay_user_id = :matchplay_user_id
-        ORDER BY games_played DESC
-    """
-    stats = execute_query(stats_query, {'matchplay_user_id': matchplay_user_id})
-
-    machine_stats = [
-        MatchplayMachineStat(
-            machine_key=s['machine_key'],
-            matchplay_arena_name=s['matchplay_arena_name'],
-            games_played=s['games_played'],
-            wins=s['wins'],
-            win_percentage=s['win_percentage']
-        )
-        for s in stats
-    ]
 
     # Check if we have cached profile data that's less than 24 hours old
     rating = None
@@ -607,7 +550,7 @@ async def get_player_matchplay_stats(
         rating=rating,
         ifpa=ifpa,
         tournament_count=tournament_count,
-        machine_stats=machine_stats,
+        machine_stats=[],  # Machine stats not available due to API limitations
         profile_url=f"https://app.matchplay.events/users/{matchplay_user_id}"
     )
 
@@ -784,116 +727,6 @@ async def get_players_matchplay_ratings(
         "cached": not refresh,
         "last_updated": oldest_fetch.isoformat() if oldest_fetch else None
     }
-
-
-@router.post(
-    "/player/{player_key}/refresh-machine-stats",
-    summary="Refresh machine statistics for a linked player",
-    description="Fetches game history from Matchplay (past 1 year) and updates cached machine stats"
-)
-async def refresh_player_machine_stats(player_key: str):
-    """
-    Refresh machine statistics for a linked player from Matchplay.
-
-    This fetches the player's game history from the past 1 year and aggregates
-    their per-machine statistics (games played, wins, win percentage).
-
-    Note: Only games from the past 1 year are included to ensure data relevance.
-    Older tournament results are excluded.
-
-    Rate-limited by Matchplay API - use sparingly.
-    """
-    # Get mapping
-    mapping_query = """
-        SELECT matchplay_user_id, matchplay_name
-        FROM matchplay_player_mappings
-        WHERE mnp_player_key = :player_key
-    """
-    mappings = execute_query(mapping_query, {'player_key': player_key})
-
-    if not mappings:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Player '{player_key}' not linked to Matchplay"
-        )
-
-    matchplay_user_id = mappings[0]['matchplay_user_id']
-
-    client = MatchplayClient()
-    if not client.is_configured():
-        raise HTTPException(
-            status_code=503,
-            detail="Matchplay integration not configured"
-        )
-
-    try:
-        # Fetch all games from past 1 year
-        games = await client.get_all_player_games(matchplay_user_id)
-
-        if not games:
-            return {
-                "status": "success",
-                "message": "No games found in the past 1 year",
-                "games_processed": 0,
-                "machines_updated": 0
-            }
-
-        # Aggregate into machine stats
-        machine_stats = client.aggregate_machine_stats(games, matchplay_user_id)
-
-        # Update database - delete old stats and insert new ones
-        with get_db_connection() as conn:
-            # Delete existing stats for this player
-            conn.execute(text("""
-                DELETE FROM matchplay_player_machine_stats
-                WHERE matchplay_user_id = :matchplay_user_id
-            """), {'matchplay_user_id': matchplay_user_id})
-
-            # Insert new stats
-            for arena_name, stats in machine_stats.items():
-                # Try to map arena name to our machine_key
-                # For now, we'll leave machine_key as NULL and rely on the arena name
-                conn.execute(text("""
-                    INSERT INTO matchplay_player_machine_stats
-                        (matchplay_user_id, machine_key, matchplay_arena_name,
-                         games_played, wins, win_percentage, fetched_at)
-                    VALUES
-                        (:matchplay_user_id, NULL, :arena_name,
-                         :games_played, :wins, :win_percentage, :fetched_at)
-                """), {
-                    'matchplay_user_id': matchplay_user_id,
-                    'arena_name': arena_name,
-                    'games_played': stats['games_played'],
-                    'wins': stats['wins'],
-                    'win_percentage': stats['win_percentage'],
-                    'fetched_at': datetime.utcnow()
-                })
-
-            # Update last_synced timestamp
-            conn.execute(text("""
-                UPDATE matchplay_player_mappings
-                SET last_synced = :last_synced
-                WHERE matchplay_user_id = :matchplay_user_id
-            """), {
-                'matchplay_user_id': matchplay_user_id,
-                'last_synced': datetime.utcnow()
-            })
-
-            conn.commit()
-
-        logger.info(f"Refreshed machine stats for player {player_key}: {len(games)} games, {len(machine_stats)} machines")
-
-        return {
-            "status": "success",
-            "message": f"Updated machine stats from past 1 year of Matchplay data",
-            "games_processed": len(games),
-            "machines_updated": len(machine_stats),
-            "data_window": "past 1 year"
-        }
-
-    except MatchplayClientError as e:
-        logger.error(f"Matchplay API error refreshing stats: {e}")
-        raise HTTPException(status_code=503, detail=f"Matchplay API error: {str(e)}")
 
 
 @router.get(
