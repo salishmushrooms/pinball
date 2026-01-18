@@ -14,7 +14,6 @@ import {
   LoadingSpinner,
   StatCard,
   Button,
-  Table,
   Badge,
   Tooltip,
 } from '@/components/ui';
@@ -329,47 +328,6 @@ export function MatchplaySection({ playerKey, playerName }: MatchplaySectionProp
                 tooltip="Total games lost on Matchplay.events"
               />
             </div>
-
-            {/* Machine Stats */}
-            {stats.machine_stats && stats.machine_stats.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <h4 className="text-sm font-semibold text-gray-700">
-                    Machine Performance (Matchplay)
-                  </h4>
-                  <Tooltip content="Machine stats show data from the past 1 year (365 days) only" iconSize={12} />
-                </div>
-                <Table>
-                  <Table.Header>
-                    <Table.Row hoverable={false}>
-                      <Table.Head>Machine</Table.Head>
-                      <Table.Head>Games</Table.Head>
-                      <Table.Head>Wins</Table.Head>
-                      <Table.Head>Win %</Table.Head>
-                    </Table.Row>
-                  </Table.Header>
-                  <Table.Body>
-                    {stats.machine_stats.slice(0, 10).map((machine, idx) => (
-                      <Table.Row key={idx}>
-                        <Table.Cell>{machine.matchplay_arena_name}</Table.Cell>
-                        <Table.Cell>{machine.games_played}</Table.Cell>
-                        <Table.Cell>{machine.wins}</Table.Cell>
-                        <Table.Cell>
-                          {machine.win_percentage != null
-                            ? `${machine.win_percentage.toFixed(0)}%`
-                            : 'N/A'}
-                        </Table.Cell>
-                      </Table.Row>
-                    ))}
-                  </Table.Body>
-                </Table>
-                {stats.machine_stats.length > 10 && (
-                  <p className="text-sm text-gray-500 mt-2">
-                    Showing top 10 of {stats.machine_stats.length} machines
-                  </p>
-                )}
-              </div>
-            )}
 
             {/* Unlink Option */}
             <div className="pt-4 border-t border-gray-200">
