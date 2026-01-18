@@ -43,6 +43,35 @@ def get_current_machines_for_venue(venue_key: str) -> List[str]:
         return []
 
 
+def get_machine_counts_for_all_venues() -> dict:
+    """
+    Get machine counts for all venues in a single batch query.
+    Returns dict mapping venue_key to machine_count.
+
+    This eliminates the N+1 query problem by fetching all venue machine counts at once.
+    """
+    try:
+        # Get machine counts for each venue from their most recent season
+        query = """
+            WITH venue_max_seasons AS (
+                SELECT venue_key, MAX(season) as max_season
+                FROM venue_machines
+                GROUP BY venue_key
+            )
+            SELECT vm.venue_key, COUNT(*) as machine_count
+            FROM venue_machines vm
+            JOIN venue_max_seasons vms
+                ON vm.venue_key = vms.venue_key
+                AND vm.season = vms.max_season
+            WHERE vm.active = true
+            GROUP BY vm.venue_key
+        """
+        results = execute_query(query, {})
+        return {row['venue_key']: row['machine_count'] for row in results}
+    except Exception:
+        return {}
+
+
 @router.get(
     "",
     response_model=VenueList,
@@ -184,14 +213,16 @@ def list_venues_with_stats(
                 season=team['season']
             ))
 
+    # Get machine counts for ALL venues in a single batch query (eliminates N+1)
+    venue_machine_counts = get_machine_counts_for_all_venues()
+
     # Build enriched venue list
     enriched_venues = []
     for venue in venues:
         venue_key = venue['venue_key']
 
-        # Get current machine count for this venue
-        current_machines = get_current_machines_for_venue(venue_key)
-        machine_count = len(current_machines)
+        # Look up machine count from batch result (O(1) dict lookup instead of DB query)
+        machine_count = venue_machine_counts.get(venue_key, 0)
 
         # Get home teams for this venue
         home_teams = venue_home_teams.get(venue_key, [])

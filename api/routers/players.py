@@ -306,75 +306,103 @@ def get_player_dashboard_stats():
         num_highlights = min(7, max(5, len(ipr6_players)))
         selected_players = random.sample(ipr6_players, min(num_highlights, len(ipr6_players)))
 
-        for selected_player in selected_players:
-            player_key = selected_player['player_key']
+        # Get list of selected player keys for batch queries
+        selected_player_keys = [p['player_key'] for p in selected_players]
 
-            # Get their team and venue from latest season (prefer non-substitute appearances)
-            team_venue_query = """
-                SELECT s.team_key, t.team_name, s.venue_key, v.venue_name
+        # BATCH QUERY 1: Get team/venue for ALL selected players at once (eliminates N+1)
+        # Uses DISTINCT ON to get the most frequent team/venue per player
+        team_venue_batch_query = """
+            WITH player_team_counts AS (
+                SELECT
+                    s.player_key,
+                    s.team_key,
+                    t.team_name,
+                    s.venue_key,
+                    v.venue_name,
+                    COUNT(*) as game_count,
+                    ROW_NUMBER() OVER (PARTITION BY s.player_key ORDER BY COUNT(*) DESC) as rn
                 FROM scores s
                 JOIN teams t ON s.team_key = t.team_key AND s.season = t.season
                 JOIN venues v ON s.venue_key = v.venue_key
-                WHERE s.player_key = :player_key
+                WHERE s.player_key = ANY(:player_keys)
                   AND s.season = :latest_season
-                GROUP BY s.team_key, t.team_name, s.venue_key, v.venue_name
-                ORDER BY COUNT(*) DESC
-                LIMIT 1
-            """
-            team_venue_result = execute_query(team_venue_query, {
-                'player_key': player_key,
-                'latest_season': latest_season
-            })
+                GROUP BY s.player_key, s.team_key, t.team_name, s.venue_key, v.venue_name
+            )
+            SELECT player_key, team_key, team_name, venue_key, venue_name
+            FROM player_team_counts
+            WHERE rn = 1
+        """
+        team_venue_results = execute_query(team_venue_batch_query, {
+            'player_keys': selected_player_keys,
+            'latest_season': latest_season
+        })
 
-            team_key = None
-            team_name = None
-            venue_key = None
-            venue_name = None
+        # Index team/venue results by player_key for O(1) lookup
+        player_team_venue = {row['player_key']: row for row in team_venue_results}
 
-            if team_venue_result:
-                team_key = team_venue_result[0]['team_key']
-                team_name = team_venue_result[0]['team_name']
-                venue_key = team_venue_result[0]['venue_key']
-                venue_name = team_venue_result[0]['venue_name']
-
-            # Get their best machine/score from latest season based on percentile
-            # Use machine-level percentiles (venue_key = '_ALL_') for comparison
-            best_machine_query = """
-                WITH player_scores AS (
-                    SELECT
-                        s.machine_key,
-                        m.machine_name,
-                        s.score,
-                        (
-                            SELECT MAX(p.percentile)
-                            FROM score_percentiles p
-                            WHERE p.machine_key = s.machine_key
-                              AND p.venue_key = :venue_all
-                              AND p.season = s.season
-                              AND s.score >= p.score_threshold
-                        ) as percentile
-                    FROM scores s
-                    JOIN machines m ON s.machine_key = m.machine_key
-                    WHERE s.player_key = :player_key
-                      AND s.season = :latest_season
-                )
+        # BATCH QUERY 2: Get best machine/score for ALL selected players at once (eliminates N+1)
+        # Uses window function to rank each player's scores by percentile
+        best_machine_batch_query = """
+            WITH player_scores AS (
                 SELECT
+                    s.player_key,
+                    s.machine_key,
+                    m.machine_name,
+                    s.score,
+                    (
+                        SELECT MAX(p.percentile)
+                        FROM score_percentiles p
+                        WHERE p.machine_key = s.machine_key
+                          AND p.venue_key = :venue_all
+                          AND p.season = s.season
+                          AND s.score >= p.score_threshold
+                    ) as percentile
+                FROM scores s
+                JOIN machines m ON s.machine_key = m.machine_key
+                WHERE s.player_key = ANY(:player_keys)
+                  AND s.season = :latest_season
+            ),
+            ranked_scores AS (
+                SELECT
+                    player_key,
                     machine_key,
                     machine_name,
                     score,
-                    COALESCE(percentile, 0) as percentile
+                    COALESCE(percentile, 0) as percentile,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY player_key
+                        ORDER BY COALESCE(percentile, 0) DESC, score DESC
+                    ) as rn
                 FROM player_scores
-                ORDER BY percentile DESC, score DESC
-                LIMIT 1
-            """
-            best_machine_result = execute_query(best_machine_query, {
-                'player_key': player_key,
-                'latest_season': latest_season,
-                'venue_all': '_ALL_'
-            })
+            )
+            SELECT player_key, machine_key, machine_name, score, percentile
+            FROM ranked_scores
+            WHERE rn = 1
+        """
+        best_machine_results = execute_query(best_machine_batch_query, {
+            'player_keys': selected_player_keys,
+            'latest_season': latest_season,
+            'venue_all': '_ALL_'
+        })
 
-            if best_machine_result and len(best_machine_result) > 0:
-                best = best_machine_result[0]
+        # Index best machine results by player_key for O(1) lookup
+        player_best_machine = {row['player_key']: row for row in best_machine_results}
+
+        # Build highlights from batch results (no more N+1 queries!)
+        for selected_player in selected_players:
+            player_key = selected_player['player_key']
+
+            # Lookup team/venue from batch result
+            team_venue = player_team_venue.get(player_key, {})
+            team_key = team_venue.get('team_key')
+            team_name = team_venue.get('team_name')
+            venue_key = team_venue.get('venue_key')
+            venue_name = team_venue.get('venue_name')
+
+            # Lookup best machine from batch result
+            best = player_best_machine.get(player_key)
+
+            if best:
                 player_highlights.append(PlayerHighlight(
                     player_key=player_key,
                     player_name=selected_player['name'],
