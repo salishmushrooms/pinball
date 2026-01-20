@@ -108,6 +108,7 @@ def load_season_data(season: int):
                 venues_data = json.load(f)
                 for venue_key, venue_info in venues_data.items():
                     venue_metadata[venue_key] = {
+                        'name': venue_info.get('name', ''),
                         'address': venue_info.get('address', ''),
                         'neighborhood': venue_info.get('neighborhood', '')
                     }
@@ -117,8 +118,10 @@ def load_season_data(season: int):
             venue = match_parser.extract_venue_from_match(match)
             venue_key = venue['venue_key']
 
-            # Enrich with metadata from venues.json
+            # Enrich with metadata from venues.json (including canonical name)
             if venue_key in venue_metadata:
+                if venue_metadata[venue_key].get('name'):
+                    venue['venue_name'] = venue_metadata[venue_key]['name']
                 venue['address'] = venue_metadata[venue_key].get('address')
                 venue['neighborhood'] = venue_metadata[venue_key].get('neighborhood')
 

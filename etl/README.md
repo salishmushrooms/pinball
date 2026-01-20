@@ -220,15 +220,42 @@ TRUNCATE TABLE player_machine_stats;
 
 Database connection is configured via environment variables in `.env`:
 
-```
+```bash
+# Local database (individual components)
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=mnp_analyzer
 DB_USER=mnp_user
 DB_PASSWORD=your_password
+
+# Local database URL (preferred - checked first by config.py)
+LOCAL_DATABASE_URL=postgresql://mnp_user:password@localhost:5432/mnp_analyzer
+
+# Production database (Railway public URL)
+# ⚠️ Store this but DON'T set as DATABASE_URL - prevents accidental prod writes
+DATABASE_PUBLIC_URL=postgresql://postgres:PASSWORD@host:port/railway
 ```
 
-Or via `DATABASE_URL`:
+### Database URL Priority
+
+The `etl/config.py` checks environment variables in this order:
+1. `LOCAL_DATABASE_URL` → Preferred for local development
+2. `DATABASE_URL` → Fallback (keep this pointing to local too)
+3. Hardcoded default → `postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer`
+
+### Running Against Production
+
+**Never set `DATABASE_URL` to production by default.** Instead, explicitly override when needed:
+
+```bash
+# Explicitly target production (intentional, not accidental)
+DATABASE_URL="$DATABASE_PUBLIC_URL" python etl/load_season.py --season 24
+
+# Or for the full pipeline
+DATABASE_URL="$DATABASE_PUBLIC_URL" python etl/run_full_pipeline.py --seasons 24
 ```
-DATABASE_URL=postgresql://mnp_user:password@localhost:5432/mnp_analyzer
-```
+
+This pattern ensures:
+- Local development never accidentally hits production
+- Production operations require explicit intent
+- Credentials stay in `.env` (gitignored) but aren't automatically active for prod

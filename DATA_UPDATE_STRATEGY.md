@@ -141,7 +141,20 @@ Use this workflow after Monday night matches complete and JSON files are added t
 
 - **Frequency:** Weekly (after Monday night matches)
 - **Timing:** Tuesday morning after match data is verified and committed
-- **Duration:** ~2-3 minutes total
+- **Duration:** ~1-2 minutes total
+
+### What Gets Updated Weekly vs End-of-Season
+
+| Data | Weekly? | Why |
+|------|---------|-----|
+| Raw scores/games/matches | ✅ Yes | Core match data for all lookups |
+| Team machine picks | ✅ Yes | Powers matchup predictions ("Team X picks this 40%") |
+| Match points | ✅ Yes | Powers standings and results |
+| Score percentiles | ❌ No | Incomplete mid-season; wait for season end |
+| Player machine stats | ❌ No | Depends on percentiles; wait for season end |
+| Player totals | ❌ No | Cross-season aggregates; minimal mid-season value |
+
+**Rationale:** Percentiles and player stats are most valuable with complete season data. Mid-season percentiles have limited analytical value since the distribution is incomplete. Team pick patterns and match points, however, are directly useful for matchup analysis and standings.
 
 ### Weekly Update Commands
 
@@ -155,40 +168,32 @@ cd mnp-data-archive && git pull origin main && cd ..
 # 3. Ensure local PostgreSQL is running
 pg_isready -h localhost -p 5432
 
-# 4. Load new match data locally
-DATABASE_URL=postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer \
-  python etl/load_season.py --season 23
+# 4. Load new match data locally (skip most aggregations)
+python etl/update_season.py --season 23 --skip-aggregations
 
-# 5. Recalculate percentiles (required before player stats)
-DATABASE_URL=postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer \
-  python etl/calculate_percentiles.py
+# 5. Calculate aggregates needed for matchup analysis
+python etl/calculate_team_machine_picks.py --season 23
+python etl/calculate_match_points.py --season 23
 
-# 6. Recalculate player stats
-DATABASE_URL=postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer \
-  python etl/calculate_player_stats.py
-
-# 7. Export local database
+# 6. Export local database
 pg_dump -h localhost -U mnp_user -d mnp_analyzer \
   --data-only --no-owner --no-acl > /tmp/mnp_data.sql
 
-# 8. Import to Railway
-psql "postgresql://postgres:YOUR_PASSWORD@shinkansen.proxy.rlwy.net:49342/railway" \
-  < /tmp/mnp_data.sql
+# 7. Import to Railway
+railway connect Postgres--OkR < /tmp/mnp_data.sql
 ```
 
 ### Weekly Update Script
 
-Create `scripts/update_season.sh`:
+Create `scripts/weekly_update.sh`:
 
 ```bash
 #!/bin/bash
-# Weekly season data update script
+# Weekly season data update script (optimized for mid-season)
 
 SEASON=${1:-23}
-LOCAL_DB="postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer"
-RAILWAY_DB="postgresql://postgres:YOUR_PASSWORD@shinkansen.proxy.rlwy.net:49342/railway"
 
-echo "=== MNP Season $SEASON Update ==="
+echo "=== MNP Season $SEASON Weekly Update ==="
 echo ""
 
 # Check local postgres
@@ -201,17 +206,17 @@ fi
 echo "1. Pulling latest data..."
 cd mnp-data-archive && git pull origin main && cd ..
 
-# Load match data
+# Load match data (skip aggregations - we'll run specific ones)
 echo "2. Loading match data..."
-DATABASE_URL=$LOCAL_DB python etl/load_season.py --season $SEASON
+python etl/update_season.py --season $SEASON --skip-aggregations
 
-# Calculate percentiles
-echo "3. Calculating percentiles..."
-DATABASE_URL=$LOCAL_DB python etl/calculate_percentiles.py
+# Calculate team picks (powers matchup predictions)
+echo "3. Calculating team machine picks..."
+python etl/calculate_team_machine_picks.py --season $SEASON
 
-# Calculate player stats
-echo "4. Calculating player stats..."
-DATABASE_URL=$LOCAL_DB python etl/calculate_player_stats.py
+# Calculate match points (powers standings)
+echo "4. Calculating match points..."
+python etl/calculate_match_points.py --season $SEASON
 
 # Export
 echo "5. Exporting database..."
@@ -220,17 +225,20 @@ pg_dump -h localhost -U mnp_user -d mnp_analyzer \
 
 # Import to Railway
 echo "6. Importing to Railway..."
-psql "$RAILWAY_DB" < /tmp/mnp_data.sql
+railway connect Postgres--OkR < /tmp/mnp_data.sql
 
 echo ""
-echo "=== Update Complete ==="
+echo "=== Weekly Update Complete ==="
 echo "Verify at: https://your-api.railway.app/seasons/$SEASON/status"
+echo ""
+echo "Note: Percentiles and player stats are NOT recalculated weekly."
+echo "Run full pipeline at end of season for complete stats."
 ```
 
 Usage:
 ```bash
-chmod +x scripts/update_season.sh
-./scripts/update_season.sh 23
+chmod +x scripts/weekly_update.sh
+./scripts/weekly_update.sh 23
 ```
 
 ### Performance Expectations
@@ -238,11 +246,66 @@ chmod +x scripts/update_season.sh
 | Step | Local Time | Notes |
 |------|------------|-------|
 | Load matches | ~10-20s | Only loads NEW matches (skips duplicates) |
-| Calculate percentiles | ~15s | All seasons, ~150 machines each |
-| Calculate player stats | ~30-45s | All seasons |
+| Calculate team picks | ~5-10s | Single season |
+| Calculate match points | ~5s | Single season |
 | pg_dump | ~5s | Full database export |
-| psql import | ~30-60s | Bulk network transfer |
-| **Total** | **~2-3 min** | Fully automated |
+| Railway import | ~30-60s | Bulk network transfer |
+| **Total** | **~1-2 min** | Faster than full pipeline |
+
+### Frontend Impact During Season
+
+With this weekly approach:
+- ✅ **Matchup page**: Team pick patterns current, raw scores current
+- ✅ **Standings**: Match points current
+- ⚠️ **Player detail**: Machine stats summary may show stale percentile rankings
+- ⚠️ **Machine detail**: Percentile thresholds based on previous seasons only
+- ⚠️ **Matchup page**: Player confidence intervals based on previous seasons
+
+---
+
+## End-of-Season Full Recalculation
+
+When a season is complete, run the full pipeline to generate all aggregations including percentiles and player stats.
+
+### When to Run
+
+- After the final match of the season
+- When you need complete statistical analysis for the season
+- Before archiving season data
+
+### End-of-Season Commands
+
+```bash
+# 1. Ensure all match data is loaded
+cd mnp-data-archive && git pull origin main && cd ..
+
+# 2. Run full pipeline (includes all aggregations)
+python etl/update_season.py --season 23
+
+# 3. Export and sync to production
+pg_dump -h localhost -U mnp_user -d mnp_analyzer \
+  --data-only --no-owner --no-acl > /tmp/mnp_data.sql
+railway connect Postgres--OkR < /tmp/mnp_data.sql
+```
+
+### What Gets Calculated
+
+| Aggregation | Purpose |
+|-------------|---------|
+| `calculate_percentiles.py` | Score distribution thresholds (25th, 50th, 75th, 90th, 95th) per machine/venue/season |
+| `calculate_player_stats.py` | Player performance aggregates with percentile rankings |
+| `calculate_team_machine_picks.py` | Team machine selection patterns |
+| `calculate_match_points.py` | Match point totals for standings |
+| `calculate_player_totals.py` | Cross-season player aggregates |
+
+### Performance Expectations
+
+| Step | Time | Notes |
+|------|------|-------|
+| Load season | ~10-20s | Upserts existing data |
+| All aggregations | ~60-90s | Full recalculation |
+| Export + import | ~60s | Bulk transfer |
+| **Total** | **~3 min** | Complete refresh |
 
 ---
 
@@ -253,45 +316,25 @@ Use this workflow when adding a complete historical season or rebuilding the dat
 ### Full Season Backfill
 
 ```bash
-SEASON=21
-
-# Load all match data
-DATABASE_URL=postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer \
-  python etl/load_season.py --season $SEASON
-
-# Calculate percentiles
-DATABASE_URL=postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer \
-  python etl/calculate_percentiles.py
-
-# Calculate player stats
-DATABASE_URL=postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer \
-  python etl/calculate_player_stats.py
+# Load a single historical season with full aggregations
+python etl/update_season.py --season 21
 ```
 
 ### Batch Loading Multiple Seasons
 
 ```bash
-#!/bin/bash
-# backfill_all_seasons.sh
+# Use the full pipeline runner for multiple seasons
+python etl/run_full_pipeline.py --seasons 20 21 22 23
 
-LOCAL_DB="postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer"
-
-for SEASON in 18 19 20 21 22 23; do
-  echo "Processing Season $SEASON..."
-  DATABASE_URL=$LOCAL_DB python etl/load_season.py --season $SEASON
-done
-
-# Calculate aggregates once after all data loaded
-echo "Calculating percentiles..."
-DATABASE_URL=$LOCAL_DB python etl/calculate_percentiles.py
-
-echo "Calculating player stats..."
-DATABASE_URL=$LOCAL_DB python etl/calculate_player_stats.py
-
-echo "All seasons processed!"
+# Or load all available seasons
+python etl/run_full_pipeline.py --all-seasons
 ```
 
-Then export and import to Railway as usual.
+Then export and import to Railway:
+```bash
+pg_dump -h localhost -U mnp_user -d mnp_analyzer --data-only --no-owner --no-acl > /tmp/mnp_data.sql
+railway connect Postgres--OkR < /tmp/mnp_data.sql
+```
 
 ---
 
@@ -440,20 +483,26 @@ DATABASE_URL=$LOCAL_DB python etl/calculate_player_stats.py
 
 ### Preseason (New Season Setup)
 ```bash
-DATABASE_URL=postgresql://mnp_user:changeme@localhost:5432/mnp_analyzer \
-  python etl/load_preseason.py --season 23
+python etl/load_preseason.py --season 23
 pg_dump -h localhost -U mnp_user -d mnp_analyzer --data-only --no-owner --no-acl > /tmp/mnp_data.sql
-psql "$RAILWAY_URL" < /tmp/mnp_data.sql
+railway connect Postgres--OkR < /tmp/mnp_data.sql
 ```
 
-### Weekly Update
+### Weekly Update (During Season)
 ```bash
 cd mnp-data-archive && git pull && cd ..
-DATABASE_URL=$LOCAL_DB python etl/load_season.py --season 23
-DATABASE_URL=$LOCAL_DB python etl/calculate_percentiles.py
-DATABASE_URL=$LOCAL_DB python etl/calculate_player_stats.py
+python etl/update_season.py --season 23 --skip-aggregations
+python etl/calculate_team_machine_picks.py --season 23
+python etl/calculate_match_points.py --season 23
 pg_dump -h localhost -U mnp_user -d mnp_analyzer --data-only --no-owner --no-acl > /tmp/mnp_data.sql
-psql "$RAILWAY_URL" < /tmp/mnp_data.sql
+railway connect Postgres--OkR < /tmp/mnp_data.sql
+```
+
+### End-of-Season (Full Recalculation)
+```bash
+python etl/update_season.py --season 23
+pg_dump -h localhost -U mnp_user -d mnp_analyzer --data-only --no-owner --no-acl > /tmp/mnp_data.sql
+railway connect Postgres--OkR < /tmp/mnp_data.sql
 ```
 
 ### Verify Production
@@ -465,4 +514,4 @@ curl "https://your-api.railway.app/seasons/23/matches"
 ---
 
 **Current Season:** 23 (Upcoming - starts February 2025)
-**Last Update:** 2026-01-14
+**Last Update:** 2026-01-18
