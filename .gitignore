@@ -55,11 +55,15 @@ Thumbs.db
 !.env.example
 frontend/.env.local
 
-# Node.js
+# Node.js / Next.js / Vercel
 node_modules/
 frontend/node_modules/
 .next/
 frontend/.next/
+out/
+.vercel
+*.tsbuildinfo
+next-env.d.ts
 
 # Project specific
 output/
@@ -98,4 +102,4 @@ htmlcov/
 # Private task tracking
 .tasks/
 
-.claude/*
+.claude/
