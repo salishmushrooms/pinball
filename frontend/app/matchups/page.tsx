@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import {
   MatchupAnalysis,
@@ -28,6 +29,9 @@ import { MachinePredictionCard } from '@/components/MachinePredictionCard';
 import { filterSupportedSeasons } from '@/lib/utils';
 
 export default function MatchupsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [currentSeason, setCurrentSeason] = useState<number | null>(null);
   const [currentWeek, setCurrentWeek] = useState<number | null>(null);
   const [seasonStatus, setSeasonStatus] = useState<SeasonStatus | null>(null);
@@ -38,6 +42,15 @@ export default function MatchupsPage() {
   const [loading, setLoading] = useState(false);
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [initialMatchFromUrl, setInitialMatchFromUrl] = useState<string | null>(null);
+
+  // Read match key from URL on initial load
+  useEffect(() => {
+    const matchFromUrl = searchParams.get('match');
+    if (matchFromUrl) {
+      setInitialMatchFromUrl(matchFromUrl);
+    }
+  }, [searchParams]);
 
   // Load current season and matches on mount using combined endpoint
   useEffect(() => {
@@ -90,17 +103,31 @@ export default function MatchupsPage() {
     loadCurrentSeasonMatches();
   }, []);
 
+  // Update URL with match key
+  const updateUrlWithMatch = useCallback((matchKey: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('match', matchKey);
+    router.replace(`/matchups?${params.toString()}`, { scroll: false });
+  }, [searchParams, router]);
+
   // Load matchup analysis
-  const handleAnalyzeMatchup = async () => {
-    if (!selectedMatch) {
+  const handleAnalyzeMatchup = useCallback(async (matchKeyOverride?: string) => {
+    const matchKey = matchKeyOverride || selectedMatch;
+
+    if (!matchKey) {
       setError('Please select a match');
       return;
     }
 
-    const match = matches.find((m) => m.match_key === selectedMatch);
+    const match = matches.find((m) => m.match_key === matchKey);
     if (!match) {
       setError('Selected match not found');
       return;
+    }
+
+    // If using override, also update the selected match state
+    if (matchKeyOverride && matchKeyOverride !== selectedMatch) {
+      setSelectedMatch(matchKeyOverride);
     }
 
     setLoading(true);
@@ -120,6 +147,9 @@ export default function MatchupsPage() {
         seasons: seasonsToAnalyze,
       });
       setMatchup(data);
+
+      // Update URL with the analyzed match
+      updateUrlWithMatch(matchKey);
 
       // Fetch Matchplay ratings for all players in both teams
       const allPlayerKeys = new Set<string>();
@@ -141,7 +171,19 @@ export default function MatchupsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedMatch, matches, currentSeason, updateUrlWithMatch]);
+
+  // Auto-analyze match from URL after matches are loaded
+  useEffect(() => {
+    if (!loadingMatches && initialMatchFromUrl && matches.length > 0 && !matchup) {
+      const matchExists = matches.find((m) => m.match_key === initialMatchFromUrl);
+      if (matchExists) {
+        handleAnalyzeMatchup(initialMatchFromUrl);
+      }
+      // Clear the initial URL match so we don't re-trigger
+      setInitialMatchFromUrl(null);
+    }
+  }, [loadingMatches, initialMatchFromUrl, matches, matchup, handleAnalyzeMatchup]);
 
   const formatScore = (score: number): string => {
     if (score >= 1_000_000_000) {
@@ -237,7 +279,7 @@ export default function MatchupsPage() {
 
           <div className="mt-6">
             <Button
-              onClick={handleAnalyzeMatchup}
+              onClick={() => handleAnalyzeMatchup()}
               disabled={loading || !selectedMatch}
               variant="primary"
             >
