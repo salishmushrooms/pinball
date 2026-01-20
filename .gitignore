@@ -98,4 +98,4 @@ htmlcov/
 # Private task tracking
 .tasks/
 
-.claude
+.claude/*
