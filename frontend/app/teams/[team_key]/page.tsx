@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Team, TeamMachineStat, TeamPlayer, Venue, MatchplayRatingInfo } from '@/lib/types';
+import { Team, TeamMachineStat, TeamPlayer, Venue, MatchplayRatingInfo, TeamSeasonMatch } from '@/lib/types';
 import { RoundMultiSelect } from '@/components/RoundMultiSelect';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
@@ -44,6 +44,8 @@ export default function TeamDetailPage() {
   const [matchplayRatings, setMatchplayRatings] = useState<Record<string, MatchplayRatingInfo>>({});
   const [matchplayLastUpdated, setMatchplayLastUpdated] = useState<string | null>(null);
   const [matchplayRefreshing, setMatchplayRefreshing] = useState(false);
+  const [schedule, setSchedule] = useState<TeamSeasonMatch[]>([]);
+  const [currentSeason, setCurrentSeason] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +60,7 @@ export default function TeamDetailPage() {
   const [rosterSortDirection, setRosterSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Collapsible section states
+  const [scheduleOpen, setScheduleOpen] = useState(true);
   const [rosterOpen, setRosterOpen] = useState(true);
   const [machinesOpen, setMachinesOpen] = useState(true);
 
@@ -65,6 +68,22 @@ export default function TeamDetailPage() {
     fetchVenues();
     fetchSeasons();
   }, []);
+
+  // Fetch schedule for the current/latest season when team is loaded
+  useEffect(() => {
+    if (!teamKey || availableSeasons.length === 0) return;
+
+    const latestSeason = Math.max(...availableSeasons);
+    setCurrentSeason(latestSeason);
+
+    api.getTeamSchedule(latestSeason, teamKey)
+      .then((data) => {
+        setSchedule(data.schedule);
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch team schedule:', err);
+      });
+  }, [teamKey, availableSeasons]);
 
   async function fetchSeasons() {
     try {
@@ -330,6 +349,118 @@ export default function TeamDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Season Schedule Section */}
+      {schedule.length > 0 && currentSeason && (
+        <div
+          className="border rounded-lg"
+          style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg)' }}
+        >
+          <button
+            onClick={() => setScheduleOpen(!scheduleOpen)}
+            className="w-full flex items-center justify-between px-6 py-4 transition-colors hover:opacity-80"
+          >
+            <div className="flex items-center gap-3">
+              <h2
+                className="text-xl font-semibold"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                Season {currentSeason} Schedule
+              </h2>
+              <span
+                className="text-sm"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                ({schedule.filter(m => m.state === 'scheduled').length} upcoming)
+              </span>
+            </div>
+            <svg
+              className={cn(
+                'w-5 h-5 transition-transform',
+                scheduleOpen && 'transform rotate-180'
+              )}
+              style={{ color: 'var(--text-muted)' }}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+
+          {scheduleOpen && (
+            <div className="px-6 pb-6 border-t" style={{ borderColor: 'var(--border)' }}>
+              <div className="pt-4 space-y-2">
+                {schedule.map((match) => {
+                  const isUpcoming = match.state === 'scheduled';
+                  return (
+                    <div
+                      key={match.match_key}
+                      className={cn(
+                        'flex items-center justify-between p-3 rounded-lg border',
+                        isUpcoming ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                      )}
+                      style={{ borderColor: 'var(--border)' }}
+                    >
+                      <div className="flex items-center gap-4">
+                        <span
+                          className="text-sm font-medium w-16"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          Week {match.week}
+                        </span>
+                        <span
+                          className="text-sm w-24"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          {match.date || 'TBD'}
+                        </span>
+                        <span
+                          className="text-sm w-8 text-center"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          {match.is_home ? 'vs' : '@'}
+                        </span>
+                        <Link
+                          href={`/teams/${match.opponent}`}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                        >
+                          {match.opponent_name}
+                        </Link>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {isUpcoming ? (
+                          <Link
+                            href={`/matchups?match=${match.match_key}`}
+                            className="px-3 py-1 text-xs font-medium rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                          >
+                            Matchup Analysis
+                          </Link>
+                        ) : (
+                          <span
+                            className="px-3 py-1 text-xs rounded-full"
+                            style={{
+                              backgroundColor: 'var(--bg-secondary)',
+                              color: 'var(--text-muted)',
+                            }}
+                          >
+                            Completed
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Filters */}
       <FilterPanel

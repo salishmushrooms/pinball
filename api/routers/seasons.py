@@ -358,6 +358,7 @@ def get_team_schedule(season: int, team_key: str):
             opponent_name = row['away_name'] if is_home else row['home_name']
 
             schedule.append({
+                "match_key": row['match_key'],
                 "week": row['week'],
                 "date": row['date'].strftime("%m/%d/%Y") if row['date'] else None,
                 "opponent": opponent_key,

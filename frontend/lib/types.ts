@@ -587,6 +587,27 @@ export interface SeasonMatchesResponse {
   count: number;
 }
 
+// Team Season Schedule Types (from /seasons/{season}/teams/{team_key}/schedule endpoint)
+export interface TeamSeasonMatch {
+  match_key: string;
+  week: number;
+  date: string | null;
+  opponent: string;
+  opponent_name: string;
+  venue: string;
+  is_home: boolean;
+  state: 'scheduled' | 'complete';
+}
+
+export interface TeamScheduleResponse {
+  season: number;
+  team_key: string;
+  team_name: string;
+  home_venue: string | null;
+  schedule: TeamSeasonMatch[];
+  roster: string[];
+}
+
 // ============================================================================
 // Prediction Types
 // ============================================================================

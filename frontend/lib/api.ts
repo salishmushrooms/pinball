@@ -44,6 +44,7 @@ import {
   MatchupsInitResponse,
   SeasonSchedule,
   SeasonMatchesResponse,
+  TeamScheduleResponse,
   MachinePredictionResponse,
   MatchplayStatus,
   MatchplayLookupResult,
@@ -372,6 +373,13 @@ export const api = {
   getSeasonMatches: (season: number, week?: number): Promise<SeasonMatchesResponse> => {
     const params = week ? { week } : undefined;
     return fetchAPI<SeasonMatchesResponse>(`/seasons/${season}/matches`, params);
+  },
+
+  /**
+   * Get a team's schedule for a specific season
+   */
+  getTeamSchedule: (season: number, teamKey: string): Promise<TeamScheduleResponse> => {
+    return fetchAPI<TeamScheduleResponse>(`/seasons/${season}/teams/${teamKey}/schedule`);
   },
 
   // Prediction Endpoints
