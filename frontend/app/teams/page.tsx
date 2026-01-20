@@ -140,7 +140,7 @@ export default function TeamsPage() {
                             size="sm"
                           />
                           <Link
-                            href={`/teams/${team.team_key}?season=${team.season}`}
+                            href={`/teams/${team.team_key}`}
                             className="font-medium hover:underline"
                             style={{ color: 'var(--link-color)' }}
                           >
