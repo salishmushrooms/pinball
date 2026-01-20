@@ -18,7 +18,7 @@ export function MachineDashboard({ stats }: MachineDashboardProps) {
   } = stats;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
       {/* Stats Cards - Left Side */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard
