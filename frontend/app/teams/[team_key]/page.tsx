@@ -402,54 +402,52 @@ export default function TeamDetailPage() {
                     <div
                       key={match.match_key}
                       className={cn(
-                        'flex items-center justify-between p-3 rounded-lg border',
+                        'flex flex-wrap items-center gap-2 p-3 rounded-lg border',
                         isUpcoming ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                       )}
                       style={{ borderColor: 'var(--border)' }}
                     >
-                      <div className="flex items-center gap-4">
-                        <span
-                          className="text-sm font-medium w-16"
-                          style={{ color: 'var(--text-muted)' }}
-                        >
-                          Week {match.week}
-                        </span>
-                        <span
-                          className="text-sm w-24"
-                          style={{ color: 'var(--text-muted)' }}
-                        >
-                          {match.date || 'TBD'}
-                        </span>
-                        <span
-                          className="text-sm w-8 text-center"
-                          style={{ color: 'var(--text-muted)' }}
-                        >
-                          {match.is_home ? 'vs' : '@'}
-                        </span>
-                        <Link
-                          href={`/teams/${match.opponent}`}
-                          className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                        >
-                          {match.opponent_name}
-                        </Link>
-                      </div>
-                      <div className="flex items-center gap-3">
+                      <span
+                        className="text-sm font-medium"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        Wk {match.week}
+                      </span>
+                      <span
+                        className="text-sm hidden sm:inline"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        {match.date || 'TBD'}
+                      </span>
+                      <span
+                        className="text-sm"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        {match.is_home ? 'vs' : '@'}
+                      </span>
+                      <Link
+                        href={`/teams/${match.opponent}`}
+                        className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                      >
+                        {match.opponent_name}
+                      </Link>
+                      <div className="ml-auto">
                         {isUpcoming ? (
                           <Link
                             href={`/matchups?match=${match.match_key}`}
-                            className="px-3 py-1 text-xs font-medium rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                            className="px-2 py-1 text-xs font-medium rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
                           >
-                            Matchup Analysis
+                            Match
                           </Link>
                         ) : (
                           <span
-                            className="px-3 py-1 text-xs rounded-full"
+                            className="px-2 py-1 text-xs rounded-full"
                             style={{
                               backgroundColor: 'var(--bg-secondary)',
                               color: 'var(--text-muted)',
                             }}
                           >
-                            Completed
+                            Done
                           </span>
                         )}
                       </div>
