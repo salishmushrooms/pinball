@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import {
@@ -29,6 +29,14 @@ import { MachinePredictionCard } from '@/components/MachinePredictionCard';
 import { filterSupportedSeasons } from '@/lib/utils';
 
 export default function MatchupsPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <MatchupsPageContent />
+    </Suspense>
+  );
+}
+
+function MatchupsPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
