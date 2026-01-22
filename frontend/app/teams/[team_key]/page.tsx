@@ -396,64 +396,84 @@ export default function TeamDetailPage() {
           {scheduleOpen && (
             <div className="px-6 pb-6 border-t" style={{ borderColor: 'var(--border)' }}>
               <div className="pt-4 space-y-2">
-                {schedule.map((match) => {
-                  const isUpcoming = match.state === 'scheduled';
-                  return (
-                    <div
-                      key={match.match_key}
-                      className={cn(
-                        'flex flex-wrap items-center gap-2 p-3 rounded-lg border',
-                        isUpcoming ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                      )}
-                      style={{ borderColor: 'var(--border)' }}
-                    >
-                      <span
-                        className="text-sm font-medium"
-                        style={{ color: 'var(--text-muted)' }}
-                      >
-                        Wk {match.week}
-                      </span>
-                      <span
-                        className="text-sm hidden sm:inline"
-                        style={{ color: 'var(--text-muted)' }}
-                      >
-                        {match.date || 'TBD'}
-                      </span>
-                      <span
-                        className="text-sm"
-                        style={{ color: 'var(--text-muted)' }}
-                      >
-                        {match.is_home ? 'vs' : '@'}
-                      </span>
-                      <Link
-                        href={`/teams/${match.opponent}`}
-                        className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                      >
-                        {match.opponent_name}
-                      </Link>
-                      <div className="ml-auto">
-                        {isUpcoming ? (
-                          <Link
-                            href={`/matchups?match=${match.match_key}`}
-                            className="px-2 py-1 text-xs font-medium rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-                          >
-                            Match
-                          </Link>
-                        ) : (
-                          <span
-                            className="px-2 py-1 text-xs rounded-full"
-                            style={{
-                              backgroundColor: 'var(--bg-secondary)',
-                              color: 'var(--text-muted)',
-                            }}
-                          >
-                            Done
-                          </span>
+                {(() => {
+                  // Find the next unplayed match (scheduled match with lowest week)
+                  const scheduledMatches = schedule.filter(m => m.state === 'scheduled');
+                  const nextUnplayedMatch = scheduledMatches.length > 0
+                    ? scheduledMatches.reduce((min, m) => m.week < min.week ? m : min, scheduledMatches[0])
+                    : null;
+
+                  return schedule.map((match) => {
+                    const isUpcoming = match.state === 'scheduled';
+                    const isNextMatch = nextUnplayedMatch?.match_key === match.match_key;
+
+                    return (
+                      <div
+                        key={match.match_key}
+                        className={cn(
+                          'flex flex-wrap items-center gap-2 p-3 rounded-lg border',
+                          isNextMatch ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                         )}
+                        style={{ borderColor: 'var(--border)' }}
+                      >
+                        <span
+                          className="text-sm font-medium"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          Wk {match.week}
+                        </span>
+                        <span
+                          className="text-sm hidden sm:inline"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          {match.date || 'TBD'}
+                        </span>
+                        <span
+                          className="text-sm"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          {match.is_home ? 'vs' : '@'}
+                        </span>
+                        <Link
+                          href={`/teams/${match.opponent}`}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                        >
+                          {match.opponent_name}
+                        </Link>
+                        <div className="ml-auto">
+                          {isNextMatch ? (
+                            <Link
+                              href={`/matchups?match=${match.match_key}`}
+                              className="px-2 py-1 text-xs font-medium rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                            >
+                              Analyze Matchup
+                            </Link>
+                          ) : isUpcoming ? (
+                            <span
+                              className="px-2 py-1 text-xs rounded-full"
+                              style={{
+                                backgroundColor: 'var(--bg-secondary)',
+                                color: 'var(--text-muted)',
+                              }}
+                            >
+                              Week {match.week}
+                            </span>
+                          ) : (
+                            <span
+                              className="px-2 py-1 text-xs rounded-full"
+                              style={{
+                                backgroundColor: 'var(--bg-secondary)',
+                                color: 'var(--text-muted)',
+                              }}
+                            >
+                              Done
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  });
+                })()}
               </div>
             </div>
           )}

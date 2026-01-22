@@ -79,3 +79,8 @@ cd frontend && npm install && npm run dev
 - **[.claude/DEVELOPMENT_GUIDE.md](.claude/DEVELOPMENT_GUIDE.md)** - Complete development workflows
 - **[mnp-app-docs/DATABASE_OPERATIONS.md](mnp-app-docs/DATABASE_OPERATIONS.md)** - Database operations
 - **API Docs**: http://localhost:8000/docs (when running)
+
+## Railway
+railway login --browserless
+railway connect "Postgres--OkR"
+

@@ -143,17 +143,43 @@ function MatchupsPageContent() {
     setMatchup(null);
 
     try {
-      // Use current season + previous season for better data coverage
-      const seasonsToAnalyze = currentSeason
-        ? [currentSeason, currentSeason - 1]
-        : [23, 22];
+      let data: MatchupAnalysis;
 
-      const data = await api.getMatchupAnalysis({
-        home_team: match.home_key,
-        away_team: match.away_key,
-        venue: match.venue.key,
-        seasons: seasonsToAnalyze,
-      });
+      // For current week scheduled matches, try pre-computed endpoint first
+      const isCurrentWeekScheduled = match.state === 'scheduled' && match.week === currentWeek;
+
+      if (isCurrentWeekScheduled) {
+        try {
+          // Use pre-computed endpoint for faster response
+          data = await api.getPrecomputedMatchup(matchKey);
+        } catch {
+          // Fall back to on-demand calculation if pre-computed not available
+          console.log('Pre-computed matchup not available, calculating on-demand');
+          const seasonsToAnalyze = currentSeason
+            ? [currentSeason, currentSeason - 1]
+            : [23, 22];
+
+          data = await api.getMatchupAnalysis({
+            home_team: match.home_key,
+            away_team: match.away_key,
+            venue: match.venue.key,
+            seasons: seasonsToAnalyze,
+          });
+        }
+      } else {
+        // On-demand for completed matches or historical analysis
+        const seasonsToAnalyze = currentSeason
+          ? [currentSeason, currentSeason - 1]
+          : [23, 22];
+
+        data = await api.getMatchupAnalysis({
+          home_team: match.home_key,
+          away_team: match.away_key,
+          venue: match.venue.key,
+          seasons: seasonsToAnalyze,
+        });
+      }
+
       setMatchup(data);
 
       // Update URL with the analyzed match

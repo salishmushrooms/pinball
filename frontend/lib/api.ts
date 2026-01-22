@@ -351,6 +351,14 @@ export const api = {
     return fetchAPI<MatchupAnalysis>('/matchups', params);
   },
 
+  /**
+   * Get pre-computed matchup analysis for a specific match
+   * Falls back to on-demand calculation if pre-computed data is not available
+   */
+  getPrecomputedMatchup: (matchKey: string): Promise<MatchupAnalysis> => {
+    return fetchAPI<MatchupAnalysis>(`/matchups/precomputed/${matchKey}`);
+  },
+
   // Season Schedule Endpoints
 
   /**
