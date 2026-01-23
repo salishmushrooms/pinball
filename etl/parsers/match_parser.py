@@ -137,6 +137,10 @@ class MatchParser:
             except:
                 date = None
 
+        # Extract machines available at venue for this specific match
+        venue = match.get('venue', {})
+        machines = venue.get('machines', [])
+
         return {
             'match_key': match['key'],
             'season': season,
@@ -145,7 +149,8 @@ class MatchParser:
             'venue_key': match['venue']['key'],
             'home_team_key': match['home']['key'],
             'away_team_key': match['away']['key'],
-            'state': match.get('state', 'unknown')
+            'state': match.get('state', 'unknown'),
+            'machines': machines
         }
 
     def extract_games_from_match(self, match: Dict) -> List[Dict]:

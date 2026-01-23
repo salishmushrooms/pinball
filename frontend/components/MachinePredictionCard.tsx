@@ -71,7 +71,7 @@ export function MachinePredictionCard({
           </div>
           {data && data.sample_size > 0 && (
             <Badge variant="info">
-              {data.sample_size} historical picks
+              {data.sample_size} opportunities
             </Badge>
           )}
         </div>
@@ -134,9 +134,9 @@ export function MachinePredictionCard({
                         </div>
                       </div>
                       <div className="text-right">
-                        <Badge variant="default" className="text-xs">
-                          {prediction.pick_count}x
-                        </Badge>
+                        <span className="text-xs text-gray-500">
+                          {prediction.pick_count}/{prediction.opportunities || '?'}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -144,10 +144,10 @@ export function MachinePredictionCard({
 
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <p className="text-xs text-gray-500">
-                    Based on {data.sample_size} {data.context} picks across {data.seasons_analyzed.length > 1 ? 'seasons' : 'season'} {data.seasons_analyzed.join(', ')}
+                    Pick rate based on {data.context} rounds across {data.seasons_analyzed.length > 1 ? 'seasons' : 'season'} {data.seasons_analyzed.join(', ')}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    Only showing machines available at this venue
+                    Only showing machines available at this venue (min 3 opportunities)
                   </p>
                 </div>
               </div>

@@ -19,6 +19,7 @@ Usage:
 
 import argparse
 import logging
+import math
 import sys
 from collections import defaultdict
 from sqlalchemy import text
@@ -52,6 +53,7 @@ def fetch_games_with_scores(season: int):
 
     # Use scores table directly - it has machine_key denormalized
     # This correctly handles multiple machines per round
+    # Filter by complete matches to be consistent with opportunities calculation
     query = """
         SELECT
             s.match_key,
@@ -65,6 +67,7 @@ def fetch_games_with_scores(season: int):
         FROM scores s
         JOIN matches m ON s.match_key = m.match_key
         WHERE s.season = :season
+        AND m.state = 'complete'
         ORDER BY s.match_key, s.round_number, s.machine_key, s.team_key
     """
 
@@ -104,6 +107,201 @@ def get_round_type(round_number: int):
         return 'doubles'
     else:
         return 'singles'
+
+
+def calculate_wilson_lower(successes: int, total: int, z: float = 1.96) -> float:
+    """
+    Calculate Wilson score lower bound for 95% confidence interval.
+
+    This is used to rank items by confidence-adjusted rate, preventing
+    items with small sample sizes from dominating (e.g., 1/1 = 100%
+    won't rank higher than 7/10 = 70%).
+
+    Args:
+        successes: Number of successes (times picked)
+        total: Total opportunities
+        z: Z-score for confidence level (1.96 for 95% CI)
+
+    Returns:
+        Lower bound of Wilson score interval (0.0 to 1.0)
+    """
+    if total == 0:
+        return 0.0
+
+    # Handle edge case where successes > total (data inconsistency)
+    # This can happen if venue_machines data is incomplete
+    if successes > total:
+        # Use successes as total since we know they had at least that many opportunities
+        total = successes
+
+    p = successes / total
+    denominator = 1 + (z * z) / total
+    center = p + (z * z) / (2 * total)
+    spread = z * math.sqrt((p * (1 - p) / total) + (z * z) / (4 * total * total))
+    return (center - spread) / denominator
+
+
+def calculate_opportunities(season: int) -> dict:
+    """
+    Calculate pick opportunities for each (team, machine, is_home, round_type).
+
+    An opportunity exists when:
+    1. The team had pick rights in that round (home picks 2&4, away picks 1&3)
+    2. The machine was available at the venue for that specific match
+
+    Uses per-match machines from matches.machines JSONB column for accuracy,
+    with fallback to venue_machines table if per-match data is not available.
+
+    Returns:
+        dict: {(team_key, machine_key, is_home, round_type): opportunity_count}
+    """
+    logger.info(f"Calculating pick opportunities for season {season}...")
+
+    # First, check if we have per-match machine data
+    check_query = """
+        SELECT COUNT(*) FROM matches
+        WHERE season = :season AND state = 'complete' AND machines IS NOT NULL
+    """
+    with db.engine.connect() as conn:
+        result = conn.execute(text(check_query), {'season': season})
+        matches_with_machines = result.fetchone()[0]
+
+    if matches_with_machines > 0:
+        logger.info(f"Using per-match machine data ({matches_with_machines} matches with data)")
+        query = """
+            WITH team_match_opportunities AS (
+                -- Home team picks Round 4 (doubles)
+                SELECT
+                    m.home_team_key as team_key,
+                    m.match_key,
+                    m.machines,
+                    true as is_home,
+                    'doubles' as round_type
+                FROM matches m
+                WHERE m.season = :season AND m.state = 'complete' AND m.machines IS NOT NULL
+
+                UNION ALL
+
+                -- Away team picks Round 1 (doubles)
+                SELECT
+                    m.away_team_key as team_key,
+                    m.match_key,
+                    m.machines,
+                    false as is_home,
+                    'doubles' as round_type
+                FROM matches m
+                WHERE m.season = :season AND m.state = 'complete' AND m.machines IS NOT NULL
+
+                UNION ALL
+
+                -- Home team picks Round 2 (singles)
+                SELECT
+                    m.home_team_key as team_key,
+                    m.match_key,
+                    m.machines,
+                    true as is_home,
+                    'singles' as round_type
+                FROM matches m
+                WHERE m.season = :season AND m.state = 'complete' AND m.machines IS NOT NULL
+
+                UNION ALL
+
+                -- Away team picks Round 3 (singles)
+                SELECT
+                    m.away_team_key as team_key,
+                    m.match_key,
+                    m.machines,
+                    false as is_home,
+                    'singles' as round_type
+                FROM matches m
+                WHERE m.season = :season AND m.state = 'complete' AND m.machines IS NOT NULL
+            )
+            SELECT
+                tmo.team_key,
+                machine_key,
+                tmo.is_home,
+                tmo.round_type,
+                COUNT(*) as opportunities
+            FROM team_match_opportunities tmo,
+                 jsonb_array_elements_text(tmo.machines) as machine_key
+            GROUP BY tmo.team_key, machine_key, tmo.is_home, tmo.round_type
+        """
+    else:
+        logger.info("No per-match machine data available, falling back to venue_machines table")
+        query = """
+            WITH team_matches AS (
+                -- Home team picks Round 4 (doubles)
+                SELECT
+                    m.home_team_key as team_key,
+                    m.venue_key,
+                    m.season,
+                    true as is_home,
+                    'doubles' as round_type
+                FROM matches m
+                WHERE m.season = :season AND m.state = 'complete'
+
+                UNION ALL
+
+                -- Away team picks Round 1 (doubles)
+                SELECT
+                    m.away_team_key as team_key,
+                    m.venue_key,
+                    m.season,
+                    false as is_home,
+                    'doubles' as round_type
+                FROM matches m
+                WHERE m.season = :season AND m.state = 'complete'
+
+                UNION ALL
+
+                -- Home team picks Round 2 (singles)
+                SELECT
+                    m.home_team_key as team_key,
+                    m.venue_key,
+                    m.season,
+                    true as is_home,
+                    'singles' as round_type
+                FROM matches m
+                WHERE m.season = :season AND m.state = 'complete'
+
+                UNION ALL
+
+                -- Away team picks Round 3 (singles)
+                SELECT
+                    m.away_team_key as team_key,
+                    m.venue_key,
+                    m.season,
+                    false as is_home,
+                    'singles' as round_type
+                FROM matches m
+                WHERE m.season = :season AND m.state = 'complete'
+            )
+            SELECT
+                tm.team_key,
+                vm.machine_key,
+                tm.is_home,
+                tm.round_type,
+                COUNT(*) as opportunities
+            FROM team_matches tm
+            JOIN venue_machines vm
+                ON tm.venue_key = vm.venue_key
+                AND tm.season = vm.season
+            WHERE vm.active = true
+            GROUP BY tm.team_key, vm.machine_key, tm.is_home, tm.round_type
+        """
+
+    with db.engine.connect() as conn:
+        result = conn.execute(text(query), {'season': season})
+        rows = result.fetchall()
+
+    opportunities = {}
+    for row in rows:
+        team_key, machine_key, is_home, round_type, count = row
+        key = (team_key, machine_key, is_home, round_type)
+        opportunities[key] = count
+
+    logger.info(f"Calculated {len(opportunities)} opportunity records")
+    return opportunities
 
 
 def aggregate_team_picks(scores, season: int):
@@ -218,12 +416,13 @@ def clear_existing_picks(season: int):
         conn.execute(text(query), {'season': season})
 
 
-def insert_team_picks(pick_stats: dict, season: int):
+def insert_team_picks(pick_stats: dict, opportunities: dict, season: int):
     """
     Insert team machine pick statistics into database.
 
     Args:
         pick_stats: dict of aggregated statistics
+        opportunities: dict of pick opportunities per (team, machine, is_home, round_type)
         season: Season number
     """
     logger.info("Inserting team machine pick statistics...")
@@ -231,11 +430,13 @@ def insert_team_picks(pick_stats: dict, season: int):
     query = """
         INSERT INTO team_machine_picks (
             team_key, machine_key, season, is_home, round_type,
-            times_picked, wins, total_points, avg_score
+            times_picked, wins, total_points, avg_score,
+            total_opportunities, wilson_lower
         )
         VALUES (
             :team_key, :machine_key, :season, :is_home, :round_type,
-            :times_picked, :wins, :total_points, :avg_score
+            :times_picked, :wins, :total_points, :avg_score,
+            :total_opportunities, :wilson_lower
         )
         ON CONFLICT (team_key, machine_key, season, is_home, round_type)
         DO UPDATE SET
@@ -243,6 +444,8 @@ def insert_team_picks(pick_stats: dict, season: int):
             wins = EXCLUDED.wins,
             total_points = EXCLUDED.total_points,
             avg_score = EXCLUDED.avg_score,
+            total_opportunities = EXCLUDED.total_opportunities,
+            wilson_lower = EXCLUDED.wilson_lower,
             last_calculated = CURRENT_TIMESTAMP
     """
 
@@ -253,6 +456,21 @@ def insert_team_picks(pick_stats: dict, season: int):
             # Calculate average score
             avg_score = int(stats['total_score'] / stats['game_count']) if stats['game_count'] > 0 else 0
 
+            # Get opportunities for this combination
+            opp_key = (team_key, machine_key, is_home, round_type)
+            total_opportunities = opportunities.get(opp_key, 0)
+
+            # Warn if picks exceed opportunities (indicates venue_machines data gap)
+            if stats['times_picked'] > total_opportunities:
+                logger.warning(
+                    f"Data inconsistency: {team_key} picked {machine_key} {stats['times_picked']}x "
+                    f"but only {total_opportunities} opportunities recorded. "
+                    f"Check venue_machines table for missing entries."
+                )
+
+            # Calculate Wilson score lower bound
+            wilson_lower = calculate_wilson_lower(stats['times_picked'], total_opportunities)
+
             record = {
                 'team_key': team_key,
                 'machine_key': machine_key,
@@ -262,7 +480,9 @@ def insert_team_picks(pick_stats: dict, season: int):
                 'times_picked': stats['times_picked'],
                 'wins': stats['wins'],
                 'total_points': stats['total_points'],
-                'avg_score': avg_score
+                'avg_score': avg_score,
+                'total_opportunities': total_opportunities,
+                'wilson_lower': round(wilson_lower, 4)
             }
 
             conn.execute(text(query), record)
@@ -295,8 +515,11 @@ def calculate_and_store_team_picks(season: int):
     # Step 3: Aggregate pick statistics
     pick_stats = aggregate_team_picks(scores, season)
 
-    # Step 4: Insert into database
-    insert_team_picks(pick_stats, season)
+    # Step 4: Calculate opportunities (how many times each machine was available to pick)
+    opportunities = calculate_opportunities(season)
+
+    # Step 5: Insert into database with opportunities and Wilson scores
+    insert_team_picks(pick_stats, opportunities, season)
 
     logger.info("")
     logger.info("=" * 60)
@@ -318,7 +541,8 @@ def verify_team_picks(season: int):
             COUNT(DISTINCT team_key) as unique_teams,
             COUNT(DISTINCT machine_key) as unique_machines,
             SUM(times_picked) as total_picks,
-            SUM(wins) as total_wins
+            SUM(wins) as total_wins,
+            SUM(total_opportunities) as total_opportunities
         FROM team_machine_picks
         WHERE season = :season
     """
@@ -333,23 +557,26 @@ def verify_team_picks(season: int):
         logger.info(f"  Unique machines: {row[2]}")
         logger.info(f"  Total picks: {row[3]}")
         logger.info(f"  Total wins: {row[4]}")
+        logger.info(f"  Total opportunities: {row[5]}")
         if row[3] and row[3] > 0:
             logger.info(f"  Win rate: {row[4]/row[3]*100:.1f}%")
 
-    # Show top machine picks
+    # Show top machine picks by Wilson score (confidence-weighted)
     logger.info("")
-    logger.info("Most picked machines (home picks):")
+    logger.info("Top machines by pick rate (doubles, Wilson-weighted):")
 
     query = """
         SELECT
             machine_key,
             SUM(times_picked) as total_picks,
-            SUM(wins) as total_wins,
-            ROUND(SUM(wins)::numeric / NULLIF(SUM(times_picked), 0) * 100, 1) as win_pct
+            SUM(total_opportunities) as total_opps,
+            ROUND(SUM(times_picked)::numeric / NULLIF(SUM(total_opportunities), 0) * 100, 1) as pick_rate,
+            MAX(wilson_lower) as wilson_score
         FROM team_machine_picks
-        WHERE season = :season AND is_home = true
+        WHERE season = :season AND round_type = 'doubles'
         GROUP BY machine_key
-        ORDER BY total_picks DESC
+        HAVING SUM(total_opportunities) >= 3
+        ORDER BY wilson_score DESC
         LIMIT 10
     """
 
@@ -358,8 +585,8 @@ def verify_team_picks(season: int):
         rows = result.fetchall()
 
     for row in rows:
-        machine, picks, wins, win_pct = row
-        logger.info(f"  {machine}: {picks} picks, {wins} wins ({win_pct}%)")
+        machine, picks, opps, pick_rate, wilson = row
+        logger.info(f"  {machine}: {picks}/{opps} picks ({pick_rate}%), wilson={wilson:.3f}")
 
 
 def main():

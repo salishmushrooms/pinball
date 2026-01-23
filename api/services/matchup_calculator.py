@@ -119,16 +119,23 @@ def get_team_machine_pick_frequency(
     """
     Calculate how often a team picks each machine across multiple seasons.
     Uses pre-calculated team_machine_picks table from the database.
+
+    Returns pick rate (times_picked / total_opportunities) for each machine,
+    sorted by Wilson score for confidence-weighted ranking.
     """
     try:
         if not available_machines:
             return []
 
+        # Query includes total_opportunities and wilson_lower for proper pick rate calculation
+        # Filter by minimum 3 opportunities to exclude unreliable data
         query = """
             SELECT
                 tmp.machine_key,
                 m.machine_name,
-                SUM(tmp.times_picked) as total_picked
+                SUM(tmp.times_picked) as total_picked,
+                SUM(tmp.total_opportunities) as total_opportunities,
+                MAX(tmp.wilson_lower) as wilson_lower
             FROM team_machine_picks tmp
             INNER JOIN machines m ON tmp.machine_key = m.machine_key
             WHERE tmp.team_key = :team_key
@@ -136,7 +143,8 @@ def get_team_machine_pick_frequency(
             AND tmp.round_type = 'doubles'
             AND tmp.machine_key = ANY(:machines)
             GROUP BY tmp.machine_key, m.machine_name
-            ORDER BY total_picked DESC
+            HAVING SUM(tmp.total_opportunities) >= 3
+            ORDER BY wilson_lower DESC
         """
 
         results = execute_query(query, {
@@ -147,12 +155,21 @@ def get_team_machine_pick_frequency(
 
         result = []
         for row in results:
+            times_picked = row['total_picked']
+            total_opportunities = row['total_opportunities'] or 0
+
+            # Calculate pick percentage as pick rate (picks / opportunities)
+            # Capped at 100% to handle data inconsistencies where picks > opportunities
+            pick_percentage = 0.0
+            if total_opportunities > 0:
+                pick_percentage = round(min((times_picked / total_opportunities) * 100, 100.0), 1)
+
             result.append(MachinePickFrequency(
                 machine_key=row['machine_key'],
                 machine_name=row['machine_name'],
-                times_picked=row['total_picked'] * 2,
-                total_opportunities=0,
-                pick_percentage=0.0
+                times_picked=times_picked,
+                total_opportunities=total_opportunities,
+                pick_percentage=pick_percentage
             ))
 
         return result

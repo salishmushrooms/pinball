@@ -616,7 +616,9 @@ export interface MachinePrediction {
   machine_key: string;
   machine_name: string;
   pick_count: number;
-  confidence_pct: number;
+  opportunities: number;
+  confidence_pct: number;  // Pick rate: picks / opportunities * 100
+  confidence_score: number;  // Wilson score * 100 (for ranking confidence)
   available_at_venue: boolean;
 }
 

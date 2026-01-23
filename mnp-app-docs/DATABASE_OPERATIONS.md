@@ -41,12 +41,41 @@
 
 | Task | Command |
 |------|---------|
-| Connect to Railway PostgreSQL | `railway connect Postgres--OkR` |
+| Connect to Railway PostgreSQL | `railway connect "Postgres--OkR"` |
 | View Railway logs | `railway logs -s pinball` |
 | Export local data | `pg_dump -h localhost -U mnp_user -d mnp_analyzer --data-only --no-owner --no-acl > /tmp/mnp_data.sql` |
-| Import to Railway | `railway connect Postgres--OkR < /tmp/mnp_data.sql` |
+| Import to Railway | `railway connect "Postgres--OkR" < /tmp/mnp_data.sql` |
+| Run migration on production | `psql "$DATABASE_PUBLIC_URL" -f schema/migrations/006_migration.sql` |
+| Run ETL script on production | `DATABASE_URL="$DATABASE_PUBLIC_URL" python etl/script.py` |
 
-> **Note:** The PostgreSQL service is named `Postgres--OkR` in Railway. Use this exact name for all `railway connect` commands.
+> **Note:** The PostgreSQL service is named `Postgres--OkR` in Railway. Use this exact name (with quotes) for all `railway connect` commands.
+
+---
+
+## Environment Variables for Database Access
+
+The `.env` file contains database connection URLs:
+
+```bash
+# Local database (default for all ETL scripts)
+LOCAL_DATABASE_URL=postgresql://mnp_user:password@localhost:5432/mnp_analyzer
+
+# Production database (Railway) - stored but NOT used by default
+# This prevents accidental production writes
+DATABASE_PUBLIC_URL=postgresql://postgres:PASSWORD@shinkansen.proxy.rlwy.net:49342/railway
+```
+
+**ETL scripts use this priority order** (in `etl/config.py`):
+1. `LOCAL_DATABASE_URL` (if set)
+2. `DATABASE_URL` (fallback)
+3. Hardcoded local default
+
+**To run ETL against production**, explicitly override `DATABASE_URL`:
+```bash
+DATABASE_URL="$DATABASE_PUBLIC_URL" python etl/your_script.py --args
+```
+
+This pattern makes production writes intentional, not accidental.
 
 ---
 
@@ -141,20 +170,25 @@
 
 When you add new migrations to `schema/migrations/`:
 
-1. **Connect to Railway PostgreSQL:**
-   ```bash
-   railway connect Postgres--OkR
-   ```
+### Option 1: Using railway connect (interactive)
+```bash
+railway connect "Postgres--OkR"
+```
+Then in the psql prompt:
+```sql
+\i schema/migrations/006_your_new_migration.sql
+\q
+```
 
-2. **Run the new migration:**
-   ```sql
-   \i schema/migrations/008_your_new_migration.sql
-   ```
+### Option 2: Using psql with DATABASE_PUBLIC_URL (non-interactive)
+```bash
+psql "$DATABASE_PUBLIC_URL" -f schema/migrations/006_your_new_migration.sql
+```
 
-3. **Exit:**
-   ```sql
-   \q
-   ```
+### Option 3: Inline SQL for simple migrations
+```bash
+railway run psql -c "ALTER TABLE matches ADD COLUMN IF NOT EXISTS machines JSONB;"
+```
 
 ### Migration Order (for fresh setup)
 
@@ -212,8 +246,32 @@ python etl/run_full_pipeline.py --seasons 18 19 20 21 22
 python etl/run_full_pipeline.py --seasons 18 19 20 21 22 --skip-load
 ```
 
-### Production (if running ETL on Railway)
-Currently not supported - run ETL locally and export/import.
+### Running ETL Directly Against Production
+
+You can run ETL scripts directly against production by overriding `DATABASE_URL`:
+
+```bash
+conda activate mnp
+
+# Run a single script against production
+DATABASE_URL="$DATABASE_PUBLIC_URL" python etl/calculate_team_machine_picks.py --season 22
+
+# Run backfill scripts against production
+DATABASE_URL="$DATABASE_PUBLIC_URL" python etl/backfill_match_machines.py --recalculate
+
+# Run multiple seasons
+for season in 18 19 20 21 22; do
+  DATABASE_URL="$DATABASE_PUBLIC_URL" python etl/calculate_team_machine_picks.py --season $season
+done
+```
+
+**When to use direct ETL vs export/import:**
+| Scenario | Approach |
+|----------|----------|
+| New migration + backfill script | Run migration, then `DATABASE_URL="$DATABASE_PUBLIC_URL" python etl/script.py` |
+| Recalculating aggregates only | `DATABASE_URL="$DATABASE_PUBLIC_URL" python etl/calculate_*.py` |
+| Loading new season data | Export/import (safer, can verify locally first) |
+| Full database reset | Export/import |
 
 ---
 

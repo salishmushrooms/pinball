@@ -1,0 +1,548 @@
+(mnp) JJC@Mini MNP % for season in 18 19 20 21 22; do
+  DATABASE_URL="$DATABASE_PUBLIC_URL" python etl/calculate_team_machine_picks.py --season $season
+done
+2026-01-22 13:21:43,478 - etl.database - INFO - Database engine created without connection pooling (ETL mode)
+2026-01-22 13:21:46,888 - etl.database - INFO - Connected to database (schema version: 2.0.0)
+2026-01-22 13:21:47,084 - __main__ - INFO - ============================================================
+2026-01-22 13:21:47,084 - __main__ - INFO - Calculating Team Machine Picks for Season 18
+2026-01-22 13:21:47,084 - __main__ - INFO - ============================================================
+2026-01-22 13:21:47,084 - __main__ - INFO - Clearing existing team machine picks for season 18
+2026-01-22 13:21:48,962 - __main__ - INFO - Fetching games and scores for season 18...
+2026-01-22 13:21:51,638 - __main__ - INFO - Fetched 8984 score records
+2026-01-22 13:21:51,638 - __main__ - INFO - Aggregating team machine pick statistics...
+2026-01-22 13:21:51,669 - __main__ - INFO - Aggregated 2236 team/machine/context combinations
+2026-01-22 13:21:51,671 - __main__ - INFO - Calculating pick opportunities for season 18...
+2026-01-22 13:21:53,487 - __main__ - INFO - No per-match machine data available, falling back to venue_machines table
+2026-01-22 13:21:55,985 - __main__ - INFO - Calculated 6998 opportunity records
+2026-01-22 13:21:55,987 - __main__ - INFO - Inserting team machine pick statistics...
+2026-01-22 13:21:57,882 - __main__ - ERROR - Error: (psycopg2.errors.UndefinedColumn) column "total_opportunities" of relation "team_machine_picks" does not exist
+LINE 5:             total_opportunities, wilson_lower
+                    ^
+
+[SQL: 
+        INSERT INTO team_machine_picks (
+            team_key, machine_key, season, is_home, round_type,
+            times_picked, wins, total_points, avg_score,
+            total_opportunities, wilson_lower
+        )
+        VALUES (
+            %(team_key)s, %(machine_key)s, %(season)s, %(is_home)s, %(round_type)s,
+            %(times_picked)s, %(wins)s, %(total_points)s, %(avg_score)s,
+            %(total_opportunities)s, %(wilson_lower)s
+        )
+        ON CONFLICT (team_key, machine_key, season, is_home, round_type)
+        DO UPDATE SET
+            times_picked = EXCLUDED.times_picked,
+            wins = EXCLUDED.wins,
+            total_points = EXCLUDED.total_points,
+            avg_score = EXCLUDED.avg_score,
+            total_opportunities = EXCLUDED.total_opportunities,
+            wilson_lower = EXCLUDED.wilson_lower,
+            last_calculated = CURRENT_TIMESTAMP
+    ]
+[parameters: {'team_key': 'CDC', 'machine_key': 'BSD', 'season': 18, 'is_home': False, 'round_type': 'doubles', 'times_picked': 1, 'wins': 1, 'total_points': 1, 'avg_score': 240215445, 'total_opportunities': 2, 'wilson_lower': 0.0945}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Traceback (most recent call last):
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.UndefinedColumn: column "total_opportunities" of relation "team_machine_picks" does not exist
+LINE 5:             total_opportunities, wilson_lower
+                    ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/JJC/Pinball/MNP/etl/calculate_team_machine_picks.py", line 608, in main
+    success = calculate_and_store_team_picks(args.season)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/JJC/Pinball/MNP/etl/calculate_team_machine_picks.py", line 522, in calculate_and_store_team_picks
+    insert_team_picks(pick_stats, opportunities, season)
+  File "/Users/JJC/Pinball/MNP/etl/calculate_team_machine_picks.py", line 488, in insert_team_picks
+    conn.execute(text(query), record)
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column "total_opportunities" of relation "team_machine_picks" does not exist
+LINE 5:             total_opportunities, wilson_lower
+                    ^
+
+[SQL: 
+        INSERT INTO team_machine_picks (
+            team_key, machine_key, season, is_home, round_type,
+            times_picked, wins, total_points, avg_score,
+            total_opportunities, wilson_lower
+        )
+        VALUES (
+            %(team_key)s, %(machine_key)s, %(season)s, %(is_home)s, %(round_type)s,
+            %(times_picked)s, %(wins)s, %(total_points)s, %(avg_score)s,
+            %(total_opportunities)s, %(wilson_lower)s
+        )
+        ON CONFLICT (team_key, machine_key, season, is_home, round_type)
+        DO UPDATE SET
+            times_picked = EXCLUDED.times_picked,
+            wins = EXCLUDED.wins,
+            total_points = EXCLUDED.total_points,
+            avg_score = EXCLUDED.avg_score,
+            total_opportunities = EXCLUDED.total_opportunities,
+            wilson_lower = EXCLUDED.wilson_lower,
+            last_calculated = CURRENT_TIMESTAMP
+    ]
+[parameters: {'team_key': 'CDC', 'machine_key': 'BSD', 'season': 18, 'is_home': False, 'round_type': 'doubles', 'times_picked': 1, 'wins': 1, 'total_points': 1, 'avg_score': 240215445, 'total_opportunities': 2, 'wilson_lower': 0.0945}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-01-22 13:21:57,895 - etl.database - INFO - Database connection closed
+2026-01-22 13:21:58,330 - etl.database - INFO - Database engine created without connection pooling (ETL mode)
+2026-01-22 13:22:01,708 - etl.database - INFO - Connected to database (schema version: 2.0.0)
+2026-01-22 13:22:01,880 - __main__ - INFO - ============================================================
+2026-01-22 13:22:01,881 - __main__ - INFO - Calculating Team Machine Picks for Season 19
+2026-01-22 13:22:01,881 - __main__ - INFO - ============================================================
+2026-01-22 13:22:01,881 - __main__ - INFO - Clearing existing team machine picks for season 19
+2026-01-22 13:22:03,714 - __main__ - INFO - Fetching games and scores for season 19...
+2026-01-22 13:22:06,510 - __main__ - INFO - Fetched 9540 score records
+2026-01-22 13:22:06,511 - __main__ - INFO - Aggregating team machine pick statistics...
+2026-01-22 13:22:06,532 - __main__ - INFO - Aggregated 2350 team/machine/context combinations
+2026-01-22 13:22:06,533 - __main__ - INFO - Calculating pick opportunities for season 19...
+2026-01-22 13:22:08,353 - __main__ - INFO - No per-match machine data available, falling back to venue_machines table
+2026-01-22 13:22:10,897 - __main__ - INFO - Calculated 7158 opportunity records
+2026-01-22 13:22:10,899 - __main__ - INFO - Inserting team machine pick statistics...
+2026-01-22 13:22:12,926 - __main__ - ERROR - Error: (psycopg2.errors.UndefinedColumn) column "total_opportunities" of relation "team_machine_picks" does not exist
+LINE 5:             total_opportunities, wilson_lower
+                    ^
+
+[SQL: 
+        INSERT INTO team_machine_picks (
+            team_key, machine_key, season, is_home, round_type,
+            times_picked, wins, total_points, avg_score,
+            total_opportunities, wilson_lower
+        )
+        VALUES (
+            %(team_key)s, %(machine_key)s, %(season)s, %(is_home)s, %(round_type)s,
+            %(times_picked)s, %(wins)s, %(total_points)s, %(avg_score)s,
+            %(total_opportunities)s, %(wilson_lower)s
+        )
+        ON CONFLICT (team_key, machine_key, season, is_home, round_type)
+        DO UPDATE SET
+            times_picked = EXCLUDED.times_picked,
+            wins = EXCLUDED.wins,
+            total_points = EXCLUDED.total_points,
+            avg_score = EXCLUDED.avg_score,
+            total_opportunities = EXCLUDED.total_opportunities,
+            wilson_lower = EXCLUDED.wilson_lower,
+            last_calculated = CURRENT_TIMESTAMP
+    ]
+[parameters: {'team_key': 'ADB', 'machine_key': 'BKSoR', 'season': 19, 'is_home': False, 'round_type': 'doubles', 'times_picked': 4, 'wins': 4, 'total_points': 4, 'avg_score': 123816767, 'total_opportunities': 4, 'wilson_lower': 0.5101}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Traceback (most recent call last):
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.UndefinedColumn: column "total_opportunities" of relation "team_machine_picks" does not exist
+LINE 5:             total_opportunities, wilson_lower
+                    ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/JJC/Pinball/MNP/etl/calculate_team_machine_picks.py", line 608, in main
+    success = calculate_and_store_team_picks(args.season)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/JJC/Pinball/MNP/etl/calculate_team_machine_picks.py", line 522, in calculate_and_store_team_picks
+    insert_team_picks(pick_stats, opportunities, season)
+  File "/Users/JJC/Pinball/MNP/etl/calculate_team_machine_picks.py", line 488, in insert_team_picks
+    conn.execute(text(query), record)
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column "total_opportunities" of relation "team_machine_picks" does not exist
+LINE 5:             total_opportunities, wilson_lower
+                    ^
+
+[SQL: 
+        INSERT INTO team_machine_picks (
+            team_key, machine_key, season, is_home, round_type,
+            times_picked, wins, total_points, avg_score,
+            total_opportunities, wilson_lower
+        )
+        VALUES (
+            %(team_key)s, %(machine_key)s, %(season)s, %(is_home)s, %(round_type)s,
+            %(times_picked)s, %(wins)s, %(total_points)s, %(avg_score)s,
+            %(total_opportunities)s, %(wilson_lower)s
+        )
+        ON CONFLICT (team_key, machine_key, season, is_home, round_type)
+        DO UPDATE SET
+            times_picked = EXCLUDED.times_picked,
+            wins = EXCLUDED.wins,
+            total_points = EXCLUDED.total_points,
+            avg_score = EXCLUDED.avg_score,
+            total_opportunities = EXCLUDED.total_opportunities,
+            wilson_lower = EXCLUDED.wilson_lower,
+            last_calculated = CURRENT_TIMESTAMP
+    ]
+[parameters: {'team_key': 'ADB', 'machine_key': 'BKSoR', 'season': 19, 'is_home': False, 'round_type': 'doubles', 'times_picked': 4, 'wins': 4, 'total_points': 4, 'avg_score': 123816767, 'total_opportunities': 4, 'wilson_lower': 0.5101}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-01-22 13:22:12,939 - etl.database - INFO - Database connection closed
+2026-01-22 13:22:13,374 - etl.database - INFO - Database engine created without connection pooling (ETL mode)
+2026-01-22 13:22:16,610 - etl.database - INFO - Connected to database (schema version: 2.0.0)
+2026-01-22 13:22:16,800 - __main__ - INFO - ============================================================
+2026-01-22 13:22:16,801 - __main__ - INFO - Calculating Team Machine Picks for Season 20
+2026-01-22 13:22:16,801 - __main__ - INFO - ============================================================
+2026-01-22 13:22:16,801 - __main__ - INFO - Clearing existing team machine picks for season 20
+2026-01-22 13:22:18,683 - __main__ - INFO - Fetching games and scores for season 20...
+2026-01-22 13:22:21,494 - __main__ - INFO - Fetched 9480 score records
+2026-01-22 13:22:21,495 - __main__ - INFO - Aggregating team machine pick statistics...
+2026-01-22 13:22:21,521 - __main__ - INFO - Aggregated 2288 team/machine/context combinations
+2026-01-22 13:22:21,522 - __main__ - INFO - Calculating pick opportunities for season 20...
+2026-01-22 13:22:23,370 - __main__ - INFO - No per-match machine data available, falling back to venue_machines table
+2026-01-22 13:22:25,902 - __main__ - INFO - Calculated 6272 opportunity records
+2026-01-22 13:22:25,905 - __main__ - INFO - Inserting team machine pick statistics...
+2026-01-22 13:22:27,778 - __main__ - ERROR - Error: (psycopg2.errors.UndefinedColumn) column "total_opportunities" of relation "team_machine_picks" does not exist
+LINE 5:             total_opportunities, wilson_lower
+                    ^
+
+[SQL: 
+        INSERT INTO team_machine_picks (
+            team_key, machine_key, season, is_home, round_type,
+            times_picked, wins, total_points, avg_score,
+            total_opportunities, wilson_lower
+        )
+        VALUES (
+            %(team_key)s, %(machine_key)s, %(season)s, %(is_home)s, %(round_type)s,
+            %(times_picked)s, %(wins)s, %(total_points)s, %(avg_score)s,
+            %(total_opportunities)s, %(wilson_lower)s
+        )
+        ON CONFLICT (team_key, machine_key, season, is_home, round_type)
+        DO UPDATE SET
+            times_picked = EXCLUDED.times_picked,
+            wins = EXCLUDED.wins,
+            total_points = EXCLUDED.total_points,
+            avg_score = EXCLUDED.avg_score,
+            total_opportunities = EXCLUDED.total_opportunities,
+            wilson_lower = EXCLUDED.wilson_lower,
+            last_calculated = CURRENT_TIMESTAMP
+    ]
+[parameters: {'team_key': 'ADB', 'machine_key': 'CFTBL', 'season': 20, 'is_home': False, 'round_type': 'doubles', 'times_picked': 2, 'wins': 0, 'total_points': 0, 'avg_score': 27291382, 'total_opportunities': 2, 'wilson_lower': 0.3424}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Traceback (most recent call last):
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.UndefinedColumn: column "total_opportunities" of relation "team_machine_picks" does not exist
+LINE 5:             total_opportunities, wilson_lower
+                    ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/JJC/Pinball/MNP/etl/calculate_team_machine_picks.py", line 608, in main
+    success = calculate_and_store_team_picks(args.season)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/JJC/Pinball/MNP/etl/calculate_team_machine_picks.py", line 522, in calculate_and_store_team_picks
+    insert_team_picks(pick_stats, opportunities, season)
+  File "/Users/JJC/Pinball/MNP/etl/calculate_team_machine_picks.py", line 488, in insert_team_picks
+    conn.execute(text(query), record)
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column "total_opportunities" of relation "team_machine_picks" does not exist
+LINE 5:             total_opportunities, wilson_lower
+                    ^
+
+[SQL: 
+        INSERT INTO team_machine_picks (
+            team_key, machine_key, season, is_home, round_type,
+            times_picked, wins, total_points, avg_score,
+            total_opportunities, wilson_lower
+        )
+        VALUES (
+            %(team_key)s, %(machine_key)s, %(season)s, %(is_home)s, %(round_type)s,
+            %(times_picked)s, %(wins)s, %(total_points)s, %(avg_score)s,
+            %(total_opportunities)s, %(wilson_lower)s
+        )
+        ON CONFLICT (team_key, machine_key, season, is_home, round_type)
+        DO UPDATE SET
+            times_picked = EXCLUDED.times_picked,
+            wins = EXCLUDED.wins,
+            total_points = EXCLUDED.total_points,
+            avg_score = EXCLUDED.avg_score,
+            total_opportunities = EXCLUDED.total_opportunities,
+            wilson_lower = EXCLUDED.wilson_lower,
+            last_calculated = CURRENT_TIMESTAMP
+    ]
+[parameters: {'team_key': 'ADB', 'machine_key': 'CFTBL', 'season': 20, 'is_home': False, 'round_type': 'doubles', 'times_picked': 2, 'wins': 0, 'total_points': 0, 'avg_score': 27291382, 'total_opportunities': 2, 'wilson_lower': 0.3424}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-01-22 13:22:27,788 - etl.database - INFO - Database connection closed
+2026-01-22 13:22:28,214 - etl.database - INFO - Database engine created without connection pooling (ETL mode)
+2026-01-22 13:22:31,429 - etl.database - INFO - Connected to database (schema version: 2.0.0)
+2026-01-22 13:22:31,601 - __main__ - INFO - ============================================================
+2026-01-22 13:22:31,602 - __main__ - INFO - Calculating Team Machine Picks for Season 21
+2026-01-22 13:22:31,602 - __main__ - INFO - ============================================================
+2026-01-22 13:22:31,602 - __main__ - INFO - Clearing existing team machine picks for season 21
+2026-01-22 13:22:33,506 - __main__ - INFO - Fetching games and scores for season 21...
+2026-01-22 13:22:36,476 - __main__ - INFO - Fetched 9540 score records
+2026-01-22 13:22:36,477 - __main__ - INFO - Aggregating team machine pick statistics...
+2026-01-22 13:22:36,513 - __main__ - INFO - Aggregated 2268 team/machine/context combinations
+2026-01-22 13:22:36,516 - __main__ - INFO - Calculating pick opportunities for season 21...
+2026-01-22 13:22:38,324 - __main__ - INFO - No per-match machine data available, falling back to venue_machines table
+2026-01-22 13:22:40,889 - __main__ - INFO - Calculated 7354 opportunity records
+2026-01-22 13:22:40,891 - __main__ - INFO - Inserting team machine pick statistics...
+2026-01-22 13:22:42,720 - __main__ - ERROR - Error: (psycopg2.errors.UndefinedColumn) column "total_opportunities" of relation "team_machine_picks" does not exist
+LINE 5:             total_opportunities, wilson_lower
+                    ^
+
+[SQL: 
+        INSERT INTO team_machine_picks (
+            team_key, machine_key, season, is_home, round_type,
+            times_picked, wins, total_points, avg_score,
+            total_opportunities, wilson_lower
+        )
+        VALUES (
+            %(team_key)s, %(machine_key)s, %(season)s, %(is_home)s, %(round_type)s,
+            %(times_picked)s, %(wins)s, %(total_points)s, %(avg_score)s,
+            %(total_opportunities)s, %(wilson_lower)s
+        )
+        ON CONFLICT (team_key, machine_key, season, is_home, round_type)
+        DO UPDATE SET
+            times_picked = EXCLUDED.times_picked,
+            wins = EXCLUDED.wins,
+            total_points = EXCLUDED.total_points,
+            avg_score = EXCLUDED.avg_score,
+            total_opportunities = EXCLUDED.total_opportunities,
+            wilson_lower = EXCLUDED.wilson_lower,
+            last_calculated = CURRENT_TIMESTAMP
+    ]
+[parameters: {'team_key': 'ADB', 'machine_key': 'AIQ', 'season': 21, 'is_home': False, 'round_type': 'doubles', 'times_picked': 2, 'wins': 2, 'total_points': 2, 'avg_score': 88989810, 'total_opportunities': 3, 'wilson_lower': 0.2077}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Traceback (most recent call last):
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.UndefinedColumn: column "total_opportunities" of relation "team_machine_picks" does not exist
+LINE 5:             total_opportunities, wilson_lower
+                    ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/JJC/Pinball/MNP/etl/calculate_team_machine_picks.py", line 608, in main
+    success = calculate_and_store_team_picks(args.season)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/JJC/Pinball/MNP/etl/calculate_team_machine_picks.py", line 522, in calculate_and_store_team_picks
+    insert_team_picks(pick_stats, opportunities, season)
+  File "/Users/JJC/Pinball/MNP/etl/calculate_team_machine_picks.py", line 488, in insert_team_picks
+    conn.execute(text(query), record)
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column "total_opportunities" of relation "team_machine_picks" does not exist
+LINE 5:             total_opportunities, wilson_lower
+                    ^
+
+[SQL: 
+        INSERT INTO team_machine_picks (
+            team_key, machine_key, season, is_home, round_type,
+            times_picked, wins, total_points, avg_score,
+            total_opportunities, wilson_lower
+        )
+        VALUES (
+            %(team_key)s, %(machine_key)s, %(season)s, %(is_home)s, %(round_type)s,
+            %(times_picked)s, %(wins)s, %(total_points)s, %(avg_score)s,
+            %(total_opportunities)s, %(wilson_lower)s
+        )
+        ON CONFLICT (team_key, machine_key, season, is_home, round_type)
+        DO UPDATE SET
+            times_picked = EXCLUDED.times_picked,
+            wins = EXCLUDED.wins,
+            total_points = EXCLUDED.total_points,
+            avg_score = EXCLUDED.avg_score,
+            total_opportunities = EXCLUDED.total_opportunities,
+            wilson_lower = EXCLUDED.wilson_lower,
+            last_calculated = CURRENT_TIMESTAMP
+    ]
+[parameters: {'team_key': 'ADB', 'machine_key': 'AIQ', 'season': 21, 'is_home': False, 'round_type': 'doubles', 'times_picked': 2, 'wins': 2, 'total_points': 2, 'avg_score': 88989810, 'total_opportunities': 3, 'wilson_lower': 0.2077}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-01-22 13:22:42,727 - etl.database - INFO - Database connection closed
+2026-01-22 13:22:43,291 - etl.database - INFO - Database engine created without connection pooling (ETL mode)
+2026-01-22 13:22:46,654 - etl.database - INFO - Connected to database (schema version: 2.0.0)
+2026-01-22 13:22:46,828 - __main__ - INFO - ============================================================
+2026-01-22 13:22:46,829 - __main__ - INFO - Calculating Team Machine Picks for Season 22
+2026-01-22 13:22:46,829 - __main__ - INFO - ============================================================
+2026-01-22 13:22:46,829 - __main__ - INFO - Clearing existing team machine picks for season 22
+2026-01-22 13:22:48,608 - __main__ - INFO - Fetching games and scores for season 22...
+2026-01-22 13:22:51,498 - __main__ - INFO - Fetched 9720 score records
+2026-01-22 13:22:51,498 - __main__ - INFO - Aggregating team machine pick statistics...
+2026-01-22 13:22:51,523 - __main__ - INFO - Aggregated 2332 team/machine/context combinations
+2026-01-22 13:22:51,525 - __main__ - INFO - Calculating pick opportunities for season 22...
+2026-01-22 13:22:53,429 - __main__ - INFO - No per-match machine data available, falling back to venue_machines table
+2026-01-22 13:22:55,860 - __main__ - INFO - Calculated 7272 opportunity records
+2026-01-22 13:22:55,861 - __main__ - INFO - Inserting team machine pick statistics...
+2026-01-22 13:22:57,794 - __main__ - ERROR - Error: (psycopg2.errors.UndefinedColumn) column "total_opportunities" of relation "team_machine_picks" does not exist
+LINE 5:             total_opportunities, wilson_lower
+                    ^
+
+[SQL: 
+        INSERT INTO team_machine_picks (
+            team_key, machine_key, season, is_home, round_type,
+            times_picked, wins, total_points, avg_score,
+            total_opportunities, wilson_lower
+        )
+        VALUES (
+            %(team_key)s, %(machine_key)s, %(season)s, %(is_home)s, %(round_type)s,
+            %(times_picked)s, %(wins)s, %(total_points)s, %(avg_score)s,
+            %(total_opportunities)s, %(wilson_lower)s
+        )
+        ON CONFLICT (team_key, machine_key, season, is_home, round_type)
+        DO UPDATE SET
+            times_picked = EXCLUDED.times_picked,
+            wins = EXCLUDED.wins,
+            total_points = EXCLUDED.total_points,
+            avg_score = EXCLUDED.avg_score,
+            total_opportunities = EXCLUDED.total_opportunities,
+            wilson_lower = EXCLUDED.wilson_lower,
+            last_calculated = CURRENT_TIMESTAMP
+    ]
+[parameters: {'team_key': 'CRA', 'machine_key': 'DP', 'season': 22, 'is_home': False, 'round_type': 'doubles', 'times_picked': 1, 'wins': 1, 'total_points': 1, 'avg_score': 133883690, 'total_opportunities': 2, 'wilson_lower': 0.0945}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Traceback (most recent call last):
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.UndefinedColumn: column "total_opportunities" of relation "team_machine_picks" does not exist
+LINE 5:             total_opportunities, wilson_lower
+                    ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/JJC/Pinball/MNP/etl/calculate_team_machine_picks.py", line 608, in main
+    success = calculate_and_store_team_picks(args.season)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/JJC/Pinball/MNP/etl/calculate_team_machine_picks.py", line 522, in calculate_and_store_team_picks
+    insert_team_picks(pick_stats, opportunities, season)
+  File "/Users/JJC/Pinball/MNP/etl/calculate_team_machine_picks.py", line 488, in insert_team_picks
+    conn.execute(text(query), record)
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/usr/local/Caskroom/miniforge/base/envs/mnp/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column "total_opportunities" of relation "team_machine_picks" does not exist
+LINE 5:             total_opportunities, wilson_lower
+                    ^
+
+[SQL: 
+        INSERT INTO team_machine_picks (
+            team_key, machine_key, season, is_home, round_type,
+            times_picked, wins, total_points, avg_score,
+            total_opportunities, wilson_lower
+        )
+        VALUES (
+            %(team_key)s, %(machine_key)s, %(season)s, %(is_home)s, %(round_type)s,
+            %(times_picked)s, %(wins)s, %(total_points)s, %(avg_score)s,
+            %(total_opportunities)s, %(wilson_lower)s
+        )
+        ON CONFLICT (team_key, machine_key, season, is_home, round_type)
+        DO UPDATE SET
+            times_picked = EXCLUDED.times_picked,
+            wins = EXCLUDED.wins,
+            total_points = EXCLUDED.total_points,
+            avg_score = EXCLUDED.avg_score,
+            total_opportunities = EXCLUDED.total_opportunities,
+            wilson_lower = EXCLUDED.wilson_lower,
+            last_calculated = CURRENT_TIMESTAMP
+    ]
+[parameters: {'team_key': 'CRA', 'machine_key': 'DP', 'season': 22, 'is_home': False, 'round_type': 'doubles', 'times_picked': 1, 'wins': 1, 'total_points': 1, 'avg_score': 133883690, 'total_opportunities': 2, 'wilson_lower': 0.0945}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-01-22 13:22:57,802 - etl.database - INFO - Database connection closed

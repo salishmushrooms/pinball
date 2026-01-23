@@ -3,6 +3,7 @@ Database loader for inserting extracted data into PostgreSQL.
 Uses batch inserts and upsert logic for efficient loading.
 """
 
+import json
 import logging
 from typing import List, Dict
 from sqlalchemy import text
@@ -285,19 +286,33 @@ class DatabaseLoader:
         count = 0
         with self.db.engine.begin() as conn:
             for match in matches:
+                # Convert machines list to JSON string for JSONB column
+                machines_json = json.dumps(match.get('machines', [])) if match.get('machines') else None
+
                 conn.execute(text("""
                     INSERT INTO matches (
                         match_key, season, week, date,
-                        venue_key, home_team_key, away_team_key, state
+                        venue_key, home_team_key, away_team_key, state, machines
                     )
                     VALUES (
                         :match_key, :season, :week, :date,
-                        :venue_key, :home_team_key, :away_team_key, :state
+                        :venue_key, :home_team_key, :away_team_key, :state, :machines
                     )
                     ON CONFLICT (match_key) DO UPDATE SET
                         state = EXCLUDED.state,
+                        machines = COALESCE(EXCLUDED.machines, matches.machines),
                         updated_at = CURRENT_TIMESTAMP
-                """), match)
+                """), {
+                    'match_key': match['match_key'],
+                    'season': match['season'],
+                    'week': match['week'],
+                    'date': match.get('date'),
+                    'venue_key': match['venue_key'],
+                    'home_team_key': match['home_team_key'],
+                    'away_team_key': match['away_team_key'],
+                    'state': match['state'],
+                    'machines': machines_json
+                })
                 count += 1
 
         logger.info(f"Loaded {count} matches")

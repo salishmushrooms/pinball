@@ -55,7 +55,8 @@ def predict_machine_picks(
         default=[22, 23],
         description="Seasons to analyze for prediction (default: [22, 23])"
     ),
-    limit: int = Query(default=10, ge=1, le=20, description="Number of predictions to return")
+    limit: int = Query(default=10, ge=1, le=20, description="Number of predictions to return"),
+    min_opportunities: int = Query(default=3, ge=1, le=10, description="Minimum opportunities required")
 ):
     """
     Predict which machines a team is likely to pick for a given round.
@@ -64,23 +65,22 @@ def predict_machine_picks(
     - Home team picks machines in rounds 2 & 4
     - Away team picks machines in rounds 1 & 3
 
-    ## Prediction Method (UPDATED for Doubles Rounds Only)
-    For doubles rounds (1 & 4), analyzes ALL of the team's historical doubles picks:
-    - Round 1 predictions (away team): Counts Round 1 picks (when away) + Round 4 picks (when home)
-    - Round 4 predictions (home team): Counts Round 4 picks (when home) + Round 1 picks (when away)
-
-    For singles rounds (2 & 3), uses the original logic matching the specific round context.
+    ## Prediction Method
+    Calculates **pick rate** (picks / opportunities) where opportunities are matches
+    where the machine was available at the venue. Uses Wilson score for confidence-
+    weighted ranking so small samples don't dominate (1/1 won't beat 7/10).
 
     ## Parameters
     - **team_key**: 3-letter team abbreviation (e.g., "SKP", "TRL", "ADB")
     - **round_num**: Round number (1, 2, 3, or 4)
     - **venue_key**: Venue code where match is played (e.g., "T4B", "KRA")
-    - **seasons**: List of seasons to analyze (default: [21, 22])
+    - **seasons**: List of seasons to analyze (default: [22, 23])
     - **limit**: Number of top predictions to return (default: 10)
+    - **min_opportunities**: Minimum opportunities required to show (default: 3)
 
     ## Returns
-    - **predictions**: List of machines with pick frequency and confidence
-    - **sample_size**: Total number of historical picks analyzed
+    - **predictions**: List of machines with pick rate, opportunities, and confidence
+    - **sample_size**: Total number of pick opportunities
     - **context**: Description of the prediction context
     - **venue_machines**: Machines available at the venue (for filtering)
     """
@@ -93,34 +93,33 @@ def predict_machine_picks(
         # Get venue machines from database
         venue_machines = get_venue_machines(venue_key, season_list)
 
-        # Determine prediction strategy based on round
+        # Determine round type
+        # Rounds 1 & 4 are doubles, Rounds 2 & 3 are singles
+        # We combine home AND away pick data to get a complete picture of
+        # the team's machine preferences (e.g., if they love Medieval Madness,
+        # they'll pick it both at home and when visiting venues that have it)
         is_doubles_round = round_num in [1, 4]
+        round_type = 'doubles' if is_doubles_round else 'singles'
+        context = round_type
 
-        if is_doubles_round:
-            # For doubles rounds, query team_machine_picks for doubles picks
-            context = "doubles (all home and away)"
-            round_type = 'doubles'
-        else:
-            # For singles rounds
-            if round_num == 2:
-                context = "home round 2"
-            else:
-                context = "away round 3"
-            round_type = 'singles'
-
-        # Query team_machine_picks table for pick data
+        # Query team_machine_picks table combining home and away picks
+        # This gives us the team's overall preference for each machine
+        # Opportunities = home opportunities + away opportunities (when machine was available)
         query = """
             SELECT
                 tmp.machine_key,
                 m.machine_name,
-                SUM(tmp.times_picked) as pick_count
+                SUM(tmp.times_picked) as pick_count,
+                SUM(tmp.total_opportunities) as opportunities,
+                MAX(tmp.wilson_lower) as wilson_lower
             FROM team_machine_picks tmp
             INNER JOIN machines m ON tmp.machine_key = m.machine_key
             WHERE tmp.team_key = :team_key
             AND tmp.season = ANY(:seasons)
             AND tmp.round_type = :round_type
             GROUP BY tmp.machine_key, m.machine_name
-            ORDER BY pick_count DESC
+            HAVING SUM(tmp.total_opportunities) >= :min_opportunities
+            ORDER BY wilson_lower DESC
             LIMIT :limit
         """
 
@@ -128,18 +127,21 @@ def predict_machine_picks(
             'team_key': team_key,
             'seasons': season_list,
             'round_type': round_type,
+            'min_opportunities': min_opportunities,
             'limit': limit
         })
 
-        # Calculate total picks
-        total_picks = sum(row['pick_count'] for row in results)
+        # Calculate actual pick rounds (max opportunities for any single machine)
+        # This represents the true number of times the team had a pick in this round type
+        # (summing across machines would give a meaninglessly large number)
+        actual_pick_rounds = max(row['opportunities'] for row in results) if results else 0
 
-        if total_picks == 0:
+        if not results:
             return {
                 "predictions": [],
                 "sample_size": 0,
                 "total_rounds": 0,
-                "context": f"{context} round {round_num}",
+                "context": context,
                 "venue_machines": venue_machines,
                 "team_key": team_key,
                 "venue_key": venue_key,
@@ -147,25 +149,32 @@ def predict_machine_picks(
                 "message": f"No historical data found for {team_key} in {context} round {round_num}"
             }
 
-        # Build predictions
+        # Build predictions with pick rate (picks/opportunities)
         predictions = []
         for row in results:
-            confidence = (row['pick_count'] / total_picks) * 100
+            pick_count = row['pick_count']
+            opportunities = row['opportunities']
+            wilson_lower = row['wilson_lower'] or 0
+
+            # Calculate pick rate as percentage (capped at 100% for data inconsistencies)
+            pick_rate_pct = min((pick_count / opportunities * 100), 100.0) if opportunities > 0 else 0
             available_at_venue = row['machine_key'] in venue_machines
 
             predictions.append({
                 "machine_key": row['machine_key'],
                 "machine_name": row['machine_name'],
-                "pick_count": row['pick_count'],
-                "confidence_pct": round(confidence, 1),
+                "pick_count": pick_count,
+                "opportunities": opportunities,
+                "confidence_pct": round(pick_rate_pct, 1),  # Keep name for backward compat
+                "confidence_score": round(wilson_lower * 100, 1),  # Wilson score as 0-100
                 "available_at_venue": available_at_venue
             })
 
         return {
             "predictions": predictions,
-            "sample_size": total_picks,
-            "total_rounds": total_picks,  # Approximation since we're using aggregated data
-            "context": f"{context} round {round_num}",
+            "sample_size": actual_pick_rounds,
+            "total_rounds": actual_pick_rounds,
+            "context": context,
             "team_key": team_key,
             "venue_key": venue_key,
             "venue_machines": venue_machines,

@@ -1,13 +1,26 @@
-'use client';
-
-import { useApiInfo } from '@/lib/queries';
 import {
   Card,
   PageHeader,
-  Alert,
-  LoadingSpinner,
   StatCard,
 } from '@/components/ui';
+import { ApiInfo } from '@/lib/types';
+
+// Revalidate weekly (7 days) - can also be triggered on-demand after ETL
+export const revalidate = 604800;
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+async function getApiInfo(): Promise<ApiInfo> {
+  const res = await fetch(`${API_BASE_URL}/`, {
+    next: { revalidate: 604800 },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch API info: ${res.status}`);
+  }
+
+  return res.json();
+}
 
 // Simple SVG icons for stat cards
 const icons = {
@@ -51,20 +64,8 @@ const icons = {
   ),
 };
 
-export default function Home() {
-  const { data: apiInfo, isLoading, error } = useApiInfo();
-
-  if (isLoading) {
-    return <LoadingSpinner fullPage text="Loading..." />;
-  }
-
-  if (error) {
-    return (
-      <Alert variant="error" title="Error">
-        {error instanceof Error ? error.message : 'Failed to fetch data'}
-      </Alert>
-    );
-  }
+export default async function Home() {
+  const apiInfo = await getApiInfo();
 
   return (
     <div className="space-y-8">
@@ -73,48 +74,46 @@ export default function Home() {
         description="Monday Night Pinball Data Analysis Platform"
       />
 
-      {apiInfo && (
-        <Card className="lg:max-w-[60%] lg:mx-auto">
-          <Card.Header>
-            <Card.Title>Data Summary</Card.Title>
-          </Card.Header>
-          <Card.Content>
-            <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>{apiInfo.data_summary.description}</p>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-              <StatCard
-                label="Players"
-                value={apiInfo.data_summary.players.toLocaleString()}
-                icon={icons.players}
-                href="/players"
-              />
-              <StatCard
-                label="Machines"
-                value={apiInfo.data_summary.machines.toLocaleString()}
-                icon={icons.machines}
-                href="/machines"
-              />
-              <StatCard
-                label="Venues"
-                value={apiInfo.data_summary.venues.toLocaleString()}
-                icon={icons.venues}
-                href="/venues"
-              />
-              <StatCard
-                label="Teams"
-                value={apiInfo.data_summary.teams.toLocaleString()}
-                icon={icons.teams}
-                href="/teams"
-              />
-              <StatCard
-                label="Matchups"
-                value="Season 23"
-                icon={icons.matchups}
-                href="/matchups"
-              />
-            </div>
-          </Card.Content>
-        </Card>
-      )}
+      <Card className="lg:max-w-[60%] lg:mx-auto">
+        <Card.Header>
+          <Card.Title>Data Summary</Card.Title>
+        </Card.Header>
+        <Card.Content>
+          <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>{apiInfo.data_summary.description}</p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+            <StatCard
+              label="Players"
+              value={apiInfo.data_summary.players.toLocaleString()}
+              icon={icons.players}
+              href="/players"
+            />
+            <StatCard
+              label="Machines"
+              value={apiInfo.data_summary.machines.toLocaleString()}
+              icon={icons.machines}
+              href="/machines"
+            />
+            <StatCard
+              label="Venues"
+              value={apiInfo.data_summary.venues.toLocaleString()}
+              icon={icons.venues}
+              href="/venues"
+            />
+            <StatCard
+              label="Teams"
+              value={apiInfo.data_summary.teams.toLocaleString()}
+              icon={icons.teams}
+              href="/teams"
+            />
+            <StatCard
+              label="Matchups"
+              value="Season 23"
+              icon={icons.matchups}
+              href="/matchups"
+            />
+          </div>
+        </Card.Content>
+      </Card>
     </div>
   );
 }
