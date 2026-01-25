@@ -21,16 +21,20 @@ Usage:
     python etl/verify_team_machine_picks.py --all-seasons
 
 IMPORTANT - Data Corrections Order:
-    Before running this pipeline, ensure data corrections are applied:
-    1. Update machine_variations.json (run add_missing_machines.py if needed)
-    2. Update player deduplication rules (run deduplicate_players.py if needed)
-    3. THEN run this pipeline
+    Before running this pipeline, ensure machine_variations.json is up to date
+    (run add_missing_machines.py if needed).
 
     The load_season.py step normalizes machine keys using machine_variations.json.
-    Aggregate calculations (steps 2-6) depend on correctly normalized data.
+    Post-load steps handle player deduplication and backfills automatically.
 
 Pipeline Steps (in order):
-    1. load_season.py        - Load raw match data with machine key normalization
+    1. load_season.py           - Load raw match data with machine key normalization
+
+    POST-LOAD (automatic):
+    - deduplicate_players.py    - Merge duplicate players (SHA-1 vs slug key formats)
+    - backfill_match_machines.py - Populate matches.machines from JSON files
+    - backfill_venue_machines.py - Ensure venue_machines table is complete
+
     2. calculate_percentiles.py - Calculate score percentile thresholds per machine
     3. calculate_player_stats.py - Aggregate player statistics with percentiles
     4. calculate_team_machine_picks.py - Calculate team machine selection patterns
@@ -43,7 +47,7 @@ Verification:
     After running the pipeline, verify aggregations with:
     python etl/verify_team_machine_picks.py --all-seasons
 
-Note: Steps 2-6 are aggregate calculations that depend on step 1 completing first.
+Note: Steps 2-6 are aggregate calculations that depend on step 1 and post-load steps.
 """
 
 import argparse
@@ -66,6 +70,14 @@ PIPELINE_STEPS = [
     ("calculate_team_machine_picks.py", "Calculate team machine picks", True),
     ("calculate_player_totals.py", "Calculate player totals", False),  # This one processes all seasons at once
     ("calculate_match_points.py", "Calculate match points", True),
+]
+
+# Post-load steps that run once after all seasons are loaded
+# These fix data issues and backfill derived data before aggregates
+POST_LOAD_STEPS = [
+    ("deduplicate_players.py", "Deduplicate players"),
+    ("backfill_match_machines.py", "Backfill match machines"),
+    ("backfill_venue_machines.py", "Backfill venue machines"),
 ]
 
 # Aggregate-only steps (steps 2-6)
@@ -126,6 +138,22 @@ def run_pipeline(
         print()
     else:
         print("STEP 1: Loading Season Data - SKIPPED")
+        print()
+
+    # Post-load steps: deduplication and backfills (unless only running aggregates)
+    if not only_aggregates:
+        print("POST-LOAD: Data cleanup and backfills")
+        print("-" * 40)
+        for script_name, description in POST_LOAD_STEPS:
+            print(f"  Running {script_name}...")
+            if not run_script(script_name, etl_dir=etl_dir):
+                print(f"  ❌ {description} failed")
+                all_success = False
+            else:
+                print(f"  ✅ {description} completed")
+        print()
+    else:
+        print("POST-LOAD: Data cleanup and backfills - SKIPPED (aggregates only)")
         print()
 
     # Steps 2-6: Aggregate calculations

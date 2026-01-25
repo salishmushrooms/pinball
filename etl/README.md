@@ -14,16 +14,19 @@ psql -h localhost -U mnp_user -d mnp_analyzer -f schema/migrations/001_complete_
 # 2. Run main pipeline
 python etl/run_full_pipeline.py --all-seasons
 
-# 3. Backfill additional data
+# 3. Deduplicate players (required - fixes key format differences between seasons)
+python etl/deduplicate_players.py
+
+# 4. Backfill additional data
 python etl/backfill_match_machines.py
 python etl/backfill_venue_machines.py
 
-# 4. Pre-calculate matchups for current season
+# 5. Pre-calculate matchups for current season
 python etl/calculate_matchups.py --season 23 --all-upcoming
 ```
 
 > **Important:** The main pipeline (`run_full_pipeline.py`) handles core data loading and aggregates.
-> Additional scripts (backfills, matchups) are required for full functionality.
+> Additional scripts (deduplication, backfills, matchups) are required for full functionality.
 > See "Full Database Reset" section below for complete steps.
 
 > **Important:** Local and production databases must have the same seasons loaded.
@@ -75,7 +78,7 @@ The pipeline runs these scripts in order:
 
 ### Full Database Reset (Complete Steps)
 
-**IMPORTANT:** Follow ALL steps in order. The main pipeline does not include backfill or matchup calculations.
+**IMPORTANT:** Follow ALL steps in order. The main pipeline does not include backfill, deduplication, or matchup calculations.
 
 ```bash
 conda activate mnp
@@ -87,16 +90,19 @@ psql -h localhost -U mnp_user -d mnp_analyzer -f schema/migrations/001_complete_
 # 2. Run full pipeline (loads data + calculates aggregates)
 python etl/run_full_pipeline.py --all-seasons
 
-# 3. Backfill match machines data (required for team_machine_picks)
+# 3. Deduplicate players (fixes SHA-1 vs slug key format differences between seasons)
+python etl/deduplicate_players.py
+
+# 4. Backfill match machines data (required for team_machine_picks)
 python etl/backfill_match_machines.py
 
-# 4. Backfill venue machines (ensures venue_machines is complete)
+# 5. Backfill venue machines (ensures venue_machines is complete)
 python etl/backfill_venue_machines.py
 
-# 5. Pre-calculate matchups for current season (required for matchup pages)
+# 6. Pre-calculate matchups for current season (required for matchup pages)
 python etl/calculate_matchups.py --season 23 --all-upcoming
 
-# 6. Verify data integrity
+# 7. Verify data integrity
 python etl/verify_team_machine_picks.py --all-seasons
 ```
 
