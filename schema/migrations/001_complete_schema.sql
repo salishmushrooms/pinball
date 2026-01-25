@@ -1,6 +1,7 @@
 -- MNP Analyzer Complete Database Schema
--- Version: 2.0.0
+-- Version: 2.2.0
 -- Created: 2025-12-08
+-- Updated: 2026-01-25
 -- Description: Consolidated schema with all tables, indexes, and constraints
 --
 -- This file consolidates all previous migrations:
@@ -11,7 +12,9 @@
 --   003_constraints.sql
 --   004_add_substitute_field.sql
 --   005_performance_indexes.sql
+--   005_team_machine_picks_opportunities.sql (total_opportunities, wilson_lower columns)
 --   006_team_aliases.sql
+--   006_match_machines.sql (machines JSONB column on matches)
 --   007_matchplay_integration.sql
 --   008_scores_unique_constraint.sql (constraint only - dedup not needed for fresh install)
 
@@ -125,6 +128,7 @@ CREATE TABLE matches (
     state VARCHAR(20) NOT NULL DEFAULT 'scheduled',
     home_team_points INTEGER,
     away_team_points INTEGER,
+    machines JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -133,6 +137,7 @@ COMMENT ON TABLE matches IS 'Match metadata';
 COMMENT ON COLUMN matches.match_key IS 'Format: mnp-{season}-{week}-{away}-{home}';
 COMMENT ON COLUMN matches.state IS 'Match status: scheduled, playing, complete';
 COMMENT ON COLUMN matches.week IS 'Week number (0 = playoffs/exhibition, 1-15 = regular season)';
+COMMENT ON COLUMN matches.machines IS 'Array of machine keys available at venue for this match (from match JSON)';
 
 -- Games table
 CREATE TABLE games (
@@ -229,6 +234,8 @@ CREATE TABLE team_machine_picks (
     is_home BOOLEAN NOT NULL,
     round_type VARCHAR(10) NOT NULL CHECK (round_type IN ('singles', 'doubles')),
     times_picked INTEGER NOT NULL DEFAULT 0,
+    total_opportunities INTEGER DEFAULT 0,
+    wilson_lower DECIMAL(5,4) DEFAULT 0,
     wins INTEGER DEFAULT 0,
     total_points INTEGER DEFAULT 0,
     avg_score BIGINT,
@@ -237,6 +244,8 @@ CREATE TABLE team_machine_picks (
 );
 
 COMMENT ON TABLE team_machine_picks IS 'Aggregated team machine selection patterns';
+COMMENT ON COLUMN team_machine_picks.total_opportunities IS 'Number of matches where team could pick this machine (machine was available at venue)';
+COMMENT ON COLUMN team_machine_picks.wilson_lower IS 'Wilson score lower bound (95% CI) for pick rate - used for confidence-weighted sorting';
 
 -- ============================================================================
 -- MATCHPLAY.EVENTS INTEGRATION TABLES
@@ -317,7 +326,7 @@ CREATE TABLE schema_version (
 );
 
 INSERT INTO schema_version (version, description) VALUES
-    ('2.0.0', 'Consolidated schema with all tables, indexes, and constraints');
+    ('2.2.0', 'Consolidated schema with match machines and opportunity tracking');
 
 -- ============================================================================
 -- INDEXES
@@ -356,6 +365,7 @@ CREATE INDEX idx_matches_venue ON matches(venue_key, season);
 CREATE INDEX idx_matches_teams ON matches(home_team_key, away_team_key, season);
 CREATE INDEX idx_matches_date ON matches(date);
 CREATE INDEX idx_matches_state ON matches(state);
+CREATE INDEX idx_matches_machines ON matches USING GIN (machines);
 
 -- Games indexes
 CREATE INDEX idx_games_match ON games(match_key);
@@ -396,6 +406,7 @@ CREATE INDEX idx_player_stats_machine ON player_machine_stats(machine_key, seaso
 -- Team machine picks indexes
 CREATE INDEX idx_team_picks_team ON team_machine_picks(team_key, season, is_home, round_type, times_picked DESC);
 CREATE INDEX idx_team_picks_machine ON team_machine_picks(machine_key, season);
+CREATE INDEX idx_team_machine_picks_wilson ON team_machine_picks(season, round_type, wilson_lower DESC);
 
 -- Matchplay indexes
 CREATE INDEX idx_mp_mappings_mnp ON matchplay_player_mappings(mnp_player_key);

@@ -8,10 +8,10 @@ This script:
 3. Stores results in pre_calculated_matchups table
 
 Usage:
-    python etl/calculate_matchups.py --season 24           # Next week only (default)
-    python etl/calculate_matchups.py --season 24 --week 5  # Specific week
-    python etl/calculate_matchups.py --season 24 --all-upcoming  # All future weeks
-    python etl/calculate_matchups.py --season 24 --verbose
+    python etl/calculate_matchups.py --season 23           # Next week only (default)
+    python etl/calculate_matchups.py --season 23 --week 1  # Specific week
+    python etl/calculate_matchups.py --season 23 --all-upcoming  # All future weeks
+    python etl/calculate_matchups.py --season 23 --verbose
 """
 
 import argparse

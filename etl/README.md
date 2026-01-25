@@ -6,13 +6,28 @@
 
 ```bash
 conda activate mnp
+cd /path/to/pinball
+
+# 1. Create schema
+psql -h localhost -U mnp_user -d mnp_analyzer -f schema/migrations/001_complete_schema.sql
+
+# 2. Run main pipeline
 python etl/run_full_pipeline.py --all-seasons
+
+# 3. Backfill additional data
+python etl/backfill_match_machines.py
+python etl/backfill_venue_machines.py
+
+# 4. Pre-calculate matchups for current season
+python etl/calculate_matchups.py --season 23 --all-upcoming
 ```
 
-This single command runs all 6 ETL steps in the correct order for seasons 20-22.
+> **Important:** The main pipeline (`run_full_pipeline.py`) handles core data loading and aggregates.
+> Additional scripts (backfills, matchups) are required for full functionality.
+> See "Full Database Reset" section below for complete steps.
 
 > **Important:** Local and production databases must have the same seasons loaded.
-> Production currently has seasons **20, 21, 22** only.
+> Production currently has seasons **20, 21, 22, 23**.
 
 ---
 
@@ -58,13 +73,31 @@ The pipeline runs these scripts in order:
 
 ## When to Run
 
-### Full Database Reset
+### Full Database Reset (Complete Steps)
+
+**IMPORTANT:** Follow ALL steps in order. The main pipeline does not include backfill or matchup calculations.
+
 ```bash
+conda activate mnp
+cd /path/to/pinball
+
 # 1. Clear and recreate schema
 psql -h localhost -U mnp_user -d mnp_analyzer -f schema/migrations/001_complete_schema.sql
 
-# 2. Run full pipeline
+# 2. Run full pipeline (loads data + calculates aggregates)
 python etl/run_full_pipeline.py --all-seasons
+
+# 3. Backfill match machines data (required for team_machine_picks)
+python etl/backfill_match_machines.py
+
+# 4. Backfill venue machines (ensures venue_machines is complete)
+python etl/backfill_venue_machines.py
+
+# 5. Pre-calculate matchups for current season (required for matchup pages)
+python etl/calculate_matchups.py --season 23 --all-upcoming
+
+# 6. Verify data integrity
+python etl/verify_team_machine_picks.py --all-seasons
 ```
 
 ### Adding a New Season
@@ -74,12 +107,18 @@ cd mnp-data-archive && git pull && cd ..
 
 # Load new season and recalculate aggregates
 python etl/run_full_pipeline.py --seasons 23
+
+# Backfill machines for new season
+python etl/backfill_match_machines.py --season 23
+
+# Calculate matchups for new season
+python etl/calculate_matchups.py --season 23 --all-upcoming
 ```
 
 ### Recalculating Aggregates Only
 If raw data is already loaded but aggregates need refreshing:
 ```bash
-python etl/run_full_pipeline.py --only-aggregates
+python etl/run_full_pipeline.py --only-aggregates --seasons 20 21 22 23
 ```
 
 ---
@@ -259,3 +298,75 @@ This pattern ensures:
 - Local development never accidentally hits production
 - Production operations require explicit intent
 - Credentials stay in `.env` (gitignored) but aren't automatically active for prod
+
+---
+
+## Replacing Production Database
+
+When you need to completely replace the production database with a fresh local build:
+
+### Prerequisites
+- Local database fully built and verified (see "Full Database Reset" above)
+- Railway CLI installed (`npm install -g @railway/cli` or `brew install railway`)
+- Production database URL from Railway dashboard
+
+### Steps
+
+```bash
+conda activate mnp
+cd /path/to/pinball
+
+# 1. Export local database to file
+pg_dump -h localhost -U mnp_user -d mnp_analyzer --no-owner --no-acl > backup_local.sql
+
+# 2. Login to Railway (if not already)
+railway login
+
+# 3. Connect to production database and clear it
+# Get connection string from Railway dashboard or use:
+railway connect postgres
+
+# In the Railway psql session, drop and recreate schema:
+# DROP SCHEMA public CASCADE;
+# CREATE SCHEMA public;
+# \q
+
+# 4. Import local database to production
+# Replace with your actual Railway connection details:
+psql "postgresql://postgres:PASSWORD@HOST:PORT/railway" < backup_local.sql
+
+# 5. Verify production data
+psql "postgresql://postgres:PASSWORD@HOST:PORT/railway" -c "
+SELECT 'scores' as table_name, COUNT(*) as count FROM scores
+UNION ALL SELECT 'player_machine_stats', COUNT(*) FROM player_machine_stats
+UNION ALL SELECT 'team_machine_picks', COUNT(*) FROM team_machine_picks
+UNION ALL SELECT 'pre_calculated_matchups', COUNT(*) FROM pre_calculated_matchups
+ORDER BY table_name;
+"
+```
+
+### Alternative: Direct Pipeline to Production
+
+Instead of export/import, run the pipeline directly against production:
+
+```bash
+# ⚠️ DANGER: This modifies production directly
+# 1. Set production URL temporarily
+export DATABASE_URL="postgresql://postgres:PASSWORD@HOST:PORT/railway"
+
+# 2. Run schema
+psql "$DATABASE_URL" -f schema/migrations/001_complete_schema.sql
+
+# 3. Run full pipeline
+python etl/run_full_pipeline.py --all-seasons
+
+# 4. Run backfills
+python etl/backfill_match_machines.py
+python etl/backfill_venue_machines.py
+
+# 5. Calculate matchups
+python etl/calculate_matchups.py --season 23 --all-upcoming
+
+# 6. Unset to return to local
+unset DATABASE_URL
+```
