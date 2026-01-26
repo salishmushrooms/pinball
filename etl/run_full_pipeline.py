@@ -20,6 +20,17 @@ Usage:
     # Verify team machine picks after calculation
     python etl/verify_team_machine_picks.py --all-seasons
 
+IMPORTANT - Matchplay Account Links:
+    Production users may have linked their Matchplay accounts to their player profiles.
+    These links are stored in matchplay_player_mappings and CANNOT be recreated.
+
+    Before running a full database rebuild:
+    1. Backup matchplay links: python etl/backup_matchplay_links.py --backup
+    2. After rebuild, restore: python etl/backup_matchplay_links.py --restore --input <backup_file>
+
+    The pipeline will warn you if matchplay links exist and offer to back them up.
+    Use --skip-matchplay-check to bypass this check (not recommended for production).
+
 IMPORTANT - Data Corrections Order:
     Before running this pipeline, ensure machine_variations.json is up to date
     (run add_missing_machines.py if needed).
@@ -46,6 +57,9 @@ Pipeline Steps (in order):
     EXTERNAL DATA (optional, requires MATCHPLAY_API_TOKEN):
     - refresh_matchplay_data.py - Refresh Matchplay.events data for linked players
 
+    POST-PIPELINE (if --restore-matchplay specified):
+    - Restore matchplay links from backup file
+
 Verification:
     After running the pipeline, verify aggregations with:
     python etl/verify_team_machine_picks.py --all-seasons
@@ -57,6 +71,7 @@ import argparse
 import subprocess
 import sys
 from pathlib import Path
+from datetime import datetime
 
 # Available seasons in the data archive
 # IMPORTANT: Keep this in sync with production database!
@@ -92,6 +107,94 @@ EXTERNAL_DATA_STEPS = [
 AGGREGATE_STEPS = PIPELINE_STEPS[1:]
 
 
+def check_matchplay_links(etl_dir: Path) -> tuple[bool, int, str]:
+    """
+    Check if matchplay links exist in the database.
+
+    Returns:
+        tuple: (has_links: bool, count: int, backup_path: str or None)
+    """
+    try:
+        # Import the backup module
+        sys.path.insert(0, str(etl_dir.parent))
+        from etl.backup_matchplay_links import verify_matchplay_links, backup_matchplay_links
+
+        has_links, message, counts = verify_matchplay_links()
+        link_count = counts.get("matchplay_player_mappings", 0) or 0
+
+        return has_links, link_count, None
+    except Exception as e:
+        print(f"  Warning: Could not check matchplay links: {e}")
+        return False, 0, None
+
+
+def backup_matchplay_data(etl_dir: Path) -> tuple[bool, str]:
+    """
+    Create a backup of matchplay links.
+
+    Returns:
+        tuple: (success: bool, backup_path: str or error message)
+    """
+    try:
+        sys.path.insert(0, str(etl_dir.parent))
+        from etl.backup_matchplay_links import backup_matchplay_links, BACKUP_DIR
+
+        # Create backup with timestamp
+        BACKUP_DIR.mkdir(exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = BACKUP_DIR / f"matchplay_links_{timestamp}.json"
+
+        success, message = backup_matchplay_links(backup_path)
+
+        if success:
+            return True, str(backup_path)
+        else:
+            return False, message
+    except Exception as e:
+        return False, str(e)
+
+
+def restore_matchplay_data(backup_path: Path, etl_dir: Path) -> tuple[bool, str]:
+    """
+    Restore matchplay links from a backup file.
+
+    Returns:
+        tuple: (success: bool, message: str)
+    """
+    try:
+        sys.path.insert(0, str(etl_dir.parent))
+        from etl.backup_matchplay_links import restore_matchplay_links
+
+        success, message = restore_matchplay_links(backup_path)
+        return success, message
+    except Exception as e:
+        return False, str(e)
+
+
+def verify_matchplay_restored(etl_dir: Path, expected_count: int) -> tuple[bool, str]:
+    """
+    Verify matchplay links were restored correctly.
+
+    Returns:
+        tuple: (success: bool, message: str)
+    """
+    try:
+        sys.path.insert(0, str(etl_dir.parent))
+        from etl.backup_matchplay_links import verify_matchplay_links
+
+        has_links, message, counts = verify_matchplay_links()
+        actual_count = counts.get("matchplay_player_mappings", 0) or 0
+
+        if actual_count >= expected_count:
+            return True, f"Verified {actual_count} matchplay links restored (expected {expected_count})"
+        elif actual_count > 0:
+            return True, f"Partial restore: {actual_count} links (expected {expected_count})"
+        else:
+            return False, f"No matchplay links found after restore (expected {expected_count})"
+    except Exception as e:
+        return False, str(e)
+
+
 def run_script(script_name: str, season: int = None, etl_dir: Path = None) -> bool:
     """Run a single ETL script and return success status."""
     script_path = etl_dir / script_name
@@ -117,6 +220,8 @@ def run_pipeline(
     skip_load: bool = False,
     only_aggregates: bool = False,
     refresh_matchplay: bool = False,
+    skip_matchplay_check: bool = False,
+    restore_matchplay: Path = None,
     etl_dir: Path = None
 ) -> bool:
     """Run the full ETL pipeline for the specified seasons."""
@@ -128,8 +233,40 @@ def run_pipeline(
     print(f"Skip load: {skip_load}")
     print(f"Only aggregates: {only_aggregates}")
     print(f"Refresh Matchplay data: {refresh_matchplay}")
+    print(f"Restore matchplay from: {restore_matchplay or 'N/A'}")
     print("=" * 60)
     print()
+
+    matchplay_backup_path = None
+    original_link_count = 0
+
+    # PRE-PIPELINE: Check for existing matchplay links
+    if not skip_matchplay_check and not only_aggregates:
+        print("PRE-PIPELINE: Checking for matchplay account links")
+        print("-" * 40)
+
+        has_links, link_count, _ = check_matchplay_links(etl_dir)
+        original_link_count = link_count
+
+        if has_links:
+            print(f"  Found {link_count} matchplay account links in database")
+            print()
+            print("  WARNING: Running a full data load may affect these user-created links.")
+            print("  Creating automatic backup...")
+            print()
+
+            success, result = backup_matchplay_data(etl_dir)
+            if success:
+                matchplay_backup_path = result
+                print(f"  Backup saved to: {matchplay_backup_path}")
+                print()
+            else:
+                print(f"  ERROR: Failed to backup matchplay links: {result}")
+                print("  Use --skip-matchplay-check to proceed anyway (not recommended)")
+                return False
+        else:
+            print("  No existing matchplay links found (or table doesn't exist)")
+        print()
 
     all_success = True
 
@@ -211,10 +348,51 @@ def run_pipeline(
         print("EXTERNAL DATA: Matchplay refresh - SKIPPED (use --refresh-matchplay to enable)")
         print()
 
+    # POST-PIPELINE: Restore matchplay links if requested or if we backed them up
+    restore_path = restore_matchplay or (Path(matchplay_backup_path) if matchplay_backup_path else None)
+
+    if restore_path and not only_aggregates:
+        print("POST-PIPELINE: Restoring matchplay account links")
+        print("-" * 40)
+
+        if not Path(restore_path).exists():
+            print(f"  ERROR: Backup file not found: {restore_path}")
+            all_success = False
+        else:
+            print(f"  Restoring from: {restore_path}")
+            success, message = restore_matchplay_data(Path(restore_path), etl_dir)
+
+            if success:
+                print(f"  ✅ {message}")
+
+                # Verify restoration
+                print("  Verifying restoration...")
+                verify_success, verify_message = verify_matchplay_restored(
+                    etl_dir,
+                    original_link_count if matchplay_backup_path else 0
+                )
+                if verify_success:
+                    print(f"  ✅ {verify_message}")
+                else:
+                    print(f"  ⚠️  {verify_message}")
+            else:
+                print(f"  ❌ Restore failed: {message}")
+                all_success = False
+        print()
+    elif matchplay_backup_path:
+        print("POST-PIPELINE: Matchplay links backup available")
+        print("-" * 40)
+        print(f"  Backup location: {matchplay_backup_path}")
+        print("  To restore manually, run:")
+        print(f"  python etl/backup_matchplay_links.py --restore --input {matchplay_backup_path}")
+        print()
+
     # Summary
     print("=" * 60)
     if all_success:
         print("✅ ETL Pipeline completed successfully!")
+        if matchplay_backup_path or restore_path:
+            print("✅ Matchplay account links preserved")
     else:
         print("⚠️  ETL Pipeline completed with errors")
     print("=" * 60)
@@ -245,6 +423,12 @@ Examples:
 
     # Include Matchplay.events data refresh (requires MATCHPLAY_API_TOKEN)
     python etl/run_full_pipeline.py --seasons 22 --refresh-matchplay
+
+    # Restore matchplay links from backup after pipeline
+    python etl/run_full_pipeline.py --seasons 22 --restore-matchplay backups/matchplay_links_20260126.json
+
+    # Skip matchplay check (not recommended for production)
+    python etl/run_full_pipeline.py --seasons 22 --skip-matchplay-check
 """
     )
 
@@ -274,6 +458,16 @@ Examples:
         action="store_true",
         help="Refresh Matchplay.events data for linked players (requires MATCHPLAY_API_TOKEN)"
     )
+    parser.add_argument(
+        "--skip-matchplay-check",
+        action="store_true",
+        help="Skip the pre-pipeline matchplay links check (not recommended for production)"
+    )
+    parser.add_argument(
+        "--restore-matchplay",
+        type=Path,
+        help="Restore matchplay links from specified backup file after pipeline completes"
+    )
 
     args = parser.parse_args()
 
@@ -301,6 +495,8 @@ Examples:
         skip_load=args.skip_load,
         only_aggregates=args.only_aggregates,
         refresh_matchplay=args.refresh_matchplay,
+        skip_matchplay_check=args.skip_matchplay_check,
+        restore_matchplay=args.restore_matchplay,
         etl_dir=etl_dir
     )
 

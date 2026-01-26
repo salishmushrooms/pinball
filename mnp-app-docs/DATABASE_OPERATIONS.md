@@ -285,37 +285,131 @@ done
 
 If you need to completely reset the production database:
 
-1. **Export local data first:**
+> **CRITICAL:** Before any database reset, you MUST backup production-only user data.
+> See [Preserving Matchplay Account Links](#preserving-matchplay-account-links) below.
+
+### Standard Reset Procedure
+
+1. **Backup matchplay account links FIRST:**
+   ```bash
+   # On production - backup user-created account links
+   DATABASE_URL="$DATABASE_PUBLIC_URL" python etl/backup_matchplay_links.py --backup
+   ```
+   This creates a timestamped backup in `backups/matchplay_links_YYYYMMDD_HHMMSS.json`
+
+2. **Export local data:**
    ```bash
    pg_dump -h localhost -U mnp_user -d mnp_analyzer --data-only --no-owner --no-acl > /tmp/mnp_data.sql
    ```
 
-2. **Connect to Railway PostgreSQL:**
+3. **Connect to Railway PostgreSQL:**
    ```bash
    railway connect Postgres--OkR
    ```
 
-3. **Drop and recreate schema:**
+4. **Drop and recreate schema:**
    ```sql
    DROP SCHEMA public CASCADE;
    CREATE SCHEMA public;
    \q
    ```
 
-4. **Run consolidated schema:**
+5. **Run consolidated schema:**
    ```bash
    railway connect Postgres--OkR < schema/migrations/001_complete_schema.sql
    ```
 
-5. **Import data:**
+6. **Import data:**
    ```bash
    railway connect Postgres--OkR < /tmp/mnp_data.sql
    ```
 
-6. **Verify:**
+7. **Restore matchplay links from backup:**
+   ```bash
+   DATABASE_URL="$DATABASE_PUBLIC_URL" python etl/backup_matchplay_links.py --restore --input backups/matchplay_links_YYYYMMDD_HHMMSS.json
+   ```
+
+8. **Verify matchplay links restored:**
+   ```bash
+   DATABASE_URL="$DATABASE_PUBLIC_URL" python etl/backup_matchplay_links.py --verify
+   ```
+
+9. **Verify production:**
    ```bash
    curl "https://your-api.railway.app/seasons"
    ```
+
+---
+
+## Preserving Matchplay Account Links
+
+**Why This Matters:**
+Production users can link their MNP player profiles to their Matchplay.events accounts. These links are stored in `matchplay_player_mappings` and are **user-created data that cannot be recreated from source files**. If you rebuild the database without preserving these links, users will need to re-link their accounts.
+
+### What Gets Preserved
+
+| Table | Contents | Critical? |
+|-------|----------|-----------|
+| `matchplay_player_mappings` | User account links | **YES** - Cannot be recreated |
+| `matchplay_ratings` | Cached ratings | No - Can be re-fetched |
+| `matchplay_player_machine_stats` | Cached stats | No - Can be re-fetched |
+| `matchplay_arena_mappings` | Machine name mappings | Minor - Useful to preserve |
+
+### Backup Commands
+
+```bash
+# Backup matchplay links (creates timestamped file)
+python etl/backup_matchplay_links.py --backup
+
+# Backup to specific file
+python etl/backup_matchplay_links.py --backup --output my_backup.json
+
+# Run against production database
+DATABASE_URL="$DATABASE_PUBLIC_URL" python etl/backup_matchplay_links.py --backup
+```
+
+### Restore Commands
+
+```bash
+# Restore from backup (idempotent - safe to run multiple times)
+python etl/backup_matchplay_links.py --restore --input backups/matchplay_links_20260126_120000.json
+
+# Dry run - validate without making changes
+python etl/backup_matchplay_links.py --restore --input backup.json --dry-run
+
+# Run against production database
+DATABASE_URL="$DATABASE_PUBLIC_URL" python etl/backup_matchplay_links.py --restore --input backups/matchplay_links_20260126_120000.json
+```
+
+### Verification Commands
+
+```bash
+# Verify links exist in database (run before rebuild)
+python etl/backup_matchplay_links.py --verify
+
+# Verify a backup file is valid
+python etl/backup_matchplay_links.py --verify-backup --input backups/matchplay_links_20260126_120000.json
+
+# List all available backups
+python etl/backup_matchplay_links.py --list
+```
+
+### Pre-Rebuild Checklist
+
+Before any database rebuild, ensure:
+
+- [ ] Run `--verify` on production to check for existing links
+- [ ] Run `--backup` on production to create backup file
+- [ ] Run `--verify-backup` on the backup file to confirm it's valid
+- [ ] Store backup file safely (it's in `backups/` directory, not committed to git)
+
+### Post-Rebuild Checklist
+
+After rebuilding the database:
+
+- [ ] Run `--restore` with the backup file
+- [ ] Run `--verify` to confirm links were restored
+- [ ] Test a linked player in the UI to confirm functionality
 
 ---
 

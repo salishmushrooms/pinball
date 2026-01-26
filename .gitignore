@@ -72,6 +72,10 @@ output/
 temp/
 cache/
 
+# Matchplay backup files (contain production user data)
+backups/*
+!backups/.gitkeep
+
 # Data files (generated or downloaded separately)
 data/
 *.csv
