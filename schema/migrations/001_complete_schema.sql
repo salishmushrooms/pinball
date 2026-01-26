@@ -1,7 +1,7 @@
 -- MNP Analyzer Complete Database Schema
--- Version: 2.2.0
+-- Version: 2.3.0
 -- Created: 2025-12-08
--- Updated: 2026-01-25
+-- Updated: 2026-01-26
 -- Description: Consolidated schema with all tables, indexes, and constraints
 --
 -- This file consolidates all previous migrations:
@@ -10,6 +10,7 @@
 --   002_allow_week_zero.sql
 --   002_remove_mn_state.sql (no longer needed - state has no default)
 --   003_constraints.sql
+--   003_add_missing_columns.sql (matchplay_ratings profile caching columns)
 --   004_add_substitute_field.sql
 --   005_performance_indexes.sql
 --   005_team_machine_picks_opportunities.sql (total_opportunities, wilson_lower columns)
@@ -277,12 +278,36 @@ CREATE TABLE matchplay_ratings (
     matchplay_user_id INTEGER NOT NULL,
     rating_value DECIMAL(8,2),
     rating_rd DECIMAL(6,2),
+    game_count INTEGER,
+    win_count INTEGER,
+    loss_count INTEGER,
+    efficiency_percent DECIMAL(5,4),
+    lower_bound DECIMAL(8,2),
+    ifpa_id INTEGER,
+    ifpa_rank INTEGER,
+    ifpa_rating DECIMAL(8,2),
+    ifpa_womens_rank INTEGER,
+    tournament_count INTEGER,
+    location VARCHAR(255),
+    avatar TEXT,
     fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-COMMENT ON TABLE matchplay_ratings IS 'Cached Matchplay ratings for linked players';
+COMMENT ON TABLE matchplay_ratings IS 'Cached Matchplay ratings and profile data for linked players';
 COMMENT ON COLUMN matchplay_ratings.rating_value IS 'Matchplay rating value';
 COMMENT ON COLUMN matchplay_ratings.rating_rd IS 'Rating deviation (lower = more certain)';
+COMMENT ON COLUMN matchplay_ratings.game_count IS 'Total games played on Matchplay';
+COMMENT ON COLUMN matchplay_ratings.win_count IS 'Total wins on Matchplay';
+COMMENT ON COLUMN matchplay_ratings.loss_count IS 'Total losses on Matchplay';
+COMMENT ON COLUMN matchplay_ratings.efficiency_percent IS 'Win efficiency percentage (0-1 scale)';
+COMMENT ON COLUMN matchplay_ratings.lower_bound IS 'Lower bound rating estimate';
+COMMENT ON COLUMN matchplay_ratings.ifpa_id IS 'IFPA player ID';
+COMMENT ON COLUMN matchplay_ratings.ifpa_rank IS 'IFPA world ranking';
+COMMENT ON COLUMN matchplay_ratings.ifpa_rating IS 'IFPA rating value';
+COMMENT ON COLUMN matchplay_ratings.ifpa_womens_rank IS 'IFPA womens ranking';
+COMMENT ON COLUMN matchplay_ratings.tournament_count IS 'Number of tournaments played on Matchplay';
+COMMENT ON COLUMN matchplay_ratings.location IS 'Player location from Matchplay profile';
+COMMENT ON COLUMN matchplay_ratings.avatar IS 'Avatar URL from Matchplay profile';
 
 -- Matchplay player machine stats
 CREATE TABLE matchplay_player_machine_stats (

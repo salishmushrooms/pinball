@@ -10,7 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import text
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from api.models.schemas import (
     MatchplayLookupResult,
@@ -357,199 +357,92 @@ async def unlink_player_from_matchplay(player_key: str):
     response_model=MatchplayPlayerStats,
     responses={404: {"model": ErrorResponse}},
     summary="Get Matchplay stats for linked player",
-    description="Get rating and IFPA data from Matchplay for a linked player"
+    description="Get cached rating and IFPA data for a linked player"
 )
-async def get_player_matchplay_stats(
-    player_key: str,
-    refresh: bool = Query(False, description="Force refresh profile data from Matchplay API")
-):
+async def get_player_matchplay_stats(player_key: str):
     """
     Get Matchplay statistics for a linked MNP player.
 
-    Returns:
+    Returns cached data from the weekly ETL refresh:
     - Rating (value, deviation, game count, win/loss record)
     - IFPA data (rank, rating)
     - Tournament count
 
-    Note: Profile data (rating, IFPA) is cached for 24 hours.
-    Use refresh=true to force update from Matchplay API.
+    Note: Data is refreshed weekly via the ETL pipeline (refresh_matchplay_data.py).
+    This endpoint returns cached data only - no live API calls are made.
 
     Machine statistics are not available due to Matchplay API limitations.
     See mnp-app-docs/api/MATCHPLAY_INTEGRATION.md for details.
     """
-    # Get mapping
-    mapping_query = """
-        SELECT id, mnp_player_key, matchplay_user_id, matchplay_name, ifpa_id,
-               match_method, created_at, last_synced
-        FROM matchplay_player_mappings
-        WHERE mnp_player_key = :player_key
+    # Get mapping and cached data in a single query
+    query = """
+        SELECT
+            m.matchplay_user_id,
+            m.matchplay_name,
+            m.last_synced,
+            r.rating_value,
+            r.rating_rd,
+            r.game_count,
+            r.win_count,
+            r.loss_count,
+            r.efficiency_percent,
+            r.lower_bound,
+            r.ifpa_id,
+            r.ifpa_rank,
+            r.ifpa_rating,
+            r.ifpa_womens_rank,
+            r.tournament_count,
+            r.location,
+            r.avatar,
+            r.fetched_at
+        FROM matchplay_player_mappings m
+        LEFT JOIN matchplay_ratings r ON m.matchplay_user_id = r.matchplay_user_id
+        WHERE m.mnp_player_key = :player_key
     """
-    mappings = execute_query(mapping_query, {'player_key': player_key})
+    results = execute_query(query, {'player_key': player_key})
 
-    if not mappings:
+    if not results:
         raise HTTPException(
             status_code=404,
             detail=f"Player '{player_key}' not linked to Matchplay. Use /lookup first."
         )
 
-    mapping = mappings[0]
-    matchplay_user_id = mapping['matchplay_user_id']
-    matchplay_name = mapping['matchplay_name']
+    data = results[0]
+    matchplay_user_id = data['matchplay_user_id']
+    matchplay_name = data['matchplay_name']
 
-    # Initialize client for profile fetch
-    client = MatchplayClient()
-
-    # Check if we have cached profile data that's less than 24 hours old
+    # Build rating object if we have rating data
     rating = None
+    if data.get('rating_value') is not None:
+        rating = MatchplayRating(
+            rating=float(data['rating_value']) if data['rating_value'] else None,
+            rd=float(data['rating_rd']) if data['rating_rd'] else None,
+            game_count=data.get('game_count'),
+            win_count=data.get('win_count'),
+            loss_count=data.get('loss_count'),
+            efficiency_percent=float(data['efficiency_percent']) if data['efficiency_percent'] else None,
+            lower_bound=float(data['lower_bound']) if data['lower_bound'] else None,
+            fetched_at=data.get('fetched_at')
+        )
+
+    # Build IFPA object if we have IFPA data
     ifpa = None
-    location = None
-    avatar = None
-    tournament_count = None
-    cache_stale = True
-
-    cached_profile_query = """
-        SELECT rating_value, rating_rd, game_count, win_count, loss_count,
-               efficiency_percent, lower_bound, ifpa_id, ifpa_rank, ifpa_rating,
-               ifpa_womens_rank, tournament_count, location, avatar, fetched_at
-        FROM matchplay_ratings
-        WHERE matchplay_user_id = :matchplay_user_id
-        ORDER BY fetched_at DESC
-        LIMIT 1
-    """
-    cached_profile = execute_query(cached_profile_query, {'matchplay_user_id': matchplay_user_id})
-
-    if cached_profile and not refresh:
-        cached = cached_profile[0]
-        fetched_at = cached.get('fetched_at')
-        if fetched_at and datetime.utcnow() - fetched_at < timedelta(hours=24):
-            cache_stale = False
-            logger.debug(f"Using cached profile data for player {player_key} (fetched {fetched_at})")
-
-            # Use cached data
-            location = cached.get('location')
-            avatar = cached.get('avatar')
-            tournament_count = cached.get('tournament_count')
-
-            if cached.get('rating_value') is not None:
-                rating = MatchplayRating(
-                    rating=float(cached['rating_value']) if cached['rating_value'] else None,
-                    rd=float(cached['rating_rd']) if cached['rating_rd'] else None,
-                    game_count=cached.get('game_count'),
-                    win_count=cached.get('win_count'),
-                    loss_count=cached.get('loss_count'),
-                    efficiency_percent=float(cached['efficiency_percent']) if cached['efficiency_percent'] else None,
-                    lower_bound=float(cached['lower_bound']) if cached['lower_bound'] else None,
-                    fetched_at=fetched_at
-                )
-
-            if cached.get('ifpa_id') is not None or cached.get('ifpa_rank') is not None:
-                ifpa = MatchplayIFPA(
-                    ifpa_id=cached.get('ifpa_id'),
-                    rank=cached.get('ifpa_rank'),
-                    rating=float(cached['ifpa_rating']) if cached['ifpa_rating'] else None,
-                    womens_rank=cached.get('ifpa_womens_rank')
-                )
-
-    # Fetch fresh profile data if cache is stale (> 24 hours) or missing
-    if cache_stale and client.is_configured():
-        try:
-            logger.info(f"Fetching fresh profile data for player {player_key} (cache stale or missing)")
-            profile_data = await client.get_user_profile(matchplay_user_id)
-
-            if profile_data:
-                # Extract user info
-                user_info = profile_data.get('user', {})
-                location = user_info.get('location')
-                avatar = user_info.get('avatar')
-                matchplay_name = user_info.get('name') or matchplay_name
-
-                # Extract rating data
-                rating_data = profile_data.get('rating')
-                if rating_data:
-                    rating = MatchplayRating(
-                        rating=rating_data.get('rating'),
-                        rd=rating_data.get('rd'),
-                        game_count=rating_data.get('gameCount'),
-                        win_count=rating_data.get('winCount'),
-                        loss_count=rating_data.get('lossCount'),
-                        efficiency_percent=rating_data.get('efficiencyPercent'),
-                        lower_bound=rating_data.get('lowerBound'),
-                        fetched_at=datetime.utcnow()
-                    )
-
-                # Extract IFPA data
-                ifpa_data = profile_data.get('ifpa')
-                if ifpa_data:
-                    ifpa = MatchplayIFPA(
-                        ifpa_id=ifpa_data.get('ifpaId'),
-                        rank=ifpa_data.get('rank'),
-                        rating=ifpa_data.get('rating'),
-                        womens_rank=ifpa_data.get('womensRank')
-                    )
-
-                # Extract tournament count
-                counts = profile_data.get('userCounts', {})
-                tournament_count = counts.get('tournamentPlayCount')
-
-                # Cache the profile data in database
-                with get_db_connection() as conn:
-                    # Delete old cached rating for this user
-                    conn.execute(text("""
-                        DELETE FROM matchplay_ratings
-                        WHERE matchplay_user_id = :matchplay_user_id
-                    """), {'matchplay_user_id': matchplay_user_id})
-
-                    # Insert new cached profile data
-                    conn.execute(text("""
-                        INSERT INTO matchplay_ratings
-                            (matchplay_user_id, rating_value, rating_rd, game_count, win_count,
-                             loss_count, efficiency_percent, lower_bound, ifpa_id, ifpa_rank,
-                             ifpa_rating, ifpa_womens_rank, tournament_count, location, avatar, fetched_at)
-                        VALUES
-                            (:matchplay_user_id, :rating_value, :rating_rd, :game_count, :win_count,
-                             :loss_count, :efficiency_percent, :lower_bound, :ifpa_id, :ifpa_rank,
-                             :ifpa_rating, :ifpa_womens_rank, :tournament_count, :location, :avatar, :fetched_at)
-                    """), {
-                        'matchplay_user_id': matchplay_user_id,
-                        'rating_value': rating_data.get('rating') if rating_data else None,
-                        'rating_rd': rating_data.get('rd') if rating_data else None,
-                        'game_count': rating_data.get('gameCount') if rating_data else None,
-                        'win_count': rating_data.get('winCount') if rating_data else None,
-                        'loss_count': rating_data.get('lossCount') if rating_data else None,
-                        'efficiency_percent': rating_data.get('efficiencyPercent') if rating_data else None,
-                        'lower_bound': rating_data.get('lowerBound') if rating_data else None,
-                        'ifpa_id': ifpa_data.get('ifpaId') if ifpa_data else None,
-                        'ifpa_rank': ifpa_data.get('rank') if ifpa_data else None,
-                        'ifpa_rating': ifpa_data.get('rating') if ifpa_data else None,
-                        'ifpa_womens_rank': ifpa_data.get('womensRank') if ifpa_data else None,
-                        'tournament_count': tournament_count,
-                        'location': location,
-                        'avatar': avatar,
-                        'fetched_at': datetime.utcnow()
-                    })
-
-                    # Update last_synced in mappings table
-                    conn.execute(text("""
-                        UPDATE matchplay_player_mappings
-                        SET last_synced = :last_synced
-                        WHERE matchplay_user_id = :matchplay_user_id
-                    """), {
-                        'matchplay_user_id': matchplay_user_id,
-                        'last_synced': datetime.utcnow()
-                    })
-                    conn.commit()
-
-        except MatchplayClientError as e:
-            logger.warning(f"Failed to fetch Matchplay profile: {e}")
+    if data.get('ifpa_id') is not None or data.get('ifpa_rank') is not None:
+        ifpa = MatchplayIFPA(
+            ifpa_id=data.get('ifpa_id'),
+            rank=data.get('ifpa_rank'),
+            rating=float(data['ifpa_rating']) if data['ifpa_rating'] else None,
+            womens_rank=data.get('ifpa_womens_rank')
+        )
 
     return MatchplayPlayerStats(
         matchplay_user_id=matchplay_user_id,
         matchplay_name=matchplay_name or "",
-        location=location,
-        avatar=avatar,
+        location=data.get('location'),
+        avatar=data.get('avatar'),
         rating=rating,
         ifpa=ifpa,
-        tournament_count=tournament_count,
+        tournament_count=data.get('tournament_count'),
         machine_stats=[],  # Machine stats not available due to API limitations
         profile_url=f"https://app.matchplay.events/users/{matchplay_user_id}"
     )

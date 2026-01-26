@@ -43,6 +43,9 @@ Pipeline Steps (in order):
     5. calculate_player_totals.py - Calculate player season totals
     6. calculate_match_points.py - Calculate match point totals
 
+    EXTERNAL DATA (optional, requires MATCHPLAY_API_TOKEN):
+    - refresh_matchplay_data.py - Refresh Matchplay.events data for linked players
+
 Verification:
     After running the pipeline, verify aggregations with:
     python etl/verify_team_machine_picks.py --all-seasons
@@ -80,6 +83,11 @@ POST_LOAD_STEPS = [
     ("backfill_venue_machines.py", "Backfill venue machines"),
 ]
 
+# External data refresh steps (optional, require API tokens)
+EXTERNAL_DATA_STEPS = [
+    ("refresh_matchplay_data.py", "Refresh Matchplay.events data"),
+]
+
 # Aggregate-only steps (steps 2-6)
 AGGREGATE_STEPS = PIPELINE_STEPS[1:]
 
@@ -108,6 +116,7 @@ def run_pipeline(
     seasons: list[int],
     skip_load: bool = False,
     only_aggregates: bool = False,
+    refresh_matchplay: bool = False,
     etl_dir: Path = None
 ) -> bool:
     """Run the full ETL pipeline for the specified seasons."""
@@ -118,6 +127,7 @@ def run_pipeline(
     print(f"Seasons to process: {seasons}")
     print(f"Skip load: {skip_load}")
     print(f"Only aggregates: {only_aggregates}")
+    print(f"Refresh Matchplay data: {refresh_matchplay}")
     print("=" * 60)
     print()
 
@@ -185,6 +195,22 @@ def run_pipeline(
         print()
         step_num += 1
 
+    # External data refresh (optional)
+    if refresh_matchplay:
+        print("EXTERNAL DATA: Refreshing Matchplay.events data")
+        print("-" * 40)
+        for script_name, description in EXTERNAL_DATA_STEPS:
+            print(f"  Running {script_name}...")
+            if not run_script(script_name, etl_dir=etl_dir):
+                print(f"  ⚠️  {description} failed (non-critical)")
+                # Don't mark as failure - external data is optional
+            else:
+                print(f"  ✅ {description} completed")
+        print()
+    else:
+        print("EXTERNAL DATA: Matchplay refresh - SKIPPED (use --refresh-matchplay to enable)")
+        print()
+
     # Summary
     print("=" * 60)
     if all_success:
@@ -216,6 +242,9 @@ Examples:
 
     # Skip loading, just run aggregates for specific seasons
     python etl/run_full_pipeline.py --seasons 22 --skip-load
+
+    # Include Matchplay.events data refresh (requires MATCHPLAY_API_TOKEN)
+    python etl/run_full_pipeline.py --seasons 22 --refresh-matchplay
 """
     )
 
@@ -239,6 +268,11 @@ Examples:
         "--only-aggregates",
         action="store_true",
         help="Only run aggregate calculations (steps 2-6)"
+    )
+    parser.add_argument(
+        "--refresh-matchplay",
+        action="store_true",
+        help="Refresh Matchplay.events data for linked players (requires MATCHPLAY_API_TOKEN)"
     )
 
     args = parser.parse_args()
@@ -266,6 +300,7 @@ Examples:
         seasons=seasons,
         skip_load=args.skip_load,
         only_aggregates=args.only_aggregates,
+        refresh_matchplay=args.refresh_matchplay,
         etl_dir=etl_dir
     )
 

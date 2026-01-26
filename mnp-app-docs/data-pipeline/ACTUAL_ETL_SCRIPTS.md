@@ -1,6 +1,6 @@
 # MNP ETL Scripts - Actual Implementation
 
-**Last Updated:** 2026-01-14
+**Last Updated:** 2026-01-26
 **Location:** `/etl` directory
 
 > **Note:** This documents the actual ETL implementation.
@@ -10,7 +10,7 @@
 
 ## Overview
 
-The MNP ETL pipeline consists of 14 Python scripts that load match data from JSON files into PostgreSQL and calculate various aggregations. Scripts are designed to be **idempotent** - safe to run multiple times.
+The MNP ETL pipeline consists of 15 Python scripts that load match data from JSON files into PostgreSQL, calculate various aggregations, and refresh external data. Scripts are designed to be **idempotent** - safe to run multiple times.
 
 ### Key Principles
 
@@ -18,6 +18,7 @@ The MNP ETL pipeline consists of 14 Python scripts that load match data from JSO
 - **Upsert logic** - All scripts use `ON CONFLICT DO UPDATE` for safe re-runs
 - **Dependency order matters** - Some scripts must run before others
 - **Environment override** - Use `DATABASE_URL` environment variable to target local DB
+- **External data via batch** - Matchplay.events data is refreshed via ETL, not live API calls
 
 ---
 
@@ -32,6 +33,7 @@ The MNP ETL pipeline consists of 14 Python scripts that load match data from JSO
 | `calculate_team_machine_picks.py` | Calculate team machine selection patterns | `load_season.py` | After loading data |
 | `calculate_player_totals.py` | Calculate cross-season player totals | `load_season.py` | After loading data |
 | `calculate_match_points.py` | Calculate match point totals | `load_season.py` | After loading data |
+| `refresh_matchplay_data.py` | Refresh Matchplay.events data for linked players | Linked accounts | Weekly (optional) |
 | `run_full_pipeline.py` | Run all steps in order | None | Full season backfill |
 | `update_season.py` | Orchestrate weekly update | None | Weekly (convenience wrapper) |
 | `update_team_venues.py` | Update team home venues | `load_season.py` | As needed |
@@ -387,6 +389,55 @@ python etl/run_full_pipeline.py --only-aggregates
 - Use for full season backfills or database rebuilds
 
 **Performance:** ~3-5 minutes for one complete season
+
+---
+
+### `refresh_matchplay_data.py`
+
+**Purpose:** Refresh Matchplay.events profile data for all linked players.
+
+**Usage:**
+```bash
+# Refresh all linked players
+python etl/refresh_matchplay_data.py
+
+# Preview what would be refreshed (no changes)
+python etl/refresh_matchplay_data.py --dry-run
+
+# Refresh only first 10 players (for testing)
+python etl/refresh_matchplay_data.py --limit 10 --verbose
+```
+
+**Arguments:**
+- `--dry-run` (optional): Show what would be refreshed without making changes
+- `--limit` (optional): Limit number of players to refresh (for testing)
+- `--verbose` (optional): Enable verbose logging
+
+**What it refreshes:**
+For each player with a linked Matchplay account:
+- Rating (value, RD, lower bound)
+- Game counts (played, wins, losses, efficiency percent)
+- IFPA data (ID, rank, rating, women's rank)
+- Tournament count
+- Profile info (location, avatar)
+
+**Environment Requirements:**
+- `MATCHPLAY_API_TOKEN` - Required API token from Matchplay.events
+
+**Database tables affected:**
+- `matchplay_ratings` - Cached profile data
+
+**Dependencies:**
+- Requires `matchplay_player_mappings` entries (players must be linked first)
+
+**Notes:**
+- Respects Matchplay API rate limits
+- Adds small delay between requests to avoid hitting limits
+- Stops gracefully if rate limit is nearly exhausted
+- Should be run weekly as part of ETL pipeline
+- Can be run standalone or via `run_full_pipeline.py --refresh-matchplay`
+
+**Performance:** ~1-2 minutes for ~50 linked players (depends on API response time)
 
 ---
 

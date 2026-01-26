@@ -2,7 +2,7 @@
 
 **Guide for loading data, running migrations, and maintaining the production database.**
 
-**Last Updated:** 2026-01-15
+**Last Updated:** 2026-01-26
 
 ---
 
@@ -244,6 +244,12 @@ python etl/run_full_pipeline.py --seasons 18 19 20 21 22
 
 # Or just recalculate aggregates (skip loading)
 python etl/run_full_pipeline.py --seasons 18 19 20 21 22 --skip-load
+
+# Include Matchplay.events data refresh (requires MATCHPLAY_API_TOKEN)
+python etl/run_full_pipeline.py --seasons 22 --refresh-matchplay
+
+# Or run Matchplay refresh standalone
+python etl/refresh_matchplay_data.py
 ```
 
 ### Running ETL Directly Against Production
@@ -449,4 +455,4 @@ Expected response:
 
 ---
 
-**Last Updated:** 2026-01-15
+**Last Updated:** 2026-01-26

@@ -1,11 +1,33 @@
 # Matchplay.events API Integration
 
-> **Last Updated**: 2026-01-18
+> **Last Updated**: 2026-01-26
 > **Status**: Partial Implementation (Rating/IFPA only, machine stats removed)
 
 ## Overview
 
 The MNP Analyzer integrates with [Matchplay.events](https://app.matchplay.events) to display player ratings and IFPA data. This document describes the API capabilities, limitations discovered during implementation, and current integration status.
+
+## Data Refresh Strategy
+
+**Matchplay data is refreshed via weekly batch ETL, not live API calls.**
+
+This approach provides:
+- **Faster page loads**: No API latency on player profile views
+- **Rate limit safety**: Controlled batch processing respects API limits
+- **Reliability**: Data available even if Matchplay API is down
+- **Simplicity**: Single source of truth via ETL pipeline
+
+### Refresh Process
+
+```bash
+# Via the full pipeline
+python etl/run_full_pipeline.py --seasons 23 --refresh-matchplay
+
+# Or standalone
+python etl/refresh_matchplay_data.py
+```
+
+Data is stored in the `matchplay_ratings` table and served from cache by the API.
 
 ## What Works
 
@@ -15,9 +37,9 @@ The MNP Analyzer integrates with [Matchplay.events](https://app.matchplay.events
 - **Tournament Count**: Number of tournaments played
 - **Win/Loss Record**: Game counts and efficiency percentage
 
-**Endpoint**: `GET /api/users/{user_id}?includeIfpa=1&includeCounts=1`
+**Matchplay API Endpoint**: `GET /api/users/{user_id}?includeIfpa=1&includeCounts=1`
 
-This data is cached in `matchplay_ratings` table with 24-hour TTL.
+This data is cached in `matchplay_ratings` table and refreshed weekly via ETL.
 
 ### Player Search & Linking
 - Search for Matchplay users by name
@@ -63,6 +85,7 @@ These tables exist but are not populated:
 - `api/services/matchplay_client.py` - API client
 - `api/routers/matchplay.py` - REST endpoints
 - `frontend/components/MatchplaySection.tsx` - UI component
+- `etl/refresh_matchplay_data.py` - Batch data refresh script
 
 ### Active Endpoints
 | Endpoint | Purpose |
@@ -71,8 +94,8 @@ These tables exist but are not populated:
 | `GET /matchplay/player/{key}/lookup` | Search for Matchplay matches |
 | `POST /matchplay/player/{key}/link` | Link MNP player to Matchplay |
 | `DELETE /matchplay/player/{key}/link` | Unlink player |
-| `GET /matchplay/player/{key}/stats` | Get rating/IFPA (no machine stats) |
-| `GET /matchplay/players/ratings` | Batch lookup ratings |
+| `GET /matchplay/player/{key}/stats` | Get cached rating/IFPA data (no live API calls) |
+| `GET /matchplay/players/ratings` | Batch lookup cached ratings |
 | `GET /matchplay/search/users` | Open user search |
 
 ### Removed/Non-functional Endpoints
