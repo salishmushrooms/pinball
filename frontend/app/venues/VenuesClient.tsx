@@ -17,16 +17,19 @@ export function VenuesClient({ venues }: VenuesClientProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [showInactive, setShowInactive] = useState(false);
 
+  // A venue is "active" if it has home teams in the current season
+  const isVenueActive = (venue: VenueWithStats) => venue.home_teams.length > 0;
+
   const filteredVenues = useMemo(() => {
     return venues.filter((venue) => {
       const matchesSearch = venue.venue_name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesActive = showInactive || venue.is_active;
+      const matchesActive = showInactive || isVenueActive(venue);
       return matchesSearch && matchesActive;
     });
   }, [venues, searchTerm, showInactive]);
 
   const activeVenueCount = useMemo(() => {
-    return venues.filter((v) => v.is_active).length;
+    return venues.filter(isVenueActive).length;
   }, [venues]);
 
   return (
