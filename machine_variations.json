@@ -2253,5 +2253,32 @@
       "texas chainsaw massacre",
       "texaschainsawmassacre"
     ]
+  },
+  "HP": {
+    "name": "Harry Potter",
+    "manufacturer": "",
+    "year": "",
+    "variations": [
+      "hp",
+      "harry potter",
+      "potter"
+    ]
+  },
+    
+  "CF": {
+    "name": "Captain Fantastic",
+    "manufacturer": "",
+    "year": "",
+    "variations": [
+      "Captain Fantastic"
+    ]
+  },
+  "ED": {
+    "name": "Evil Dead",
+    "manufacturer": "",
+    "year": "",
+    "variations": [
+      "evil dead"
+    ]
   }
 }

@@ -256,8 +256,8 @@ def load_preseason_data(season: int):
                         except ValueError:
                             date = None
 
-                        # Generate match key
-                        match_key = f"mnp-{season}-{week:02d}-{away_team_key.lower()}-{home_team_key.lower()}"
+                        # Generate match key (format must match JSON file keys: mnp-{season}-{week}-{AWAY}-{HOME})
+                        match_key = f"mnp-{season}-{week}-{away_team_key}-{home_team_key}"
 
                         matches.append({
                             'match_key': match_key,
