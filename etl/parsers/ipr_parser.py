@@ -61,14 +61,14 @@ class IPRParser:
                     # Validate IPR is in range 1-6
                     if ipr < 1 or ipr > 6:
                         errors.append(f"{name}: {ipr}")
-                        logger.warning(f"Invalid IPR value for {name}: {ipr} (must be 1-6), capping to 6")
-                        ipr = min(max(ipr, 1), 6)  # Cap to range 1-6
+                        logger.warning(f"Skipping invalid IPR value for {name}: {ipr} (must be 1-6)")
+                        continue  # Skip this player - don't update their IPR
 
                     ipr_data[name] = ipr
 
             logger.info(f"Loaded IPR data for {len(ipr_data)} players from {file_path}")
             if errors:
-                logger.warning(f"Found {len(errors)} invalid IPR values that were capped to 1-6:")
+                logger.warning(f"Skipped {len(errors)} players with invalid IPR values (must be 1-6):")
                 for error in errors[:10]:  # Show first 10
                     logger.warning(f"  - {error}")
                 if len(errors) > 10:
