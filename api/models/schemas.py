@@ -254,6 +254,7 @@ class VenueDetail(VenueBase):
     """Detailed venue information"""
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    pinballmap_location_id: Optional[int] = Field(None, description="Pinball Map location ID for live machine data")
     home_teams: List[VenueHomeTeam] = Field(default_factory=list, description="Teams that use this venue as home")
 
     class Config:
@@ -633,6 +634,45 @@ class PlayerMachineGamesList(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+# Pinball Map Integration Models
+class PinballMapMachine(BaseModel):
+    """Machine data from Pinball Map API"""
+    id: int = Field(..., description="Pinball Map machine ID")
+    name: str = Field(..., description="Machine name")
+    year: Optional[int] = Field(None, description="Year of manufacture")
+    manufacturer: Optional[str] = Field(None, description="Machine manufacturer")
+    ipdb_link: Optional[str] = Field(None, description="Link to IPDB entry")
+    ipdb_id: Optional[int] = Field(None, description="IPDB machine ID")
+    opdb_id: Optional[str] = Field(None, description="OPDB machine ID")
+
+
+class PinballMapLocation(BaseModel):
+    """Location data from Pinball Map API"""
+    id: int
+    name: str
+    street: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip: Optional[str] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    num_machines: Optional[int] = None
+    description: Optional[str] = None
+
+
+class PinballMapVenueMachines(BaseModel):
+    """Complete Pinball Map data for a venue"""
+    venue_key: str = Field(..., description="MNP venue key")
+    venue_name: str = Field(..., description="MNP venue name")
+    pinballmap_location_id: int = Field(..., description="Pinball Map location ID")
+    pinballmap_url: str = Field(..., description="URL to view on Pinball Map website")
+    machines: List[PinballMapMachine] = Field(default_factory=list, description="Current machines at venue")
+    machine_count: int = Field(0, description="Number of machines")
+    last_updated: Optional[datetime] = Field(None, description="When data was fetched from Pinball Map")
 
 
 # Update forward references

@@ -310,6 +310,7 @@ export interface VenueHomeTeam {
 
 export interface VenueDetail extends Venue {
   home_teams: VenueHomeTeam[];
+  pinballmap_location_id?: number | null;
 }
 
 export interface VenueListResponse {
@@ -783,4 +784,28 @@ export interface PlayerMachineGamesResponse {
   total: number;
   limit: number;
   offset: number;
+}
+
+// ============================================================================
+// Pinball Map Integration Types
+// ============================================================================
+
+export interface PinballMapMachine {
+  id: number;
+  name: string;
+  year: number | null;
+  manufacturer: string | null;
+  ipdb_link: string | null;
+  ipdb_id: number | null;
+  opdb_id: string | null;
+}
+
+export interface PinballMapVenueMachines {
+  venue_key: string;
+  venue_name: string;
+  pinballmap_location_id: number;
+  pinballmap_url: string;
+  machines: PinballMapMachine[];
+  machine_count: number;
+  last_updated: string | null;
 }

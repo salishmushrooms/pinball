@@ -53,6 +53,7 @@ import {
   MatchplayRatingsResponse,
   MatchplayUserSearchResult,
   PlayerMachineGamesResponse,
+  PinballMapVenueMachines,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -298,6 +299,21 @@ export const api = {
    */
   getVenueCurrentMachines: (venueKey: string): Promise<string[]> => {
     return fetchAPI<string[]>(`/venues/${venueKey}/current-machines`);
+  },
+
+  /**
+   * Get current machine lineup from Pinball Map (community-maintained)
+   * @param venueKey - MNP venue key
+   * @param refresh - Force refresh from Pinball Map API (bypasses 6-hour cache)
+   */
+  getVenuePinballMapMachines: (
+    venueKey: string,
+    refresh: boolean = false
+  ): Promise<PinballMapVenueMachines> => {
+    return fetchAPI<PinballMapVenueMachines>(
+      `/venues/${venueKey}/pinballmap`,
+      refresh ? { refresh: true } : undefined
+    );
   },
 
   // Team Endpoints

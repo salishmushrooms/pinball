@@ -2,6 +2,8 @@
 Venues API endpoints
 """
 from typing import Optional, List
+from datetime import datetime, timedelta
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
 
@@ -13,11 +15,19 @@ from api.models.schemas import (
     VenueWithStats,
     VenueWithStatsList,
     VenueHomeTeam,
-    ErrorResponse
+    ErrorResponse,
+    PinballMapMachine,
+    PinballMapVenueMachines,
 )
 from api.dependencies import execute_query
 
 router = APIRouter(prefix="/venues", tags=["venues"])
+
+# Pinball Map API cache (in-memory with TTL)
+# Structure: {location_id: {"data": PinballMapVenueMachines, "expires": datetime}}
+_pinballmap_cache: dict = {}
+PINBALLMAP_CACHE_TTL = timedelta(hours=6)  # Cache for 6 hours
+PINBALLMAP_API_BASE = "https://pinballmap.com/api/v1"
 
 
 def get_current_machines_for_venue(venue_key: str) -> List[str]:
@@ -262,7 +272,8 @@ def get_venue(venue_key: str):
             v.venue_key,
             v.venue_name,
             v.address,
-            v.neighborhood
+            v.neighborhood,
+            v.pinballmap_location_id
         FROM venues v
         WHERE v.venue_key = :venue_key
     """
@@ -285,6 +296,106 @@ def get_venue(venue_key: str):
     home_teams = [VenueHomeTeam(**team) for team in home_teams_result]
 
     return VenueDetail(**venues[0], home_teams=home_teams)
+
+
+async def _fetch_pinballmap_machines(location_id: int) -> List[PinballMapMachine]:
+    """Fetch machine list from Pinball Map API."""
+    url = f"{PINBALLMAP_API_BASE}/locations/{location_id}/machine_details.json"
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(url)
+        response.raise_for_status()
+        data = response.json()
+        machines = data.get("machines", [])
+        return [PinballMapMachine(**m) for m in machines]
+
+
+@router.get(
+    "/{venue_key}/pinballmap",
+    response_model=PinballMapVenueMachines,
+    responses={404: {"model": ErrorResponse}},
+    summary="Get Pinball Map machine lineup",
+    description="Get current machine lineup from Pinball Map (community-maintained, cached for 6 hours)"
+)
+async def get_venue_pinballmap_machines(
+    venue_key: str,
+    refresh: bool = Query(False, description="Force refresh from Pinball Map API (bypasses cache)")
+):
+    """
+    Get current machine lineup for a venue from Pinball Map.
+
+    This data is community-maintained on pinballmap.com and may differ from
+    the machines tracked in MNP match data.
+
+    Results are cached for 6 hours to avoid excessive API calls.
+
+    Example: `/venues/ADB/pinballmap`
+    """
+    # First get venue info including pinballmap_location_id
+    query = """
+        SELECT venue_key, venue_name, pinballmap_location_id
+        FROM venues
+        WHERE venue_key = :venue_key
+    """
+    venues = execute_query(query, {'venue_key': venue_key})
+
+    if not venues:
+        raise HTTPException(status_code=404, detail=f"Venue '{venue_key}' not found")
+
+    venue = venues[0]
+    location_id = venue.get('pinballmap_location_id')
+
+    if not location_id:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Venue '{venue_key}' does not have a Pinball Map location configured"
+        )
+
+    # Check cache (unless refresh requested)
+    cache_key = location_id
+    now = datetime.utcnow()
+
+    if not refresh and cache_key in _pinballmap_cache:
+        cached = _pinballmap_cache[cache_key]
+        if cached["expires"] > now:
+            return cached["data"]
+
+    # Fetch from Pinball Map API
+    try:
+        machines = await _fetch_pinballmap_machines(location_id)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Pinball Map location {location_id} not found"
+            )
+        raise HTTPException(
+            status_code=502,
+            detail=f"Error fetching from Pinball Map: {e.response.status_code}"
+        )
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not connect to Pinball Map API: {str(e)}"
+        )
+
+    # Build response
+    result = PinballMapVenueMachines(
+        venue_key=venue['venue_key'],
+        venue_name=venue['venue_name'],
+        pinballmap_location_id=location_id,
+        pinballmap_url=f"https://pinballmap.com/map?by_location_id={location_id}",
+        machines=machines,
+        machine_count=len(machines),
+        last_updated=now,
+    )
+
+    # Cache the result
+    _pinballmap_cache[cache_key] = {
+        "data": result,
+        "expires": now + PINBALLMAP_CACHE_TTL,
+    }
+
+    return result
 
 
 @router.get(

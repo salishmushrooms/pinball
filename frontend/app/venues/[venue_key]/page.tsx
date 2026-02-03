@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { VenueDetail, VenueMachineStats, Team } from '@/lib/types';
+import { VenueDetail, VenueMachineStats, Team, PinballMapVenueMachines } from '@/lib/types';
 import {
   Card,
   PageHeader,
@@ -55,6 +55,11 @@ export default function VenueDetailPage() {
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Pinball Map integration
+  const [pinballMapData, setPinballMapData] = useState<PinballMapVenueMachines | null>(null);
+  const [pinballMapLoading, setPinballMapLoading] = useState(false);
+  const [pinballMapError, setPinballMapError] = useState<string | null>(null);
 
   // Sort state (not URL-synced)
   const [sortBy, setSortBy] = useState<'name' | 'games'>('games');
@@ -121,6 +126,32 @@ export default function VenueDetailPage() {
 
     fetchVenueData();
   }, [venueKey, currentOnly, selectedTeams, scoresFrom, seasons]);
+
+  // Fetch Pinball Map data when venue is loaded and has a pinballmap_location_id
+  useEffect(() => {
+    async function fetchPinballMapData() {
+      if (!venue?.pinballmap_location_id) {
+        setPinballMapData(null);
+        return;
+      }
+
+      setPinballMapLoading(true);
+      setPinballMapError(null);
+
+      try {
+        const data = await api.getVenuePinballMapMachines(venueKey);
+        setPinballMapData(data);
+      } catch (err) {
+        setPinballMapError(
+          err instanceof Error ? err.message : 'Failed to load Pinball Map data'
+        );
+      } finally {
+        setPinballMapLoading(false);
+      }
+    }
+
+    fetchPinballMapData();
+  }, [venue?.pinballmap_location_id, venueKey]);
 
   // Sort machines based on sortBy state and direction
   const sortedMachines = [...machines].sort((a, b) => {
@@ -344,6 +375,94 @@ export default function VenueDetailPage() {
           title="Most Played Machines"
           subtitle="Season 22-23 scores"
         />
+      )}
+
+      {/* Pinball Map Current Machines */}
+      {venue.pinballmap_location_id && (
+        <ContentContainer size="lg">
+          <Card>
+            <Card.Header>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Card.Title>Current Machine Lineup</Card.Title>
+                  <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+                    Live data from{' '}
+                    <a
+                      href={pinballMapData?.pinballmap_url || `https://pinballmap.com/map?by_location_id=${venue.pinballmap_location_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      Pinball Map
+                    </a>
+                    {' '}(community-maintained)
+                  </p>
+                </div>
+                {pinballMapData && (
+                  <Badge variant="default">{pinballMapData.machine_count} machines</Badge>
+                )}
+              </div>
+            </Card.Header>
+            <Card.Content>
+              {pinballMapLoading && (
+                <div className="flex justify-center py-8">
+                  <LoadingSpinner size="sm" text="Loading from Pinball Map..." />
+                </div>
+              )}
+              {pinballMapError && (
+                <Alert variant="warning" title="Could not load Pinball Map data">
+                  {pinballMapError}
+                </Alert>
+              )}
+              {pinballMapData && pinballMapData.machines.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {pinballMapData.machines.map((machine) => (
+                    <div
+                      key={machine.id}
+                      className="flex items-center justify-between p-3 rounded-lg border"
+                      style={{
+                        borderColor: 'var(--border)',
+                        backgroundColor: 'var(--card-bg-secondary)',
+                      }}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div
+                          className="font-medium truncate"
+                          style={{ color: 'var(--text-primary)' }}
+                          title={machine.name}
+                        >
+                          {machine.name}
+                        </div>
+                        <div
+                          className="text-xs truncate"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          {[machine.manufacturer, machine.year].filter(Boolean).join(' • ') || 'Unknown'}
+                        </div>
+                      </div>
+                      {machine.ipdb_link && (
+                        <a
+                          href={machine.ipdb_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-2 text-xs text-blue-600 hover:text-blue-800 hover:underline flex-shrink-0"
+                        >
+                          IPDB
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {pinballMapData && pinballMapData.machines.length === 0 && (
+                <EmptyState
+                  title="No machines listed"
+                  description="This venue doesn't have any machines listed on Pinball Map yet."
+                />
+              )}
+            </Card.Content>
+          </Card>
+        </ContentContainer>
       )}
 
       {/* Machines Table */}

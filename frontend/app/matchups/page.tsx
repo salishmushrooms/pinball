@@ -232,7 +232,6 @@ function MatchupsPageContent() {
 
   // Check if season is completed (off-season)
   const isOffSeason = seasonStatus?.status === 'completed';
-  const isUpcoming = seasonStatus?.status === 'upcoming';
 
   return (
     <div className="space-y-6">
@@ -251,19 +250,6 @@ function MatchupsPageContent() {
             Check back when Season {(currentSeason || 22) + 1} begins for updated matchup analysis.
             In the meantime, you can explore player stats, team performance, and historical data
             using the other pages.
-          </p>
-        </Alert>
-      )}
-
-      {/* Upcoming Season Message */}
-      {isUpcoming && (
-        <Alert variant="info" title={`Season ${currentSeason} Coming Soon`}>
-          <p className="mb-2">
-            {seasonStatus?.message || `Season ${currentSeason} hasn't started yet.`}
-          </p>
-          <p className="text-sm">
-            Matchup analysis will be available once the season begins.
-            You can still browse historical data from previous seasons.
           </p>
         </Alert>
       )}
