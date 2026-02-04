@@ -15,7 +15,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from api.routers import players, machines, venues, teams, matchups, seasons, predictions, matchplay
+from api.routers import players, machines, venues, teams, matchups, seasons, predictions, matchplay, scores
 from etl.database import db
 
 
@@ -135,6 +135,7 @@ app.include_router(matchups.router)
 app.include_router(seasons.router)
 app.include_router(predictions.router)
 app.include_router(matchplay.router)
+app.include_router(scores.router)
 
 
 @app.get("/", tags=["root"])

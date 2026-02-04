@@ -14,6 +14,7 @@ export default function Navigation() {
     { href: '/teams', label: 'Teams' },
     { href: '/machines', label: 'Machines' },
     { href: '/venues', label: 'Venues' },
+    { href: '/scores', label: 'Scores' },
     { href: '/matchups', label: 'Matchups' },
   ];
 

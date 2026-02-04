@@ -54,6 +54,10 @@ import {
   MatchplayUserSearchResult,
   PlayerMachineGamesResponse,
   PinballMapVenueMachines,
+  ScoreBrowseResponse,
+  ScoreBrowseParams,
+  MachineScoresResponse,
+  MachineScoresBrowseParams,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -497,6 +501,26 @@ export const api = {
       params.location_filter = locationFilter;
     }
     return fetchAPI<MatchplayUserSearchResult>('/matchplay/search/users', params);
+  },
+
+  // Score Browse Endpoints
+
+  /**
+   * Browse scores with filtering, grouped by machine
+   * Always groups by machine since scores cannot be compared across machines
+   */
+  browseScores: (params: ScoreBrowseParams): Promise<ScoreBrowseResponse> => {
+    return fetchAPI<ScoreBrowseResponse>('/scores/browse', params);
+  },
+
+  /**
+   * Load more scores for a specific machine with pagination
+   */
+  browseMachineScores: (
+    machineKey: string,
+    params: MachineScoresBrowseParams
+  ): Promise<MachineScoresResponse> => {
+    return fetchAPI<MachineScoresResponse>(`/scores/browse/${machineKey}`, params);
   },
 };
 

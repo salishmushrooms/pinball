@@ -809,3 +809,74 @@ export interface PinballMapVenueMachines {
   machine_count: number;
   last_updated: string | null;
 }
+
+// ============================================================================
+// Score Browse Types
+// ============================================================================
+
+export interface ScoreItem {
+  score: number;
+  player_key: string;
+  player_name: string;
+  team_key: string;
+  team_name: string;
+  venue_key: string;
+  venue_name: string;
+  date: string | null;
+  season: number;
+  round: number;
+}
+
+export interface MachineScoreStats {
+  count: number;
+  median: number;
+  min: number;
+  max: number;
+}
+
+export interface MachineScoreGroup {
+  machine_key: string;
+  machine_name: string;
+  stats: MachineScoreStats;
+  scores: ScoreItem[];
+  has_more: boolean;
+}
+
+export interface ScoreBrowseFilters {
+  seasons: number[];
+  teams: string[] | null;
+  venue_key: string | null;
+  machine_keys: string[] | null;
+  include_all_venues: boolean;
+}
+
+export interface ScoreBrowseResponse {
+  total_score_count: number;
+  filters_applied: ScoreBrowseFilters;
+  machine_groups: MachineScoreGroup[];
+}
+
+export interface MachineScoresResponse {
+  machine_key: string;
+  machine_name: string;
+  total_count: number;
+  scores: ScoreItem[];
+}
+
+export interface ScoreBrowseParams {
+  seasons: number[];
+  teams?: string[];
+  venue_key?: string;
+  machine_keys?: string[];
+  include_all_venues?: boolean;
+  scores_per_machine?: number;
+}
+
+export interface MachineScoresBrowseParams {
+  seasons: number[];
+  teams?: string[];
+  venue_key?: string;
+  include_all_venues?: boolean;
+  limit?: number;
+  offset?: number;
+}

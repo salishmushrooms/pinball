@@ -675,5 +675,52 @@ class PinballMapVenueMachines(BaseModel):
     last_updated: Optional[datetime] = Field(None, description="When data was fetched from Pinball Map")
 
 
+# Score Browse Models
+class ScoreItem(BaseModel):
+    """Individual score entry for browse display"""
+    score: int
+    player_key: str
+    player_name: str
+    team_key: str
+    team_name: str
+    venue_key: str
+    venue_name: str
+    date: Optional[str] = None
+    season: int
+    round: int
+
+
+class MachineScoreStats(BaseModel):
+    """Aggregate statistics for scores on a machine"""
+    count: int
+    median: int
+    min: int
+    max: int
+
+
+class MachineScoreGroup(BaseModel):
+    """Scores grouped by machine with aggregate stats"""
+    machine_key: str
+    machine_name: str
+    stats: MachineScoreStats
+    scores: List[ScoreItem]
+    has_more: bool = False
+
+
+class ScoreBrowseResponse(BaseModel):
+    """Response for the score browse endpoint"""
+    total_score_count: int
+    filters_applied: Dict[str, Union[str, int, List[str], List[int], bool, None]]
+    machine_groups: List[MachineScoreGroup]
+
+
+class MachineScoresResponse(BaseModel):
+    """Response for loading more scores for a specific machine"""
+    machine_key: str
+    machine_name: str
+    total_count: int
+    scores: List[ScoreItem]
+
+
 # Update forward references
 MatchplayLookupResult.model_rebuild()
