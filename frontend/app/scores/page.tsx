@@ -90,7 +90,11 @@ function ScoresPageContent() {
           api.getTeams({ limit: 200 }),
           api.getVenues({ limit: 200 }),
         ]);
-        setTeams(teamsResponse.teams);
+        // Deduplicate teams by team_key (teams appear per season)
+        const uniqueTeams = Array.from(
+          new Map(teamsResponse.teams.map(t => [t.team_key, t])).values()
+        );
+        setTeams(uniqueTeams);
         setVenues(venuesResponse.venues);
       } catch (err) {
         console.error('Failed to load filter options:', err);
