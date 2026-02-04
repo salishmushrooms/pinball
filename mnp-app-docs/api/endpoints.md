@@ -1115,8 +1115,70 @@ Allowed origins:
 
 ---
 
+---
+
+### 6. Pinball Map Integration
+
+#### GET /api/v1/venues/{venue_key}/pinballmap
+
+Get current machine lineup from Pinball Map (community-maintained data).
+
+**Path Parameters:**
+- `venue_key` (required): Venue's code (must have `pinballmap_location_id` configured)
+
+**Query Parameters:**
+- `refresh` (optional): Force refresh from Pinball Map API, bypassing 6-hour cache (default: false)
+
+**Example Request:**
+```
+GET /api/v1/venues/AAB/pinballmap
+```
+
+**Response:**
+```json
+{
+  "venue_key": "AAB",
+  "venue_name": "Add-a-Ball",
+  "pinballmap_location_id": 1410,
+  "pinballmap_url": "https://pinballmap.com/map?by_location_id=1410",
+  "machines": [
+    {
+      "id": 2835,
+      "name": "Attack From Mars (Remake LE)",
+      "year": 2017,
+      "manufacturer": "Chicago Gaming",
+      "ipdb_link": "https://www.ipdb.org/machine.cgi?id=6385",
+      "ipdb_id": 6385,
+      "opdb_id": "G4do5-MW9z8"
+    },
+    {
+      "id": 687,
+      "name": "The Addams Family",
+      "year": 1992,
+      "manufacturer": "Bally",
+      "ipdb_link": "https://www.ipdb.org/machine.cgi?id=20",
+      "ipdb_id": 20,
+      "opdb_id": "G4ODR-MDXEy"
+    }
+  ],
+  "machine_count": 26,
+  "last_updated": "2026-02-03T20:19:08.721702"
+}
+```
+
+**Error Responses:**
+- `404`: Venue not found or venue does not have Pinball Map location configured
+- `502`: Could not connect to Pinball Map API or Pinball Map returned an error
+
+**Notes:**
+- Data is cached for 6 hours to avoid excessive API calls to Pinball Map
+- Machine data is community-maintained on pinballmap.com and may differ from MNP match data
+- Currently configured venues: AAB (1410), 8BT (4295), JUP (8947), KRA (22987), SHR (1126)
+
+---
+
 **API Version**: 1.0
-**Last Updated**: 2026-01-14
+**Last Updated**: 2026-02-03
 **Status**: Production - Implementation may differ from this spec
 
 > **Note:** This document was created during the planning phase. For current API implementation, see the live API documentation at https://your-api.railway.app/docs

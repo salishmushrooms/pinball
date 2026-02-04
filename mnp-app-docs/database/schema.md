@@ -85,19 +85,23 @@ CREATE TABLE venues (
     venue_key VARCHAR(10) PRIMARY KEY,   -- 3-4 letter code (e.g., "T4B", "JUP")
     venue_name VARCHAR(255) NOT NULL,
     address TEXT,
-    city VARCHAR(100),
-    state VARCHAR(2),
+    neighborhood VARCHAR(100),
     active BOOLEAN DEFAULT true,
+    pinballmap_location_id INTEGER,      -- Pinball Map location ID for API integration
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_venues_active ON venues(active);
+CREATE INDEX idx_venues_pinballmap ON venues(pinballmap_location_id)
+    WHERE pinballmap_location_id IS NOT NULL;
 ```
 
 **Notes:**
 - `venue_key` is stable across seasons
 - `active` flag indicates if venue is currently in use
-- Address information optional but useful for future features
+- `neighborhood` stores Seattle neighborhood (e.g., "Fremont", "Capitol Hill")
+- `pinballmap_location_id` maps to Pinball Map API for fetching current machine lineups
+- Currently configured venues: AAB (1410), 8BT (4295), JUP (8947), KRA (22987), SHR (1126)
 
 ### machines
 
@@ -528,8 +532,8 @@ If data grows beyond 1M rows in scores table:
 
 ---
 
-**Schema Version**: 1.0.0
-**Last Updated**: 2026-01-14
+**Schema Version**: 2.3.1
+**Last Updated**: 2026-02-03
 **Status**: Implemented - Using PostgreSQL 15 on Railway
 
 > **Note:** This document was created during the planning phase. The actual implementation is in use on Railway and local development, but some details may differ from the original design specifications.
