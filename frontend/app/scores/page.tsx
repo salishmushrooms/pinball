@@ -90,9 +90,11 @@ function ScoresPageContent() {
           api.getTeams({ limit: 200 }),
           api.getVenues({ limit: 200 }),
         ]);
-        // Deduplicate teams by team_key (teams appear per season)
+        // Deduplicate teams by team_key, keeping the most recent season's name
+        // Sort by season ascending so the newest entry (last) is kept by the Map
+        const sortedTeams = [...teamsResponse.teams].sort((a, b) => a.season - b.season);
         const uniqueTeams = Array.from(
-          new Map(teamsResponse.teams.map(t => [t.team_key, t])).values()
+          new Map(sortedTeams.map(t => [t.team_key, t])).values()
         );
         setTeams(uniqueTeams);
         setVenues(venuesResponse.venues);
