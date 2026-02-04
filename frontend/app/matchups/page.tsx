@@ -77,25 +77,33 @@ function MatchupsPageContent() {
         setCurrentSeason(latestSeason);
         setSeasonStatus(initData.season_status);
 
-        // Filter to only show matches from the next incomplete week
+        // Filter to only show matches from the next upcoming week
         const allMatches = initData.matches;
 
-        // Find the first week that has incomplete matches (or week 1 if preseason)
-        const incompleteWeeks = new Set<number>();
+        // Find the first week that has upcoming matches (not complete AND date not in past)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Normalize to start of day
+
+        const upcomingWeeks = new Set<number>();
         allMatches.forEach((match) => {
           if (match.state !== 'complete') {
-            incompleteWeeks.add(match.week);
+            // Parse date from MM/DD/YYYY format
+            const matchDate = match.date ? new Date(match.date) : null;
+            // Include if date is today or future, or if no date available
+            if (!matchDate || matchDate >= today) {
+              upcomingWeeks.add(match.week);
+            }
           }
         });
 
-        // Get the lowest incomplete week number (or show all if all complete)
-        const nextWeek = incompleteWeeks.size > 0
-          ? Math.min(...Array.from(incompleteWeeks))
+        // Get the lowest upcoming week number (or show all if season is complete)
+        const nextWeek = upcomingWeeks.size > 0
+          ? Math.min(...Array.from(upcomingWeeks))
           : null;
 
         setCurrentWeek(nextWeek);
 
-        // Filter to only show matches from the next incomplete week
+        // Filter to only show matches from the next upcoming week
         const filteredMatches = nextWeek !== null
           ? allMatches.filter((match) => match.week === nextWeek)
           : allMatches; // Show all if season is complete (for historical analysis)
