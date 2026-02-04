@@ -87,7 +87,7 @@ function ScoresPageContent() {
     async function loadFilterOptions() {
       try {
         const [teamsResponse, venuesResponse] = await Promise.all([
-          api.getTeams({ limit: 200 }),
+          api.getTeams({ limit: 500 }),
           api.getVenues({ limit: 200 }),
         ]);
         // Deduplicate teams by team_key, keeping the most recent season's name
