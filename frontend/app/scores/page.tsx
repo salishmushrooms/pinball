@@ -8,6 +8,8 @@ import {
   MachineScoreGroup,
   Team,
   Venue,
+  Machine,
+  ScoreItem,
 } from '@/lib/types';
 import {
   Card,
@@ -22,7 +24,11 @@ import {
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { TeamMultiSelect } from '@/components/TeamMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
+import { MachineMultiSelect } from '@/components/MachineMultiSelect';
 import { SUPPORTED_SEASONS } from '@/lib/utils';
+
+type SortField = 'score' | 'player_name' | 'team_name' | 'date';
+type SortOrder = 'asc' | 'desc';
 
 export default function ScoresPage() {
   return (
@@ -40,11 +46,18 @@ function ScoresPageContent() {
   const [seasons, setSeasons] = useState<number[]>([]);
   const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
   const [selectedVenue, setSelectedVenue] = useState<string>('');
+  const [selectedMachines, setSelectedMachines] = useState<string[]>([]);
   const [includeAllVenues, setIncludeAllVenues] = useState(false);
+
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField>('score');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   // Data state
   const [teams, setTeams] = useState<Team[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
+  const [allMachines, setAllMachines] = useState<Machine[]>([]);
+  const [venueMachineKeys, setVenueMachineKeys] = useState<string[]>([]);
   const [scoreData, setScoreData] = useState<ScoreBrowseResponse | null>(null);
   const [expandedMachines, setExpandedMachines] = useState<Set<string>>(new Set());
   const [loadingMore, setLoadingMore] = useState<Set<string>>(new Set());
@@ -59,7 +72,10 @@ function ScoresPageContent() {
     const seasonsParam = searchParams.get('seasons');
     const teamsParam = searchParams.get('teams');
     const venueParam = searchParams.get('venue');
+    const machinesParam = searchParams.get('machines');
     const allVenuesParam = searchParams.get('all_venues');
+    const sortParam = searchParams.get('sort');
+    const orderParam = searchParams.get('order');
 
     if (seasonsParam) {
       setSeasons(seasonsParam.split(',').map(Number).filter(n => !isNaN(n)));
@@ -77,18 +93,31 @@ function ScoresPageContent() {
       setSelectedVenue(venueParam);
     }
 
+    if (machinesParam) {
+      setSelectedMachines(machinesParam.split(','));
+    }
+
     if (allVenuesParam === 'true') {
       setIncludeAllVenues(true);
     }
+
+    if (sortParam && ['score', 'player_name', 'team_name', 'date'].includes(sortParam)) {
+      setSortField(sortParam as SortField);
+    }
+
+    if (orderParam && ['asc', 'desc'].includes(orderParam)) {
+      setSortOrder(orderParam as SortOrder);
+    }
   }, [searchParams]);
 
-  // Load teams and venues
+  // Load teams, venues, and machines
   useEffect(() => {
     async function loadFilterOptions() {
       try {
-        const [teamsResponse, venuesResponse] = await Promise.all([
+        const [teamsResponse, venuesResponse, machinesResponse] = await Promise.all([
           api.getTeams({ limit: 500 }),
           api.getVenues({ limit: 200 }),
+          api.getMachines({ limit: 500 }),
         ]);
         // Deduplicate teams by team_key, keeping the most recent season's name
         // Sort by season ascending so the newest entry (last) is kept by the Map
@@ -98,6 +127,7 @@ function ScoresPageContent() {
         );
         setTeams(uniqueTeams);
         setVenues(venuesResponse.venues);
+        setAllMachines(machinesResponse.machines);
       } catch (err) {
         console.error('Failed to load filter options:', err);
       } finally {
@@ -107,12 +137,38 @@ function ScoresPageContent() {
     loadFilterOptions();
   }, []);
 
+  // Load venue machines when venue changes
+  useEffect(() => {
+    async function loadVenueMachines() {
+      if (!selectedVenue) {
+        setVenueMachineKeys([]);
+        return;
+      }
+
+      try {
+        const machineKeys = await api.getVenueCurrentMachines(selectedVenue);
+        setVenueMachineKeys(machineKeys);
+        // Auto-select venue machines if no machines were previously selected
+        if (selectedMachines.length === 0) {
+          setSelectedMachines(machineKeys);
+        }
+      } catch (err) {
+        console.error('Failed to load venue machines:', err);
+        setVenueMachineKeys([]);
+      }
+    }
+    loadVenueMachines();
+  }, [selectedVenue]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Update URL when filters change
   const updateUrl = useCallback((
     newSeasons: number[],
     newTeams: string[],
     newVenue: string,
-    newAllVenues: boolean
+    newMachines: string[],
+    newAllVenues: boolean,
+    newSortField: SortField,
+    newSortOrder: SortOrder
   ) => {
     const params = new URLSearchParams();
     if (newSeasons.length > 0) {
@@ -124,12 +180,43 @@ function ScoresPageContent() {
     if (newVenue) {
       params.set('venue', newVenue);
     }
+    if (newMachines.length > 0) {
+      params.set('machines', newMachines.join(','));
+    }
     if (newAllVenues && newVenue) {
       params.set('all_venues', 'true');
+    }
+    if (newSortField !== 'score') {
+      params.set('sort', newSortField);
+    }
+    if (newSortOrder !== 'desc') {
+      params.set('order', newSortOrder);
     }
     const queryString = params.toString();
     router.replace(`/scores${queryString ? `?${queryString}` : ''}`, { scroll: false });
   }, [router]);
+
+  // Sort scores within a machine group
+  const sortScores = useCallback((scores: ScoreItem[]): ScoreItem[] => {
+    return [...scores].sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case 'score':
+          comparison = a.score - b.score;
+          break;
+        case 'player_name':
+          comparison = (a.player_name || '').localeCompare(b.player_name || '');
+          break;
+        case 'team_name':
+          comparison = (a.team_name || '').localeCompare(b.team_name || '');
+          break;
+        case 'date':
+          comparison = (a.date || '').localeCompare(b.date || '');
+          break;
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+  }, [sortField, sortOrder]);
 
   // Fetch scores
   const fetchScores = useCallback(async () => {
@@ -146,6 +233,7 @@ function ScoresPageContent() {
         seasons,
         teams: selectedTeams.length > 0 ? selectedTeams : undefined,
         venue_key: selectedVenue || undefined,
+        machine_keys: selectedMachines.length > 0 ? selectedMachines : undefined,
         include_all_venues: includeAllVenues,
         scores_per_machine: 20,
       });
@@ -156,13 +244,13 @@ function ScoresPageContent() {
       setExpandedMachines(new Set(firstThree));
 
       // Update URL
-      updateUrl(seasons, selectedTeams, selectedVenue, includeAllVenues);
+      updateUrl(seasons, selectedTeams, selectedVenue, selectedMachines, includeAllVenues, sortField, sortOrder);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load scores');
     } finally {
       setLoading(false);
     }
-  }, [seasons, selectedTeams, selectedVenue, includeAllVenues, updateUrl]);
+  }, [seasons, selectedTeams, selectedVenue, selectedMachines, includeAllVenues, sortField, sortOrder, updateUrl]);
 
   // Load more scores for a machine
   const loadMoreScores = useCallback(async (machineKey: string) => {
@@ -277,28 +365,41 @@ function ScoresPageContent() {
               value={selectedVenue}
               onChange={(value) => {
                 setSelectedVenue(value);
-                if (!value) setIncludeAllVenues(false);
+                if (!value) {
+                  setIncludeAllVenues(false);
+                  setSelectedMachines([]);
+                }
               }}
               venues={venues.map(v => ({ venue_key: v.venue_key, venue_name: v.venue_name }))}
               label="Venue"
             />
 
-            {selectedVenue && (
-              <div className="flex items-end">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={includeAllVenues}
-                    onChange={(e) => setIncludeAllVenues(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-600">
-                    Include scores from all venues
-                  </span>
-                </label>
-              </div>
-            )}
+            <MachineMultiSelect
+              value={selectedMachines}
+              onChange={setSelectedMachines}
+              machines={allMachines.map(m => ({ machine_key: m.machine_key, machine_name: m.machine_name }))}
+              label="Machines"
+              placeholder={selectedVenue && venueMachineKeys.length > 0 ? `${venueMachineKeys.length} at venue` : 'All Machines'}
+              helpText={selectedVenue && venueMachineKeys.length > 0 ? 'Auto-filled from venue' : undefined}
+            />
           </div>
+
+          {/* Advanced options */}
+          {selectedVenue && (
+            <div className="mt-4 flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeAllVenues}
+                  onChange={(e) => setIncludeAllVenues(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-600">
+                  Include scores from all venues for selected machines
+                </span>
+              </label>
+            </div>
+          )}
 
           <div className="mt-6 flex items-center gap-4">
             <Button
@@ -341,10 +442,35 @@ function ScoresPageContent() {
 
       {scoreData && scoreData.machine_groups.length > 0 && (
         <div className="space-y-4">
+          {/* Sorting controls */}
+          <div className="flex items-center justify-end gap-4">
+            <span className="text-sm text-gray-500">Sort by:</span>
+            <select
+              value={sortField}
+              onChange={(e) => setSortField(e.target.value as SortField)}
+              className="text-sm border rounded px-2 py-1"
+              style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--input-border)' }}
+            >
+              <option value="score">Score</option>
+              <option value="player_name">Player</option>
+              <option value="team_name">Team</option>
+              <option value="date">Date</option>
+            </select>
+            <button
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              className="text-sm px-2 py-1 border rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+              style={{ borderColor: 'var(--input-border)' }}
+              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+            >
+              {sortOrder === 'asc' ? '↑ Asc' : '↓ Desc'}
+            </button>
+          </div>
+
           {scoreData.machine_groups.map((group) => (
             <MachineScoreCard
               key={group.machine_key}
               group={group}
+              sortedScores={sortScores(group.scores)}
               isExpanded={expandedMachines.has(group.machine_key)}
               onToggle={() => toggleMachine(group.machine_key)}
               onLoadMore={() => loadMoreScores(group.machine_key)}
@@ -360,6 +486,7 @@ function ScoresPageContent() {
 
 interface MachineScoreCardProps {
   group: MachineScoreGroup;
+  sortedScores: ScoreItem[];
   isExpanded: boolean;
   onToggle: () => void;
   onLoadMore: () => void;
@@ -369,6 +496,7 @@ interface MachineScoreCardProps {
 
 function MachineScoreCard({
   group,
+  sortedScores,
   isExpanded,
   onToggle,
   onLoadMore,
@@ -419,7 +547,7 @@ function MachineScoreCard({
                 </Table.Row>
               </Table.Header>
               <Table.Body>
-                {group.scores.map((score, idx) => (
+                {sortedScores.map((score, idx) => (
                   <Table.Row key={`${score.player_key}-${score.date}-${idx}`}>
                     <Table.Cell className="font-semibold text-blue-600">
                       {formatScore(score.score)}
@@ -445,7 +573,7 @@ function MachineScoreCard({
 
           {/* Mobile card view */}
           <div className="md:hidden divide-y" style={{ borderColor: 'var(--border)' }}>
-            {group.scores.map((score, idx) => (
+            {sortedScores.map((score, idx) => (
               <div
                 key={`${score.player_key}-${score.date}-${idx}`}
                 className="px-4 py-3"

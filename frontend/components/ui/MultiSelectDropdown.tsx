@@ -18,6 +18,8 @@ export interface MultiSelectDropdownProps<T = string | number> {
   className?: string;
   /** Maximum height of the dropdown in pixels (default: 240) */
   maxHeight?: number;
+  /** Whether the dropdown is disabled */
+  disabled?: boolean;
 }
 
 export function MultiSelectDropdown<T extends string | number = string | number>({
@@ -29,6 +31,7 @@ export function MultiSelectDropdown<T extends string | number = string | number>
   helpText,
   className = '',
   maxHeight = 240,
+  disabled = false,
 }: MultiSelectDropdownProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -87,11 +90,13 @@ export function MultiSelectDropdown<T extends string | number = string | number>
       <div className="relative">
         <button
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          disabled={disabled}
           className={cn(
             'w-full h-[38px] px-3 py-2 border rounded-md transition-colors text-left',
             'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
-            'flex items-center justify-between'
+            'flex items-center justify-between',
+            disabled && 'opacity-50 cursor-not-allowed'
           )}
           style={{
             backgroundColor: 'var(--input-bg)',
@@ -121,7 +126,7 @@ export function MultiSelectDropdown<T extends string | number = string | number>
           </svg>
         </button>
 
-        {isOpen && (
+        {isOpen && !disabled && (
           <div
             className="absolute z-50 w-full mt-1 border rounded-md shadow-lg"
             style={{
