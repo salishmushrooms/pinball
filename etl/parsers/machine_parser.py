@@ -43,12 +43,17 @@ class MachineParser:
         machines = []
         for machine_key, machine_info in self.variations_data.items():
             if isinstance(machine_info, dict):
+                # Convert empty strings to None for nullable fields
+                manufacturer = machine_info.get('manufacturer')
+                year = machine_info.get('year')
+                game_type = machine_info.get('type')
+
                 machine = {
                     'machine_key': machine_key,
                     'machine_name': machine_info.get('name', machine_key),
-                    'manufacturer': machine_info.get('manufacturer'),
-                    'year': machine_info.get('year'),
-                    'game_type': machine_info.get('type')
+                    'manufacturer': manufacturer if manufacturer else None,
+                    'year': year if year else None,
+                    'game_type': game_type if game_type else None
                 }
                 machines.append(machine)
 
