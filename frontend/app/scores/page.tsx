@@ -66,6 +66,32 @@ function ScoresPageContent() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [machineWarningDismissed, setMachineWarningDismissed] = useState(false);
+
+  // Compute machine-venue mismatch
+  const machineVenueMismatch = (() => {
+    if (!selectedVenue || venueMachineKeys.length === 0 || selectedMachines.length === 0) {
+      return null;
+    }
+    const venueSet = new Set(venueMachineKeys);
+    const machinesAtVenue = selectedMachines.filter(m => venueSet.has(m));
+    const machinesNotAtVenue = selectedMachines.filter(m => !venueSet.has(m));
+
+    if (machinesNotAtVenue.length === 0) {
+      return null; // All selected machines are at the venue
+    }
+
+    return {
+      atVenue: machinesAtVenue.length,
+      notAtVenue: machinesNotAtVenue.length,
+      total: selectedMachines.length,
+    };
+  })();
+
+  // Reset warning dismissal when venue changes
+  useEffect(() => {
+    setMachineWarningDismissed(false);
+  }, [selectedVenue]);
 
   // Initialize from URL params
   useEffect(() => {
@@ -399,6 +425,39 @@ function ScoresPageContent() {
                 </span>
               </label>
             </div>
+          )}
+
+          {/* Machine-venue mismatch warning */}
+          {machineVenueMismatch && !machineWarningDismissed && (
+            <Alert variant="warning" className="mt-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <strong>{machineVenueMismatch.notAtVenue} of {machineVenueMismatch.total}</strong> selected machines aren&apos;t at this venue.
+                  {machineVenueMismatch.atVenue > 0 && (
+                    <span className="text-gray-600"> ({machineVenueMismatch.atVenue} match)</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedMachines(venueMachineKeys);
+                      setMachineWarningDismissed(true);
+                    }}
+                  >
+                    Use venue machines
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setMachineWarningDismissed(true)}
+                  >
+                    Keep selection
+                  </Button>
+                </div>
+              </div>
+            </Alert>
           )}
 
           <div className="mt-6 flex items-center gap-4">
