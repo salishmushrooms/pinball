@@ -38,7 +38,7 @@ const CLOUDFLARE_BASE_URL = 'https://imagedelivery.net/6xApIkGdPK3UoS1ME8gCmA';
  */
 export const TEAM_LOGOS: Record<string, TeamLogoConfig> = {
   'TRL': {
-    primary: '8a198dac-5c8f-4ffc-84bf-6fa4e0181100',
+    primary: 'ed44ee29-7e35-490a-1c05-e9063b046400',
     alternatives: ['2f8859bc-ff90-40d3-9376-4bd469b2ca00'],
     alt: 'TRL Team Logo'
   },
