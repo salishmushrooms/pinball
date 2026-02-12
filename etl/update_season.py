@@ -194,7 +194,7 @@ RESTART IDENTITY CASCADE;
     try:
         # Run truncate via railway
         proc = subprocess.Popen(
-            ['railway', 'connect', 'postgres'],
+            ['railway', 'connect', 'Postgres--OkR'],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -214,7 +214,7 @@ RESTART IDENTITY CASCADE;
             sql_content = f.read()
 
         proc = subprocess.Popen(
-            ['railway', 'connect', 'postgres'],
+            ['railway', 'connect', 'Postgres--OkR'],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
