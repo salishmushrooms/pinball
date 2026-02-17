@@ -90,10 +90,54 @@ def run_etl_script(script_name: str, args: list = None) -> bool:
         return False
 
 
+def cleanup_preseason_duplicates(season: int) -> bool:
+    """
+    Remove stale preseason match records that have been superseded by Matchplay data.
+
+    When load_preseason.py creates placeholder matches, they may use a different
+    match_key format than the real Matchplay data (e.g., zero-padded weeks or
+    different casing). After loading real match data, this cleanup removes the
+    stale preseason records by matching on season, week, and team keys.
+    """
+    from sqlalchemy import text
+
+    try:
+        db.connect()
+        with db.engine.connect() as conn:
+            result = conn.execute(text("""
+                DELETE FROM matches m1
+                WHERE m1.season = :season
+                AND EXISTS (
+                    SELECT 1 FROM matches m2
+                    WHERE m2.season = m1.season
+                      AND m2.week = m1.week
+                      AND m2.home_team_key = m1.home_team_key
+                      AND m2.away_team_key = m1.away_team_key
+                      AND m2.match_key != m1.match_key
+                      AND m2.state != 'scheduled'
+                )
+                AND m1.state = 'scheduled'
+            """), {'season': season})
+            conn.commit()
+
+            deleted = result.rowcount
+            if deleted > 0:
+                logger.info(f"  Cleaned up {deleted} stale preseason match records for season {season}")
+
+        db.close()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to cleanup preseason duplicates: {e}")
+        return True  # Non-fatal, continue pipeline
+
+
 def load_season_data(season: int) -> bool:
     """Load/upsert season data into database."""
     logger.info(f"Loading data for season {season}...")
-    return run_etl_script('load_season.py', ['--season', str(season)])
+    if not run_etl_script('load_season.py', ['--season', str(season)]):
+        return False
+    cleanup_preseason_duplicates(season)
+    return True
 
 
 def calculate_aggregations(season: int) -> bool:
