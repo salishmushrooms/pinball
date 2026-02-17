@@ -371,7 +371,7 @@ export default function TeamDetailPage() {
                 className="text-sm"
                 style={{ color: 'var(--text-muted)' }}
               >
-                ({schedule.filter(m => m.state === 'scheduled').length} upcoming)
+                ({schedule.filter(m => m.state !== 'complete').length} upcoming)
               </span>
             </div>
             <svg
@@ -398,13 +398,13 @@ export default function TeamDetailPage() {
               <div className="pt-4 space-y-2">
                 {(() => {
                   // Find the next unplayed match (scheduled match with lowest week)
-                  const scheduledMatches = schedule.filter(m => m.state === 'scheduled');
+                  const scheduledMatches = schedule.filter(m => m.state !== 'complete');
                   const nextUnplayedMatch = scheduledMatches.length > 0
                     ? scheduledMatches.reduce((min, m) => m.week < min.week ? m : min, scheduledMatches[0])
                     : null;
 
                   return schedule.map((match) => {
-                    const isUpcoming = match.state === 'scheduled';
+                    const isUpcoming = match.state !== 'complete';
                     const isNextMatch = nextUnplayedMatch?.match_key === match.match_key;
 
                     return (
@@ -449,15 +449,16 @@ export default function TeamDetailPage() {
                               Analyze Matchup
                             </Link>
                           ) : isUpcoming ? (
-                            <span
-                              className="px-2 py-1 text-xs rounded-full"
+                            <Link
+                              href={`/matchups?match=${match.match_key}`}
+                              className="px-2 py-1 text-xs font-medium rounded-full"
                               style={{
                                 backgroundColor: 'var(--bg-secondary)',
                                 color: 'var(--text-muted)',
                               }}
                             >
-                              Week {match.week}
-                            </span>
+                              Analyze Matchup
+                            </Link>
                           ) : (
                             <span
                               className="px-2 py-1 text-xs rounded-full"
