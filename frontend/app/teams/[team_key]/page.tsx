@@ -384,7 +384,16 @@ export default function TeamDetailPage() {
                 className="text-sm"
                 style={{ color: 'var(--text-muted)' }}
               >
-                ({schedule.filter(m => m.state === 'scheduled').length} upcoming)
+                ({(() => {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  return schedule.filter(m => {
+                    if (m.state === 'complete') return false;
+                    if (!m.date) return true;
+                    const matchDate = new Date(m.date);
+                    return matchDate >= today;
+                  }).length;
+                })()} upcoming)
               </span>
             </div>
             <svg
@@ -410,15 +419,30 @@ export default function TeamDetailPage() {
             <div className="px-6 pb-6 border-t" style={{ borderColor: 'var(--border)' }}>
               <div className="pt-4 space-y-2">
                 {(() => {
-                  // Find the next scheduled match (only 'scheduled' state, ignore 'playing'/'pregame')
-                  const scheduledMatches = schedule.filter(m => m.state === 'scheduled');
-                  const nextUnplayedMatch = scheduledMatches.length > 0
-                    ? scheduledMatches.reduce((min, m) => m.week < min.week ? m : min, scheduledMatches[0])
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+
+                  // Find the next match: earliest future match that's not complete
+                  const upcomingMatches = schedule.filter(m => {
+                    if (m.state === 'complete') return false;
+                    if (!m.date) return true; // Include matches without dates
+                    const matchDate = new Date(m.date);
+                    return matchDate >= today;
+                  });
+
+                  const nextUnplayedMatch = upcomingMatches.length > 0
+                    ? upcomingMatches.reduce((min, match) => {
+                        if (!match.date) return min;
+                        if (!min.date) return match;
+                        return new Date(match.date) < new Date(min.date) ? match : min;
+                      }, upcomingMatches[0])
                     : null;
 
                   return schedule.map((match) => {
-                    // Only 'scheduled' matches are truly upcoming
-                    const isUpcoming = match.state === 'scheduled';
+                    // Match is analyzable if not complete AND (no date OR date is today/future)
+                    const matchDate = match.date ? new Date(match.date) : null;
+                    const isFutureOrToday = !matchDate || matchDate >= today;
+                    const isAnalyzable = match.state !== 'complete' && isFutureOrToday;
                     const isNextMatch = nextUnplayedMatch?.match_key === match.match_key;
 
                     return (
@@ -462,7 +486,7 @@ export default function TeamDetailPage() {
                             >
                               Analyze Matchup
                             </Link>
-                          ) : isUpcoming ? (
+                          ) : isAnalyzable ? (
                             <Link
                               href={`/matchups?match=${match.match_key}`}
                               className="px-2 py-1 text-xs font-medium rounded-full transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
