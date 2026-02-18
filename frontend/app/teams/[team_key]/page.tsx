@@ -23,6 +23,7 @@ export default function TeamDetailPage() {
     venue: filterConfigs.venue(),
     rounds: filterConfigs.rounds(),
     includeSubs: filterConfigs.boolean('includeSubs', false),
+    includeAllVenues: filterConfigs.boolean('includeAllVenues', false),
   });
 
   // Destructure for easier access
@@ -35,6 +36,8 @@ export default function TeamDetailPage() {
   // Note: includeSubs=true in URL means excludeSubs=false
   const excludeSubs = !filters.includeSubs.value;
   const setExcludeSubs = (exclude: boolean) => filters.includeSubs.setValue(!exclude);
+  const includeAllVenues = filters.includeAllVenues.value;
+  const setIncludeAllVenues = filters.includeAllVenues.setValue;
 
   const [team, setTeam] = useState<Team | null>(null);
   const [machineStats, setMachineStats] = useState<TeamMachineStat[]>([]);
@@ -102,7 +105,7 @@ export default function TeamDetailPage() {
 
     setFetching(true);
     fetchTeamData();
-  }, 500, [teamKey, sortBy, sortDirection, seasonsFilter, venueFilter, roundsFilter, excludeSubs]);
+  }, 500, [teamKey, sortBy, sortDirection, seasonsFilter, venueFilter, roundsFilter, excludeSubs, includeAllVenues]);
 
   async function fetchVenues() {
     try {
@@ -132,6 +135,7 @@ export default function TeamDetailPage() {
           venue_key: venueFilter || undefined,
           rounds: roundsParam,
           exclude_subs: excludeSubs,
+          include_all_venues: includeAllVenues,
           min_games: 1,
           sort_by: apiSortBy,
           sort_order: sortBy === 'machine_name' ? sortDirection : sortDirection,
@@ -284,6 +288,15 @@ export default function TeamDetailPage() {
     });
   }
 
+  if (includeAllVenues && venueFilter) {
+    activeFilters.push({
+      key: 'allVenues',
+      label: 'All Venues',
+      value: 'for venue machines',
+      onRemove: () => setIncludeAllVenues(false),
+    });
+  }
+
   // clearFilters is provided by the hook as clearAllFilters
 
   if (loading) {
@@ -371,7 +384,7 @@ export default function TeamDetailPage() {
                 className="text-sm"
                 style={{ color: 'var(--text-muted)' }}
               >
-                ({schedule.filter(m => m.state !== 'complete').length} upcoming)
+                ({schedule.filter(m => m.state === 'scheduled').length} upcoming)
               </span>
             </div>
             <svg
@@ -397,14 +410,15 @@ export default function TeamDetailPage() {
             <div className="px-6 pb-6 border-t" style={{ borderColor: 'var(--border)' }}>
               <div className="pt-4 space-y-2">
                 {(() => {
-                  // Find the next unplayed match (scheduled match with lowest week)
-                  const scheduledMatches = schedule.filter(m => m.state !== 'complete');
+                  // Find the next scheduled match (only 'scheduled' state, ignore 'playing'/'pregame')
+                  const scheduledMatches = schedule.filter(m => m.state === 'scheduled');
                   const nextUnplayedMatch = scheduledMatches.length > 0
                     ? scheduledMatches.reduce((min, m) => m.week < min.week ? m : min, scheduledMatches[0])
                     : null;
 
                   return schedule.map((match) => {
-                    const isUpcoming = match.state !== 'complete';
+                    // Only 'scheduled' matches are truly upcoming
+                    const isUpcoming = match.state === 'scheduled';
                     const isNextMatch = nextUnplayedMatch?.match_key === match.match_key;
 
                     return (
@@ -451,7 +465,7 @@ export default function TeamDetailPage() {
                           ) : isUpcoming ? (
                             <Link
                               href={`/matchups?match=${match.match_key}`}
-                              className="px-2 py-1 text-xs font-medium rounded-full"
+                              className="px-2 py-1 text-xs font-medium rounded-full transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
                               style={{
                                 backgroundColor: 'var(--bg-secondary)',
                                 color: 'var(--text-muted)',
@@ -500,7 +514,12 @@ export default function TeamDetailPage() {
 
             <VenueSelect
               value={venueFilter}
-              onChange={setVenueFilter}
+              onChange={(value) => {
+                setVenueFilter(value);
+                if (!value) {
+                  setIncludeAllVenues(false);
+                }
+              }}
               venues={venues}
               label="Venue"
             />
@@ -512,22 +531,44 @@ export default function TeamDetailPage() {
             />
           </div>
 
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="exclude-subs"
-              checked={excludeSubs}
-              onChange={(e) => setExcludeSubs(e.target.checked)}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 rounded"
-              style={{ borderColor: 'var(--input-border)' }}
-            />
-            <label
-              htmlFor="exclude-subs"
-              className="ml-2 text-sm"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              Exclude substitute players (roster only)
-            </label>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="exclude-subs"
+                checked={excludeSubs}
+                onChange={(e) => setExcludeSubs(e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 rounded"
+                style={{ borderColor: 'var(--input-border)' }}
+              />
+              <label
+                htmlFor="exclude-subs"
+                className="ml-2 text-sm"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                Exclude substitute players (roster only)
+              </label>
+            </div>
+
+            {venueFilter && (
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="include-all-venues"
+                  checked={includeAllVenues}
+                  onChange={(e) => setIncludeAllVenues(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 rounded"
+                  style={{ borderColor: 'var(--input-border)' }}
+                />
+                <label
+                  htmlFor="include-all-venues"
+                  className="ml-2 text-sm"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  Include scores from all venues for machines at this venue
+                </label>
+              </div>
+            )}
           </div>
         </div>
       </FilterPanel>

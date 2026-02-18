@@ -179,7 +179,8 @@ def calculate_team_win_percentage(
     seasons: Optional[List[int]] = None,
     venue_key: Optional[str] = None,
     rounds: Optional[List[int]] = None,
-    exclude_subs: bool = True
+    exclude_subs: bool = True,
+    machine_filter_keys: Optional[List[str]] = None
 ) -> Dict[str, float]:
     """
     Calculate win percentage for a team on each machine using optimized batch query.
@@ -193,6 +194,7 @@ def calculate_team_win_percentage(
         venue_key: Optional venue filter
         rounds: Optional list of rounds to filter (1-4)
         exclude_subs: Exclude substitute players (default: true)
+        machine_filter_keys: Optional list of machine keys to filter (for include_all_venues mode)
 
     Returns:
         Dict mapping machine_key to win percentage (0-100)
@@ -214,7 +216,15 @@ def calculate_team_win_percentage(
         for i, season in enumerate(seasons):
             params[f'season_{i}'] = season
 
-    if venue_key is not None:
+    # Machine filter (for include_all_venues mode)
+    if machine_filter_keys:
+        machine_placeholders = ', '.join([f':wp_machine_{i}' for i in range(len(machine_filter_keys))])
+        where_clauses.append(f"team_scores.machine_key IN ({machine_placeholders})")
+        for i, mk in enumerate(machine_filter_keys):
+            params[f'wp_machine_{i}'] = mk
+
+    # Venue filter (only if not using machine filter mode)
+    if venue_key is not None and not machine_filter_keys:
         where_clauses.append("team_scores.venue_key = :venue_key")
         params['venue_key'] = venue_key
 
@@ -276,6 +286,7 @@ def get_team_machine_stats(
     venue_key: Optional[str] = Query(None, description="Filter by venue"),
     rounds: Optional[str] = Query(None, description="Filter by rounds (comma-separated, e.g., '1,2,3,4')"),
     exclude_subs: bool = Query(True, description="Exclude substitute players (default: true)"),
+    include_all_venues: bool = Query(False, description="When venue_key is set, include scores from all venues for those machines"),
     min_games: int = Query(1, ge=1, description="Minimum games played on machine"),
     sort_by: str = Query("games_played", description="Sort field: games_played, avg_score, best_score, win_percentage"),
     sort_order: str = Query("desc", description="Sort order: asc or desc"),
@@ -293,6 +304,7 @@ def get_team_machine_stats(
     - `/teams/SKP/machines?rounds=2,4` - Only rounds 2 and 4
     - `/teams/SKP/machines?min_games=5` - Only machines with 5+ games played
     - `/teams/SKP/machines?exclude_subs=false` - Include substitute players
+    - `/teams/SKP/machines?venue_key=T4B&include_all_venues=true` - All scores on T4B machines, any venue
     """
     # Validate sort parameters
     valid_sort_fields = ["games_played", "avg_score", "best_score", "win_percentage", "median_score", "machine_name"]
@@ -323,6 +335,22 @@ def get_team_machine_stats(
     # Get team keys including any historical aliases (e.g., TRL includes CDC/Contras)
     all_team_keys = get_team_keys_with_aliases(team_key)
 
+    # Handle include_all_venues mode - get machines at venue if needed
+    machine_filter_keys = None
+    if venue_key and include_all_venues:
+        # Get machines at the venue, but don't filter scores by venue
+        machine_query = """
+            SELECT machine_key FROM venue_machines
+            WHERE venue_key = :venue_key
+            AND season = (SELECT MAX(season) FROM venue_machines WHERE venue_key = :venue_key)
+        """
+        venue_machines = execute_query(machine_query, {'venue_key': venue_key})
+        machine_filter_keys = [row['machine_key'] for row in venue_machines]
+
+        # If no machines found at venue, return empty result
+        if not machine_filter_keys:
+            return TeamMachineStatsList(stats=[], total=0, limit=limit, offset=offset)
+
     # Build WHERE clause for filtering - include all aliased team keys
     params = {}
     if len(all_team_keys) == 1:
@@ -340,7 +368,15 @@ def get_team_machine_stats(
         for i, season in enumerate(seasons):
             params[f'season_{i}'] = season
 
-    if venue_key is not None:
+    # Machine filter (from include_all_venues mode)
+    if machine_filter_keys:
+        machine_placeholders = ', '.join([f':machine_{i}' for i in range(len(machine_filter_keys))])
+        where_clauses.append(f"s.machine_key IN ({machine_placeholders})")
+        for i, mk in enumerate(machine_filter_keys):
+            params[f'machine_{i}'] = mk
+
+    # Venue filter (only if not using include_all_venues mode)
+    if venue_key is not None and not include_all_venues:
         where_clauses.append("s.venue_key = :venue_key")
         params['venue_key'] = venue_key
 
@@ -392,7 +428,7 @@ def get_team_machine_stats(
             }
 
     # Calculate win percentages for this team
-    win_percentages = calculate_team_win_percentage(team_key, all_team_keys, seasons, venue_key, rounds_list, exclude_subs)
+    win_percentages = calculate_team_win_percentage(team_key, all_team_keys, seasons, venue_key, rounds_list, exclude_subs, machine_filter_keys)
 
     # Calculate stats for each machine
     all_stats = []

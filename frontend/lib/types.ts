@@ -417,6 +417,7 @@ export interface TeamMachineStatsParams {
   venue_key?: string;
   rounds?: string; // comma-separated rounds like "1,2,3,4"
   exclude_subs?: boolean; // exclude substitute players (default: true)
+  include_all_venues?: boolean; // when venue_key is set, include scores from all venues for those machines
   min_games?: number;
   sort_by?: 'games_played' | 'avg_score' | 'best_score' | 'win_percentage' | 'median_score';
   sort_order?: 'asc' | 'desc';
@@ -597,7 +598,7 @@ export interface TeamSeasonMatch {
   opponent_name: string;
   venue: string;
   is_home: boolean;
-  state: 'scheduled' | 'complete';
+  state: 'scheduled' | 'complete' | 'playing' | 'pregame';
 }
 
 export interface TeamScheduleResponse {

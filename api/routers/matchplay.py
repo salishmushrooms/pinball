@@ -566,49 +566,93 @@ async def get_players_matchplay_ratings(
                 break
 
             try:
-                profile = await client.get_user_profile(matchplay_user_id)
+                # Fetch full profile with IFPA and tournament count data
+                profile = await client.get_user_profile(
+                    matchplay_user_id,
+                    include_ifpa=True,
+                    include_counts=True
+                )
                 if profile:
-                    rating_data = profile.get('rating')
-                    if rating_data:
-                        new_rating = rating_data.get('rating')
-                        new_rd = rating_data.get('rd')
+                    # Extract user info
+                    user_info = profile.get('user', {})
+                    location = user_info.get('location')
+                    avatar = user_info.get('avatar')
 
-                        # Update the response
-                        ratings[player_key]["rating"] = new_rating
-                        ratings[player_key]["rd"] = new_rd
-                        ratings[player_key]["game_count"] = rating_data.get('gameCount')
+                    # Extract rating data
+                    rating_data = profile.get('rating', {})
+                    new_rating = rating_data.get('rating')
+                    new_rd = rating_data.get('rd')
+                    game_count = rating_data.get('gameCount')
+                    win_count = rating_data.get('winCount')
+                    loss_count = rating_data.get('lossCount')
+                    efficiency_percent = rating_data.get('efficiencyPercent')
+                    lower_bound = rating_data.get('lowerBound')
 
-                        # Store in cache - upsert into matchplay_ratings
-                        with get_db_connection() as conn:
-                            # Delete existing rating for this user
-                            conn.execute(text("""
-                                DELETE FROM matchplay_ratings
-                                WHERE matchplay_user_id = :matchplay_user_id
-                            """), {'matchplay_user_id': matchplay_user_id})
+                    # Extract IFPA data
+                    ifpa_data = profile.get('ifpa', {})
+                    ifpa_id = ifpa_data.get('ifpaId') if ifpa_data else None
+                    ifpa_rank = ifpa_data.get('rank') if ifpa_data else None
+                    ifpa_rating = ifpa_data.get('rating') if ifpa_data else None
+                    ifpa_womens_rank = ifpa_data.get('womensRank') if ifpa_data else None
 
-                            # Insert new rating
-                            conn.execute(text("""
-                                INSERT INTO matchplay_ratings
-                                    (matchplay_user_id, rating_value, rating_rd, fetched_at)
-                                VALUES
-                                    (:matchplay_user_id, :rating_value, :rating_rd, :fetched_at)
-                            """), {
-                                'matchplay_user_id': matchplay_user_id,
-                                'rating_value': new_rating,
-                                'rating_rd': new_rd,
-                                'fetched_at': datetime.utcnow()
-                            })
+                    # Extract tournament count
+                    counts = profile.get('userCounts', {})
+                    tournament_count = counts.get('tournamentPlayCount')
 
-                            # Update last_synced on mapping
-                            conn.execute(text("""
-                                UPDATE matchplay_player_mappings
-                                SET last_synced = :last_synced
-                                WHERE matchplay_user_id = :matchplay_user_id
-                            """), {
-                                'matchplay_user_id': matchplay_user_id,
-                                'last_synced': datetime.utcnow()
-                            })
-                            conn.commit()
+                    # Update the response
+                    ratings[player_key]["rating"] = new_rating
+                    ratings[player_key]["rd"] = new_rd
+                    ratings[player_key]["game_count"] = game_count
+
+                    # Store in cache - upsert into matchplay_ratings
+                    with get_db_connection() as conn:
+                        now = datetime.utcnow()
+
+                        # Delete existing rating for this user
+                        conn.execute(text("""
+                            DELETE FROM matchplay_ratings
+                            WHERE matchplay_user_id = :matchplay_user_id
+                        """), {'matchplay_user_id': matchplay_user_id})
+
+                        # Insert new rating with all available data
+                        conn.execute(text("""
+                            INSERT INTO matchplay_ratings
+                                (matchplay_user_id, rating_value, rating_rd, game_count, win_count,
+                                 loss_count, efficiency_percent, lower_bound, ifpa_id, ifpa_rank,
+                                 ifpa_rating, ifpa_womens_rank, tournament_count, location, avatar, fetched_at)
+                            VALUES
+                                (:matchplay_user_id, :rating_value, :rating_rd, :game_count, :win_count,
+                                 :loss_count, :efficiency_percent, :lower_bound, :ifpa_id, :ifpa_rank,
+                                 :ifpa_rating, :ifpa_womens_rank, :tournament_count, :location, :avatar, :fetched_at)
+                        """), {
+                            'matchplay_user_id': matchplay_user_id,
+                            'rating_value': new_rating,
+                            'rating_rd': new_rd,
+                            'game_count': game_count,
+                            'win_count': win_count,
+                            'loss_count': loss_count,
+                            'efficiency_percent': efficiency_percent,
+                            'lower_bound': lower_bound,
+                            'ifpa_id': ifpa_id,
+                            'ifpa_rank': ifpa_rank,
+                            'ifpa_rating': ifpa_rating,
+                            'ifpa_womens_rank': ifpa_womens_rank,
+                            'tournament_count': tournament_count,
+                            'location': location,
+                            'avatar': avatar,
+                            'fetched_at': now
+                        })
+
+                        # Update last_synced on mapping
+                        conn.execute(text("""
+                            UPDATE matchplay_player_mappings
+                            SET last_synced = :last_synced
+                            WHERE matchplay_user_id = :matchplay_user_id
+                        """), {
+                            'matchplay_user_id': matchplay_user_id,
+                            'last_synced': now
+                        })
+                        conn.commit()
 
             except Exception as e:
                 logger.warning(f"Failed to fetch rating for {player_key}: {e}")
