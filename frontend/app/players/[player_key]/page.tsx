@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { PlayerMachineStat, PlayerMachineScoreHistory } from '@/lib/types';
+import { PlayerMachineStat, PlayerMachineScoreHistory, PlayerMachineScore } from '@/lib/types';
 import {
   Card,
   PageHeader,
@@ -21,7 +21,7 @@ import PlayerMachineProgressionChart from '@/components/PlayerMachineProgression
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
 import { MatchplaySection } from '@/components/MatchplaySection';
-import { SUPPORTED_SEASONS, filterSupportedSeasons, formatScore } from '@/lib/utils';
+import { SUPPORTED_SEASONS, filterSupportedSeasons, formatScore, getPercentileStyle } from '@/lib/utils';
 import { useURLFilters, filterConfigs } from '@/lib/hooks';
 import {
   usePlayer,
@@ -30,6 +30,78 @@ import {
   useVenues,
   usePlayers,
 } from '@/lib/queries';
+
+function PercentileBadge({ value }: { value: number | null | undefined }) {
+  const style = getPercentileStyle(value);
+  if (!style) return <span style={{ color: 'var(--text-muted)' }}>N/A</span>;
+  return (
+    <span
+      className="text-xs px-1.5 py-0.5 rounded font-medium"
+      style={{ color: style.color, backgroundColor: `${style.color}22` }}
+    >
+      {style.label}
+    </span>
+  );
+}
+
+function ExpandedMachineScores({
+  playerKey,
+  machineKey,
+  seasonsFilter,
+  venueFilter,
+}: {
+  playerKey: string;
+  machineKey: string;
+  seasonsFilter: number[];
+  venueFilter: string;
+}) {
+  const { data, isLoading, error } = usePlayerMachineScoreHistory(
+    playerKey,
+    machineKey,
+    {
+      venue_key: venueFilter || undefined,
+      seasons: seasonsFilter.length > 0 ? seasonsFilter : undefined,
+    },
+    { enabled: true }
+  );
+
+  if (isLoading) return <div className="py-3"><LoadingSpinner size="sm" text="Loading scores..." /></div>;
+  if (error) return <div className="py-2 text-sm" style={{ color: 'var(--color-error-500)' }}>Failed to load scores</div>;
+  if (!data?.scores?.length) return <div className="py-2 text-sm" style={{ color: 'var(--text-muted)' }}>No scores found</div>;
+
+  return (
+    <div className="py-2 space-y-1">
+      {data.scores.map((score: PlayerMachineScore, i: number) => (
+        <div
+          key={i}
+          className="flex items-center gap-3 py-1.5 px-2 rounded text-sm"
+          style={{ backgroundColor: i % 2 === 0 ? 'transparent' : 'var(--table-row-stripe)' }}
+        >
+          <span className="font-mono font-medium min-w-[70px]" style={{ color: 'var(--text-primary)' }}>
+            {formatScore(score.score)}
+          </span>
+          <PercentileBadge value={score.percentile} />
+          <span className="flex-1 truncate" style={{ color: 'var(--text-muted)' }}>
+            {score.venue_name}
+          </span>
+          <span className="shrink-0 text-xs" style={{ color: 'var(--text-muted)' }}>
+            S{score.season} Wk{score.week}
+            {score.date ? ` · ${score.date}` : ''}
+          </span>
+        </div>
+      ))}
+      <div className="pt-2">
+        <Link
+          href={`/players/${playerKey}/machines/${machineKey}?seasons=${seasonsFilter.join(',')}&venue_key=${venueFilter}`}
+          className="text-xs hover:underline"
+          style={{ color: 'var(--text-link)' }}
+        >
+          View all games with opponents →
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 export default function PlayerDetailPage() {
   const params = useParams();
@@ -49,6 +121,9 @@ export default function PlayerDetailPage() {
   // Sort state (not URL-synced as it's less important to share)
   const [sortBy, setSortBy] = useState<'avg_percentile' | 'games_played' | 'avg_score' | 'win_percentage'>('games_played');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  // Expandable machine rows
+  const [expandedMachines, setExpandedMachines] = useState<Set<string>>(new Set());
 
   // Chart-related state
   const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
@@ -243,6 +318,18 @@ export default function PlayerDetailPage() {
     }
   }
 
+  function toggleMachineExpand(machineKey: string) {
+    setExpandedMachines(prev => {
+      const next = new Set(prev);
+      if (next.has(machineKey)) {
+        next.delete(machineKey);
+      } else {
+        next.add(machineKey);
+      }
+      return next;
+    });
+  }
+
   // Build active filters array for chips display
   const activeFilters: FilterChipData[] = [
     ...getSeasonChips(seasonsFilter, availableSeasons.length),
@@ -362,54 +449,69 @@ export default function PlayerDetailPage() {
             <>
               {/* Mobile view - stacked cards */}
               <div className="sm:hidden space-y-3">
-                {machineStats.map((stat, idx) => (
-                  <div
-                    key={idx}
-                    className="border rounded-lg p-3"
-                    style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg-secondary)' }}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <Link
-                        href={`/machines/${stat.machine_key}`}
-                        className="font-medium text-blue-600 hover:text-blue-800"
-                      >
-                        {stat.machine_name}
-                      </Link>
-                      <button
-                        onClick={() => handleMachineSelect(stat.machine_key, stat.machine_name)}
-                        className="px-4 py-2.5 rounded-lg text-base font-medium transition-colors hover:opacity-80 active:scale-95"
-                        style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-secondary)' }}
-                        aria-label={`View chart for ${stat.machine_name}`}
-                      >
-                        📊
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span style={{ color: 'var(--text-muted)' }}>Games: </span>
+                {machineStats.map((stat, idx) => {
+                  const isExpanded = expandedMachines.has(stat.machine_key);
+                  return (
+                    <div
+                      key={idx}
+                      className="border rounded-lg p-3"
+                      style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg-secondary)' }}
+                    >
+                      <div className="flex justify-between items-start mb-2">
                         <Link
-                          href={`/players/${playerKey}/machines/${stat.machine_key}?seasons=${seasonsFilter.join(',')}&venue_key=${venueFilter}`}
-                          className="hover:underline"
-                          style={{ color: 'var(--text-link)' }}
+                          href={`/machines/${stat.machine_key}`}
+                          className="font-medium text-blue-600 hover:text-blue-800"
                         >
-                          {stat.games_played}
+                          {stat.machine_name}
                         </Link>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleMachineSelect(stat.machine_key, stat.machine_name)}
+                            className="px-2 py-1 rounded text-sm transition-colors hover:opacity-80"
+                            style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-secondary)' }}
+                            aria-label={`View chart for ${stat.machine_name}`}
+                          >
+                            📊
+                          </button>
+                        </div>
                       </div>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)' }}>Win: </span>
-                        <WinPercentage value={stat.win_percentage} />
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span style={{ color: 'var(--text-muted)' }}>Games: </span>
+                          <button
+                            onClick={() => toggleMachineExpand(stat.machine_key)}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-sm font-medium transition-colors hover:opacity-80"
+                            style={{ backgroundColor: 'var(--color-primary-50)', color: 'var(--text-link)' }}
+                          >
+                            {stat.games_played} {isExpanded ? '▲' : '▼'}
+                          </button>
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--text-muted)' }}>Win: </span>
+                          <WinPercentage value={stat.win_percentage} />
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--text-muted)' }}>%ile: </span>
+                          <PercentileBadge value={stat.avg_percentile} />
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--text-muted)' }}>Best: </span>
+                          <span style={{ color: 'var(--text-primary)' }}>{formatScore(stat.best_score)}</span>
+                        </div>
                       </div>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)' }}>Med: </span>
-                        <span style={{ color: 'var(--text-primary)' }}>{formatScore(stat.median_score)}</span>
-                      </div>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)' }}>Best: </span>
-                        <span style={{ color: 'var(--text-primary)' }}>{formatScore(stat.best_score)}</span>
-                      </div>
+                      {isExpanded && (
+                        <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+                          <ExpandedMachineScores
+                            playerKey={playerKey}
+                            machineKey={stat.machine_key}
+                            seasonsFilter={seasonsFilter}
+                            venueFilter={venueFilter}
+                          />
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Desktop view - table */}
@@ -422,7 +524,7 @@ export default function PlayerDetailPage() {
                         sortable
                         onSort={() => handleSort('games_played')}
                         sortDirection={sortBy === 'games_played' ? sortDirection : null}
-                        tooltip="Total games played on this machine, filtered by selected seasons and venue"
+                        tooltip="Total games played on this machine, filtered by selected seasons and venue. Click to expand individual scores."
                       >
                         Games
                       </Table.Head>
@@ -447,52 +549,87 @@ export default function PlayerDetailPage() {
                       <Table.Head className="text-center">Chart</Table.Head>
                     </Table.Row>
                   </Table.Header>
-                  <Table.Body striped>
-                    {machineStats.map((stat, idx) => (
-                      <Table.Row key={idx}>
-                        <Table.Cell>
-                          <Link
-                            href={`/machines/${stat.machine_key}`}
-                            className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                          >
-                            {stat.machine_name}
-                          </Link>
-                        </Table.Cell>
-                        <Table.Cell>
-                          <Link
-                            href={`/players/${playerKey}/machines/${stat.machine_key}?seasons=${seasonsFilter.join(',')}&venue_key=${venueFilter}`}
-                            className="hover:underline"
-                            style={{ color: 'var(--text-link)' }}
-                          >
-                            {stat.games_played}
-                          </Link>
-                        </Table.Cell>
-                        <Table.Cell>
-                          <WinPercentage value={stat.win_percentage} />
-                        </Table.Cell>
-                        <Table.Cell>
-                          {stat.avg_percentile !== null ? stat.avg_percentile.toFixed(1) : 'N/A'}
-                        </Table.Cell>
-                        <Table.Cell>
-                          {formatScore(stat.median_score)}
-                        </Table.Cell>
-                        <Table.Cell>
-                          {formatScore(stat.best_score)}
-                        </Table.Cell>
-                        <Table.Cell className="text-center">
-                          <button
-                            onClick={() => handleMachineSelect(stat.machine_key, stat.machine_name)}
-                            className="px-3 py-1 rounded text-xs font-medium transition-colors hover:opacity-80"
-                            style={{ backgroundColor: 'var(--card-bg-secondary)', color: 'var(--text-secondary)' }}
-                            title="View score progression chart"
-                          >
-                            📊
-                          </button>
-                        </Table.Cell>
-                      </Table.Row>
-                    ))}
+                  <Table.Body>
+                    {machineStats.map((stat, idx) => {
+                      const isExpanded = expandedMachines.has(stat.machine_key);
+                      return (
+                        <React.Fragment key={idx}>
+                          <Table.Row isEven={idx % 2 === 1}>
+                            <Table.Cell>
+                              <Link
+                                href={`/machines/${stat.machine_key}`}
+                                className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                              >
+                                {stat.machine_name}
+                              </Link>
+                            </Table.Cell>
+                            <Table.Cell>
+                              <button
+                                onClick={() => toggleMachineExpand(stat.machine_key)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-sm font-medium transition-colors hover:opacity-80"
+                                style={{ backgroundColor: 'var(--color-primary-50)', color: 'var(--text-link)' }}
+                                title="Click to expand individual scores"
+                              >
+                                {stat.games_played} games
+                                <span className="text-xs">{isExpanded ? '▲' : '▼'}</span>
+                              </button>
+                            </Table.Cell>
+                            <Table.Cell>
+                              <WinPercentage value={stat.win_percentage} />
+                            </Table.Cell>
+                            <Table.Cell>
+                              <PercentileBadge value={stat.avg_percentile} />
+                            </Table.Cell>
+                            <Table.Cell>
+                              {formatScore(stat.median_score)}
+                            </Table.Cell>
+                            <Table.Cell>
+                              {formatScore(stat.best_score)}
+                            </Table.Cell>
+                            <Table.Cell className="text-center">
+                              <button
+                                onClick={() => handleMachineSelect(stat.machine_key, stat.machine_name)}
+                                className="px-3 py-1 rounded text-xs font-medium transition-colors hover:opacity-80"
+                                style={{ backgroundColor: 'var(--card-bg-secondary)', color: 'var(--text-secondary)' }}
+                                title="View score progression chart"
+                              >
+                                📊
+                              </button>
+                            </Table.Cell>
+                          </Table.Row>
+                          {isExpanded && (
+                            <Table.Row hoverable={false}>
+                              <Table.Cell colSpan={7} className="!py-0 !px-4 whitespace-normal">
+                                <ExpandedMachineScores
+                                  playerKey={playerKey}
+                                  machineKey={stat.machine_key}
+                                  seasonsFilter={seasonsFilter}
+                                  venueFilter={venueFilter}
+                                />
+                              </Table.Cell>
+                            </Table.Row>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
                   </Table.Body>
                 </Table>
+              </div>
+
+              {/* Percentile legend */}
+              <div className="flex flex-wrap items-center gap-4 text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
+                <span className="font-medium">Percentiles:</span>
+                {[
+                  { color: '#f59e0b', label: '90th+' },
+                  { color: '#a78bfa', label: '75–89th' },
+                  { color: '#60a5fa', label: '50–74th' },
+                  { color: '#6b7280', label: '< 50th' },
+                ].map(({ color, label }) => (
+                  <span key={label} className="flex items-center gap-1">
+                    <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+                    {label}
+                  </span>
+                ))}
               </div>
             </>
           )}
@@ -502,11 +639,6 @@ export default function PlayerDetailPage() {
             style={{ color: 'var(--text-muted)' }}
           >
             Showing {machineStats.length} machine{machineStats.length !== 1 ? 's' : ''}
-            {machineStats.length > 0 && (
-              <span className="ml-2" style={{ color: 'var(--text-muted)' }}>
-                (Click 📊 to view score progression)
-              </span>
-            )}
           </div>
         </Card.Content>
       </Card>

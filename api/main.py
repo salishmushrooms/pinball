@@ -16,7 +16,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from api.routers import players, machines, venues, teams, matchups, seasons, predictions, matchplay, scores
+from api.routers import players, machines, venues, teams, matchups, seasons, predictions, matchplay, scores, live_matches
 from etl.database import db
 
 
@@ -60,9 +60,10 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         # Only add caching headers for GET requests
-        if request.method == "GET":
+        if request.method == "GET" and not request.url.path.startswith("/live"):
             # Cache for 1 week (604800 seconds)
             # Use stale-while-revalidate to serve stale content while fetching fresh data
+            # Skip /live endpoints — those serve real-time data and must not be cached
             response.headers["Cache-Control"] = "public, max-age=604800, stale-while-revalidate=86400"
             # Add ETag support hint
             response.headers["Vary"] = "Accept-Encoding"
@@ -142,6 +143,7 @@ app.include_router(seasons.router)
 app.include_router(predictions.router)
 app.include_router(matchplay.router)
 app.include_router(scores.router)
+app.include_router(live_matches.router)
 
 
 @app.get("/", tags=["root"])

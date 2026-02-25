@@ -248,7 +248,7 @@ export default function MachineDetailPage() {
               value={formatScore(machine.max_score || 0)}
             />
           </div>
-          <p className="text-sm text-gray-500 mt-4">* Based on data from MNP seasons 18-22</p>
+          <p className="text-sm mt-4" style={{ color: 'var(--text-muted)' }}>* Based on data from MNP seasons 18-22</p>
         </Card.Content>
       </Card>
 
@@ -308,8 +308,9 @@ export default function MachineDetailPage() {
                         <Table.Cell className="font-medium">#{index + 1}</Table.Cell>
                         <Table.Cell>
                           <Link
-                            href={`/players/${encodeURIComponent(scoreData.player_key)}`}
-                            className="text-blue-600 hover:text-blue-800 font-medium"
+                            href={`/players/${encodeURIComponent(scoreData.player_key)}/machines/${machineKey}`}
+                            className="font-medium hover:underline"
+                            style={{ color: 'var(--text-link)' }}
                           >
                             {scoreData.player_name || scoreData.player_key}
                           </Link>
@@ -334,7 +335,7 @@ export default function MachineDetailPage() {
               <Card.Title>Frequent Players</Card.Title>
             </Card.Header>
             <Card.Content>
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
                 Players with the most scores on this machine (given current filters)
               </p>
               <Table>
@@ -370,8 +371,9 @@ export default function MachineDetailPage() {
                           <Table.Cell className="font-medium">#{index + 1}</Table.Cell>
                           <Table.Cell>
                             <Link
-                              href={`/players/${encodeURIComponent(player.player_key)}`}
-                              className="text-blue-600 hover:text-blue-800 font-medium"
+                              href={`/players/${encodeURIComponent(player.player_key)}/machines/${machineKey}`}
+                              className="font-medium hover:underline"
+                              style={{ color: 'var(--text-link)' }}
                             >
                               {player.player_name}
                             </Link>
@@ -441,7 +443,7 @@ export default function MachineDetailPage() {
           <div className="flex justify-end mb-4 text-sm sm:text-base">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-red-500 opacity-40"></div>
-              <span className="text-gray-700">Outliers</span>
+              <span style={{ color: 'var(--text-secondary)' }}>Outliers</span>
             </div>
           </div>
           <div className="relative w-full" style={{ minHeight: '400px' }}>
@@ -449,7 +451,8 @@ export default function MachineDetailPage() {
               width="100%"
               height="100%"
               viewBox="0 0 800 520"
-              className="border border-gray-200 rounded"
+              className="border rounded"
+              style={{ borderColor: 'var(--border)' }}
               preserveAspectRatio="xMidYMid meet"
               style={{ minHeight: '400px' }}
             >
@@ -555,7 +558,7 @@ export default function MachineDetailPage() {
               })()}
             </svg>
           </div>
-            <p className="text-sm text-gray-600 mt-3">
+            <p className="text-sm mt-3" style={{ color: 'var(--text-secondary)' }}>
               Showing {scores.length} score{scores.length !== 1 ? 's' : ''} focused on 25th-95th percentile range. Outliers shown in red.
             </p>
           </Card.Content>

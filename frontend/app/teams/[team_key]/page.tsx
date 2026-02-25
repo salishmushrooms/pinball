@@ -48,6 +48,7 @@ export default function TeamDetailPage() {
   const [matchplayLastUpdated, setMatchplayLastUpdated] = useState<string | null>(null);
   const [matchplayRefreshing, setMatchplayRefreshing] = useState(false);
   const [schedule, setSchedule] = useState<TeamSeasonMatch[]>([]);
+  const [teamAvgIpr, setTeamAvgIpr] = useState<number | null>(null);
   const [currentSeason, setCurrentSeason] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
@@ -82,6 +83,7 @@ export default function TeamDetailPage() {
     api.getTeamSchedule(latestSeason, teamKey)
       .then((data) => {
         setSchedule(data.schedule);
+        setTeamAvgIpr(data.team_avg_ipr ?? null);
       })
       .catch((err) => {
         console.warn('Failed to fetch team schedule:', err);
@@ -254,6 +256,19 @@ export default function TeamDetailPage() {
     });
   }, [players, rosterSortBy, rosterSortDirection]);
 
+  // Season W-L record derived from schedule
+  const record = useMemo(() => {
+    if (!schedule.length) return null;
+    let wins = 0, losses = 0;
+    schedule.forEach(m => {
+      if (m.state === 'complete' && m.team_points != null && m.opponent_points != null) {
+        if (m.team_points > m.opponent_points) wins++;
+        else if (m.team_points < m.opponent_points) losses++;
+      }
+    });
+    return { wins, losses };
+  }, [schedule]);
+
   // Build active filters array for chips display
   const activeFilters: FilterChipData[] = [
     // Individual season chips from the hook
@@ -345,12 +360,19 @@ export default function TeamDetailPage() {
               description={
                 <span>
                   Season {team.season}
+                  {record && (
+                    <> • <span className="font-semibold">{record.wins}-{record.losses}</span></>
+                  )}
+                  {teamAvgIpr !== null && (
+                    <> • Avg IPR: <span className="font-semibold">{teamAvgIpr}</span></>
+                  )}
                   {team.home_venue_key && team.home_venue_name && (
                     <>
                       {' • Home Venue: '}
                       <Link
                         href={`/venues/${team.home_venue_key}`}
-                        className="text-blue-600 hover:text-blue-800"
+                        className="hover:underline"
+                        style={{ color: 'var(--text-link)' }}
                       >
                         {team.home_venue_name}
                       </Link>
@@ -371,17 +393,22 @@ export default function TeamDetailPage() {
         >
           <button
             onClick={() => setScheduleOpen(!scheduleOpen)}
-            className="w-full flex items-center justify-between px-6 py-4 transition-colors hover:opacity-80"
+            className="w-full flex items-center justify-between px-4 py-3 transition-colors hover:opacity-80"
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <h2
-                className="text-xl font-semibold"
+                className="text-lg font-semibold"
                 style={{ color: 'var(--text-primary)' }}
               >
-                Season {currentSeason} Schedule
+                Schedule
               </h2>
+              {record && (
+                <span className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                  {record.wins}-{record.losses}
+                </span>
+              )}
               <span
-                className="text-sm"
+                className="text-xs"
                 style={{ color: 'var(--text-muted)' }}
               >
                 ({(() => {
@@ -398,7 +425,7 @@ export default function TeamDetailPage() {
             </div>
             <svg
               className={cn(
-                'w-5 h-5 transition-transform',
+                'w-4 h-4 transition-transform',
                 scheduleOpen && 'transform rotate-180'
               )}
               style={{ color: 'var(--text-muted)' }}
@@ -416,104 +443,116 @@ export default function TeamDetailPage() {
           </button>
 
           {scheduleOpen && (
-            <div className="px-6 pb-6 border-t" style={{ borderColor: 'var(--border)' }}>
-              <div className="pt-4 space-y-2">
-                {(() => {
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
+            <div className="border-t divide-y" style={{ borderColor: 'var(--border)' }}>
+              {(() => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
 
-                  // Find the next match: earliest future match that's not complete
-                  const upcomingMatches = schedule.filter(m => {
-                    if (m.state === 'complete') return false;
-                    if (!m.date) return true; // Include matches without dates
-                    const matchDate = new Date(m.date);
-                    return matchDate >= today;
-                  });
+                const upcomingMatches = schedule.filter(m => {
+                  if (m.state === 'complete') return false;
+                  if (!m.date) return true;
+                  const matchDate = new Date(m.date);
+                  return matchDate >= today;
+                });
 
-                  const nextUnplayedMatch = upcomingMatches.length > 0
-                    ? upcomingMatches.reduce((min, match) => {
-                        if (!match.date) return min;
-                        if (!min.date) return match;
-                        return new Date(match.date) < new Date(min.date) ? match : min;
-                      }, upcomingMatches[0])
-                    : null;
+                const nextUnplayedMatch = upcomingMatches.length > 0
+                  ? upcomingMatches.reduce((min, match) => {
+                      if (!match.date) return min;
+                      if (!min.date) return match;
+                      return new Date(match.date) < new Date(min.date) ? match : min;
+                    }, upcomingMatches[0])
+                  : null;
 
-                  return schedule.map((match) => {
-                    // Match is analyzable if not complete AND (no date OR date is today/future)
-                    const matchDate = match.date ? new Date(match.date) : null;
-                    const isFutureOrToday = !matchDate || matchDate >= today;
-                    const isAnalyzable = match.state !== 'complete' && isFutureOrToday;
-                    const isNextMatch = nextUnplayedMatch?.match_key === match.match_key;
+                return schedule.map((match) => {
+                  const matchDate = match.date ? new Date(match.date) : null;
+                  const isFutureOrToday = !matchDate || matchDate >= today;
+                  const isAnalyzable = match.state !== 'complete' && isFutureOrToday;
+                  const isNextMatch = nextUnplayedMatch?.match_key === match.match_key;
+                  const isWin = match.team_points != null && match.opponent_points != null && match.team_points > match.opponent_points;
+                  const isLoss = match.team_points != null && match.opponent_points != null && match.team_points < match.opponent_points;
 
-                    return (
-                      <div
-                        key={match.match_key}
-                        className={cn(
-                          'flex flex-wrap items-center gap-2 p-3 rounded-lg border',
-                          isNextMatch ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                        )}
-                        style={{ borderColor: 'var(--border)' }}
+                  return (
+                    <div
+                      key={match.match_key}
+                      className={cn(
+                        'flex items-center gap-2 py-1.5 px-4',
+                        isNextMatch ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                      )}
+                      style={{ borderColor: 'var(--border)' }}
+                    >
+                      <span
+                        className="text-xs font-medium w-8 shrink-0"
+                        style={{ color: 'var(--text-muted)' }}
                       >
-                        <span
-                          className="text-sm font-medium"
-                          style={{ color: 'var(--text-muted)' }}
-                        >
-                          Wk {match.week}
+                        {match.week}
+                      </span>
+                      <span
+                        className="text-xs hidden sm:inline w-20 shrink-0"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        {match.date || 'TBD'}
+                      </span>
+                      <span
+                        className="text-xs w-5 shrink-0 text-center"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        {match.is_home ? 'vs' : '@'}
+                      </span>
+                      <Link
+                        href={`/teams/${match.opponent}`}
+                        className="text-sm font-medium hover:underline min-w-0 truncate"
+                        style={{ color: 'var(--text-link)' }}
+                      >
+                        {match.opponent_name}
+                      </Link>
+                      {match.opponent_avg_ipr != null && (
+                        <span className="text-xs shrink-0 hidden sm:inline" style={{ color: 'var(--text-muted)' }}>
+                          {match.opponent_avg_ipr}
                         </span>
+                      )}
+                      {/* Match score for completed games */}
+                      {match.state === 'complete' && match.team_points != null && match.opponent_points != null && (
                         <span
-                          className="text-sm hidden sm:inline"
-                          style={{ color: 'var(--text-muted)' }}
+                          className="text-sm font-semibold font-mono shrink-0 ml-auto"
+                          style={{
+                            color: isWin
+                              ? 'var(--color-success-500)'
+                              : isLoss
+                              ? 'var(--color-error-500)'
+                              : 'var(--text-muted)',
+                          }}
                         >
-                          {match.date || 'TBD'}
+                          {isWin ? 'W' : isLoss ? 'L' : 'T'} {match.team_points}-{match.opponent_points}
                         </span>
-                        <span
-                          className="text-sm"
-                          style={{ color: 'var(--text-muted)' }}
-                        >
-                          {match.is_home ? 'vs' : '@'}
-                        </span>
-                        <Link
-                          href={`/teams/${match.opponent}`}
-                          className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                        >
-                          {match.opponent_name}
-                        </Link>
-                        <div className="ml-auto">
+                      )}
+                      {/* Action buttons for upcoming matches */}
+                      {match.state !== 'complete' && (
+                        <div className="ml-auto shrink-0">
                           {isNextMatch ? (
                             <Link
                               href={`/matchups?match=${match.match_key}`}
-                              className="px-2 py-1 text-xs font-medium rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                              className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
                             >
-                              Analyze Matchup
+                              Analyze
                             </Link>
                           ) : isAnalyzable ? (
                             <Link
                               href={`/matchups?match=${match.match_key}`}
-                              className="px-2 py-1 text-xs font-medium rounded-full transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
+                              className="px-2 py-0.5 text-xs font-medium rounded-full transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
                               style={{
-                                backgroundColor: 'var(--bg-secondary)',
+                                backgroundColor: 'var(--card-bg-secondary)',
                                 color: 'var(--text-muted)',
                               }}
                             >
-                              Analyze Matchup
+                              Analyze
                             </Link>
-                          ) : (
-                            <span
-                              className="px-2 py-1 text-xs rounded-full"
-                              style={{
-                                backgroundColor: 'var(--bg-secondary)',
-                                color: 'var(--text-muted)',
-                              }}
-                            >
-                              Done
-                            </span>
-                          )}
+                          ) : null}
                         </div>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
             </div>
           )}
         </div>
@@ -713,7 +752,8 @@ export default function TeamDetailPage() {
                         <div className="flex justify-between items-start mb-2">
                           <Link
                             href={`/players/${encodeURIComponent(player.player_key)}`}
-                            className="font-medium text-blue-600 hover:text-blue-800"
+                            className="font-medium hover:underline"
+                            style={{ color: 'var(--text-link)' }}
                           >
                             {player.player_name}
                           </Link>
@@ -737,7 +777,7 @@ export default function TeamDetailPage() {
                                 href={mpRating.profile_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-blue-600"
+                                style={{ color: 'var(--text-link)' }}
                               >
                                 {mpRating.rating ?? '—'}
                               </a>
@@ -748,7 +788,7 @@ export default function TeamDetailPage() {
                               <span style={{ color: 'var(--text-muted)' }}>Top: </span>
                               <Link
                                 href={`/machines/${player.most_played_machine_key}`}
-                                className="text-blue-600"
+                                style={{ color: 'var(--text-link)' }}
                               >
                                 {player.most_played_machine_name}
                               </Link>
@@ -805,7 +845,8 @@ export default function TeamDetailPage() {
                             <Table.Cell>
                               <Link
                                 href={`/players/${encodeURIComponent(player.player_key)}`}
-                                className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                                className="text-sm font-medium hover:underline"
+                                style={{ color: 'var(--text-link)' }}
                               >
                                 {player.player_name}
                               </Link>
@@ -817,7 +858,8 @@ export default function TeamDetailPage() {
                                   href={mpRating.profile_url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800"
+                                  className="hover:underline"
+                                  style={{ color: 'var(--text-link)' }}
                                   title={`Matchplay: ${mpRating.matchplay_name}`}
                                 >
                                   {mpRating.rating ?? '—'}
@@ -834,7 +876,8 @@ export default function TeamDetailPage() {
                               {player.most_played_machine_name ? (
                                 <Link
                                   href={`/machines/${player.most_played_machine_key}`}
-                                  className="text-blue-600 hover:text-blue-800"
+                                  className="hover:underline"
+                                  style={{ color: 'var(--text-link)' }}
                                 >
                                   {player.most_played_machine_name}
                                 </Link>
@@ -887,7 +930,8 @@ export default function TeamDetailPage() {
                     <div className="flex justify-between items-start mb-2">
                       <Link
                         href={`/machines/${stat.machine_key}`}
-                        className="font-medium text-blue-600 hover:text-blue-800"
+                        className="font-medium hover:underline"
+                        style={{ color: 'var(--text-link)' }}
                       >
                         {stat.machine_name}
                       </Link>
@@ -961,7 +1005,8 @@ export default function TeamDetailPage() {
                         <Table.Cell>
                           <Link
                             href={`/machines/${stat.machine_key}`}
-                            className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                            className="text-sm font-medium hover:underline"
+                            style={{ color: 'var(--text-link)' }}
                           >
                             {stat.machine_name}
                           </Link>

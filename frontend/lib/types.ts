@@ -128,6 +128,7 @@ export interface PlayerMachineScore {
   round_number: number;
   player_position: number;
   match_key: string;
+  percentile: number | null;
 }
 
 export interface SeasonStats {
@@ -599,6 +600,9 @@ export interface TeamSeasonMatch {
   venue: string;
   is_home: boolean;
   state: 'scheduled' | 'complete' | 'playing' | 'pregame';
+  team_points: number | null;
+  opponent_points: number | null;
+  opponent_avg_ipr: number | null;
 }
 
 export interface TeamScheduleResponse {
@@ -606,6 +610,7 @@ export interface TeamScheduleResponse {
   team_key: string;
   team_name: string;
   home_venue: string | null;
+  team_avg_ipr: number | null;
   schedule: TeamSeasonMatch[];
   roster: string[];
 }
@@ -880,4 +885,76 @@ export interface MachineScoresBrowseParams {
   include_all_venues?: boolean;
   limit?: number;
   offset?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Live Match Types (from /live endpoints)
+// ---------------------------------------------------------------------------
+
+export interface LiveScore {
+  score: number | null;
+  points: number | null;
+  percentile: number | null;
+  player_key: string | null;
+  player_name: string | null;
+}
+
+export interface LiveGame {
+  n: number;
+  machine_key: string | null;
+  machine_name: string | null;
+  scores: LiveScore[];   // 4 items for doubles (rounds 1 & 4), 2 for singles (rounds 2 & 3)
+  away_points: number | null;
+  home_points: number | null;
+}
+
+export interface LiveRound {
+  n: number;
+  games: LiveGame[];
+  done: boolean;
+  left_confirmed: boolean;
+  right_confirmed: boolean;
+}
+
+export interface LiveMatchSummary {
+  match_key: string;
+  week: number;
+  away_team_key: string;
+  away_team_name: string;
+  home_team_key: string;
+  home_team_name: string;
+  venue_key: string;
+  date: string | null;
+  state: string;  // SCHEDULED | PLAYING | REVIEWING | COMPLETE | UNAVAILABLE
+  away_total_points: number;   // Raw game points only
+  home_total_points: number;
+  away_handicap: number;       // Handicap points (0 until match complete)
+  home_handicap: number;
+  away_participation: number;  // Participation bonus
+  home_participation: number;
+  away_final_points: number;   // Game + handicap + participation
+  home_final_points: number;
+  current_round: number;
+}
+
+export interface LiveRosterPlayer {
+  key: string;
+  name: string;
+  ipr: number | null;
+  is_sub: boolean;
+  is_captain: boolean;
+  num_played: number;
+  total_points: number;
+}
+
+export interface LiveMatchDetail extends LiveMatchSummary {
+  rounds: LiveRound[];
+  away_lineup: LiveRosterPlayer[];
+  home_lineup: LiveRosterPlayer[];
+}
+
+export interface LiveWeekResponse {
+  season: number;
+  week: number;
+  matches: LiveMatchSummary[];
 }

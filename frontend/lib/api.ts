@@ -58,6 +58,8 @@ import {
   ScoreBrowseParams,
   MachineScoresResponse,
   MachineScoresBrowseParams,
+  LiveWeekResponse,
+  LiveMatchDetail,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -521,6 +523,35 @@ export const api = {
     params: MachineScoresBrowseParams
   ): Promise<MachineScoresResponse> => {
     return fetchAPI<MachineScoresResponse>(`/scores/browse/${machineKey}`, params);
+  },
+
+  // Live Match Endpoints
+
+  /**
+   * Get live match status for all matches in a given week.
+   * Fetches from mondaynightpinball.com in parallel. Cached for 60s on the server.
+   * @param season - Season number (default 23)
+   * @param week - Week number (defaults to most recent played week)
+   * @param refresh - Bypass the server-side cache
+   */
+  getLiveWeek: (season?: number, week?: number, refresh?: boolean): Promise<LiveWeekResponse> => {
+    const params: Record<string, any> = {};
+    if (season !== undefined) params.season = season;
+    if (week !== undefined) params.week = week;
+    if (refresh) params.refresh = true;
+    return fetchAPI<LiveWeekResponse>('/live/week', params);
+  },
+
+  /**
+   * Get full live match detail with per-score historical percentile overlays.
+   * Active matches cached for 30s; complete matches cached for 10 minutes.
+   * @param matchKey - Match key (e.g. "mnp-23-5-SKP-TRL")
+   * @param refresh - Bypass the server-side cache
+   */
+  getLiveMatch: (matchKey: string, refresh?: boolean): Promise<LiveMatchDetail> => {
+    const params: Record<string, any> = {};
+    if (refresh) params.refresh = true;
+    return fetchAPI<LiveMatchDetail>(`/live/matches/${matchKey}`, params);
   },
 };
 

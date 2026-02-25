@@ -54,6 +54,16 @@ export default function MachinesPage() {
         description="Browse and search pinball machine statistics"
       />
 
+      {/* Dashboard - shown when no search term */}
+      {!searchTerm.trim() && !dashboardLoading && dashboardStats && (
+        <MachineDashboard stats={dashboardStats} />
+      )}
+
+      {/* Dashboard Loading State */}
+      {!searchTerm.trim() && dashboardLoading && (
+        <LoadingSpinner fullPage={false} text="Loading dashboard..." />
+      )}
+
       {/* Search Filters */}
       <Card>
         <Card.Content>
@@ -79,16 +89,6 @@ export default function MachinesPage() {
         <Alert variant="error" title="Error">
           {error instanceof Error ? error.message : 'Failed to fetch machines'}
         </Alert>
-      )}
-
-      {/* Dashboard - shown when no search term */}
-      {!searchTerm.trim() && !dashboardLoading && dashboardStats && (
-        <MachineDashboard stats={dashboardStats} />
-      )}
-
-      {/* Dashboard Loading State */}
-      {!searchTerm.trim() && dashboardLoading && (
-        <LoadingSpinner fullPage={false} text="Loading dashboard..." />
       )}
 
       {/* Empty State - no results found */}

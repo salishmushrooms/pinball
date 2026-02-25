@@ -16,6 +16,7 @@ export default function Navigation() {
     { href: '/venues', label: 'Venues' },
     { href: '/scores', label: 'Scores' },
     { href: '/matchups', label: 'Matchups' },
+    { href: '/live', label: 'Live' },
   ];
 
   return (

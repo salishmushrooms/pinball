@@ -800,6 +800,27 @@ def get_player_machine_score_history(
             detail=f"No scores found for player '{player_key}' on machine '{machine_key}'"
         )
 
+    # Fetch percentile thresholds for this machine
+    pct_results = execute_query(
+        """
+        SELECT percentile, score_threshold
+        FROM score_percentiles
+        WHERE machine_key = :machine_key AND venue_key = '_ALL_'
+        ORDER BY score_threshold ASC
+        """,
+        {'machine_key': machine_key}
+    )
+    pct_thresholds = [(r['score_threshold'], r['percentile']) for r in pct_results] if pct_results else []
+
+    def _score_percentile(score_val, thresholds):
+        result = 0
+        for threshold, pct in thresholds:
+            if score_val >= threshold:
+                result = pct
+            else:
+                break
+        return result
+
     # Group scores by season for aggregation
     import numpy as np
     from collections import defaultdict
@@ -812,6 +833,8 @@ def get_player_machine_score_history(
         score_val = score_record['score']
         season_groups[season_num].append(score_val)
 
+        percentile = _score_percentile(score_val, pct_thresholds) if pct_thresholds else None
+
         all_scores_data.append({
             'score': score_val,
             'season': season_num,
@@ -821,7 +844,8 @@ def get_player_machine_score_history(
             'venue_name': score_record['venue_name'],
             'round_number': score_record['round_number'],
             'player_position': score_record['player_position'],
-            'match_key': score_record['match_key']
+            'match_key': score_record['match_key'],
+            'percentile': percentile,
         })
 
     # Calculate statistics per season (for candlestick view)

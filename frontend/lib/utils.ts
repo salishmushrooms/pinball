@@ -46,3 +46,31 @@ export function formatScore(score: number | null | undefined): string {
   // Below 1000: show as-is
   return score.toString();
 }
+
+/**
+ * Get color and label for a percentile value.
+ * Used for percentile badges across the app (live scores, player stats, etc.)
+ * See STYLE_REFERENCE.md for the color scale.
+ */
+export function getPercentileStyle(pct: number | null | undefined): { color: string; label: string } | null {
+  if (pct === null || pct === undefined) return null;
+  const rounded = Math.round(pct);
+  if (rounded >= 90) return { color: '#f59e0b', label: `${rounded}th` };
+  if (rounded >= 75) return { color: '#a78bfa', label: `${rounded}th` };
+  if (rounded >= 50) return { color: '#60a5fa', label: `${rounded}th` };
+  if (rounded > 0)   return { color: '#6b7280', label: `${rounded}th` };
+  return null;
+}
+
+/**
+ * Format a score with abbreviated notation for compact display.
+ * Simpler than formatScore() — for tight spaces like badges and inline labels.
+ * Examples: 1.2B, 45.3M, 1.2K, 456
+ */
+export function fmtScore(score: number | null | undefined): string {
+  if (score === null || score === undefined) return '—';
+  if (score >= 1_000_000_000) return `${(score / 1_000_000_000).toFixed(1)}B`;
+  if (score >= 1_000_000) return `${(score / 1_000_000).toFixed(1)}M`;
+  if (score >= 10_000) return `${(score / 1_000).toFixed(1)}K`;
+  return score.toLocaleString();
+}

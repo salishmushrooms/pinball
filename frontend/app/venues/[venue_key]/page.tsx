@@ -243,12 +243,12 @@ export default function VenueDetailPage() {
           description={
             <>
               {venue.neighborhood && (
-                <div className="text-lg text-gray-600">
+                <div className="text-lg" style={{ color: 'var(--text-secondary)' }}>
                   {venue.neighborhood}
                 </div>
               )}
               {venue.address && (
-                <div className="text-sm text-gray-500 mt-1">{venue.address}</div>
+                <div className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>{venue.address}</div>
               )}
               {venue.home_teams && venue.home_teams.length > 0 && (
                 <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
@@ -391,7 +391,8 @@ export default function VenueDetailPage() {
                       href={pinballMapData?.pinballmap_url || `https://pinballmap.com/map?by_location_id=${venue.pinballmap_location_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                      className="hover:underline"
+                      style={{ color: 'var(--text-link)' }}
                     >
                       Pinball Map
                     </a>
@@ -445,7 +446,8 @@ export default function VenueDetailPage() {
                           href={machine.ipdb_link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="ml-2 text-xs text-blue-600 hover:text-blue-800 hover:underline flex-shrink-0"
+                          className="ml-2 text-xs hover:underline flex-shrink-0"
+                          style={{ color: 'var(--text-link)' }}
                         >
                           IPDB
                         </a>
@@ -513,8 +515,9 @@ export default function VenueDetailPage() {
                     >
                       <div className="flex justify-between items-start mb-2">
                         <Link
-                          href={`/machines/${machine.machine_key}`}
-                          className="font-medium text-blue-600 hover:text-blue-800"
+                          href={`/machines/${machine.machine_key}?venue=${venueKey}`}
+                          className="font-medium hover:underline"
+                          style={{ color: 'var(--text-link)' }}
                         >
                           {machine.machine_name}
                         </Link>
@@ -581,8 +584,9 @@ export default function VenueDetailPage() {
                         <Table.Row key={machine.machine_key}>
                           <Table.Cell>
                             <Link
-                              href={`/machines/${machine.machine_key}`}
-                              className="text-blue-600 hover:text-blue-800 font-medium"
+                              href={`/machines/${machine.machine_key}?venue=${venueKey}`}
+                              className="font-medium hover:underline"
+                              style={{ color: 'var(--text-link)' }}
                             >
                               {machine.machine_name}
                             </Link>
@@ -590,13 +594,13 @@ export default function VenueDetailPage() {
                           <Table.Cell className="text-right">
                             {machine.total_scores.toLocaleString()}
                           </Table.Cell>
-                          <Table.Cell className="text-right text-gray-500">
+                          <Table.Cell className="text-right" style={{ color: 'var(--text-muted)' }}>
                             {machine.unique_players}
                           </Table.Cell>
                           <Table.Cell className="text-right">
                             {formatScore(machine.median_score)}
                           </Table.Cell>
-                          <Table.Cell className="text-right font-medium text-green-600">
+                          <Table.Cell className="text-right font-medium" style={{ color: 'var(--color-success-500)' }}>
                             {formatScore(machine.max_score)}
                           </Table.Cell>
                           {!currentOnly && (

@@ -181,6 +181,7 @@ class PlayerMachineScore(BaseModel):
     round_number: int
     player_position: int
     match_key: str
+    percentile: Optional[int] = Field(None, description="Score percentile rank (0-99) across the league for this machine")
 
 
 class SeasonStats(BaseModel):
@@ -720,6 +721,87 @@ class MachineScoresResponse(BaseModel):
     machine_name: str
     total_count: int
     scores: List[ScoreItem]
+
+
+# ---------------------------------------------------------------------------
+# Live Match Models (fetched from mondaynightpinball.com, enriched with
+# historical percentile data from the MNP Analyzer database)
+# ---------------------------------------------------------------------------
+
+
+class LiveScore(BaseModel):
+    """A single player's score within a live game, with historical percentile."""
+    score: Optional[int] = None        # Raw score (None if not yet played)
+    points: Optional[float] = None     # Match points (float — can be fractional on ties)
+    percentile: Optional[int] = None   # Percentile rank (0-99) vs all historical scores on this machine
+    player_key: Optional[str] = None   # Player identifier
+    player_name: Optional[str] = None  # Player display name
+
+
+class LiveGame(BaseModel):
+    """One game within a round, with all player scores and percentile overlays."""
+    n: int
+    machine_key: Optional[str] = None
+    machine_name: Optional[str] = None
+    scores: List[LiveScore]            # 4 entries for doubles rounds, 2 for singles
+    away_points: Optional[int] = None
+    home_points: Optional[int] = None
+
+
+class LiveRound(BaseModel):
+    """One round (1-4) of a match with its games and confirmation status."""
+    n: int
+    games: List[LiveGame]
+    done: bool
+    left_confirmed: bool
+    right_confirmed: bool
+
+
+class LiveMatchSummary(BaseModel):
+    """Summary of a live match's current state and running point totals."""
+    match_key: str
+    week: int
+    away_team_key: str
+    away_team_name: str
+    home_team_key: str
+    home_team_name: str
+    venue_key: str
+    date: Optional[str] = None
+    state: str                         # SCHEDULED/PLAYING/REVIEWING/COMPLETE/UNAVAILABLE
+    away_total_points: int             # Raw game points only
+    home_total_points: int
+    away_handicap: int = 0             # Handicap points (0 until match complete)
+    home_handicap: int = 0
+    away_participation: int = 0        # Participation bonus (0 until match complete)
+    home_participation: int = 0
+    away_final_points: int = 0         # Game + handicap + participation
+    home_final_points: int = 0
+    current_round: int
+
+
+class LiveRosterPlayer(BaseModel):
+    """A player in a team's lineup for a live match."""
+    key: str
+    name: str
+    ipr: Optional[float] = None
+    is_sub: bool = False
+    is_captain: bool = False
+    num_played: int = 0
+    total_points: float = 0.0
+
+
+class LiveMatchDetail(LiveMatchSummary):
+    """Full live match data including round-by-round scores with percentile overlays."""
+    rounds: List[LiveRound]
+    away_lineup: List[LiveRosterPlayer] = []
+    home_lineup: List[LiveRosterPlayer] = []
+
+
+class LiveWeekResponse(BaseModel):
+    """All match summaries for a given week."""
+    season: int
+    week: int
+    matches: List[LiveMatchSummary]
 
 
 # Update forward references

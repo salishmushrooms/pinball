@@ -329,7 +329,7 @@ def get_team_schedule(season: int, team_key: str):
 
         team_info = team_result[0]
 
-        # Get team's matches
+        # Get team's matches (including scores)
         matches_query = """
             SELECT
                 m.match_key,
@@ -339,6 +339,8 @@ def get_team_schedule(season: int, team_key: str):
                 m.home_team_key,
                 m.away_team_key,
                 m.state,
+                m.home_team_points,
+                m.away_team_points,
                 ht.team_name as home_name,
                 at.team_name as away_name
             FROM matches m
@@ -350,12 +352,36 @@ def get_team_schedule(season: int, team_key: str):
         """
         matches_result = execute_query(matches_query, {"team_key": team_key_upper, "season": season})
 
+        # Get average IPR for all teams in this season (one query for all)
+        ipr_query = """
+            SELECT team_key,
+                   SUM(current_ipr) as total_ipr,
+                   COUNT(*) as player_count
+            FROM (
+                SELECT DISTINCT s.team_key, s.player_key, p.current_ipr
+                FROM scores s
+                JOIN players p ON s.player_key = p.player_key
+                WHERE s.season = :season
+                  AND (s.is_substitute IS NULL OR s.is_substitute = false)
+                  AND p.current_ipr IS NOT NULL
+            ) unique_players
+            GROUP BY team_key
+        """
+        ipr_result = execute_query(ipr_query, {"season": season})
+        team_avg_ipr_lookup = {}
+        for row in ipr_result:
+            if row['player_count'] > 0:
+                team_avg_ipr_lookup[row['team_key']] = round(row['total_ipr'] / row['player_count'], 1)
+
         # Build schedule list
         schedule = []
         for row in matches_result:
             is_home = row['home_team_key'] == team_key_upper
             opponent_key = row['away_team_key'] if is_home else row['home_team_key']
             opponent_name = row['away_name'] if is_home else row['home_name']
+
+            team_points = row['home_team_points'] if is_home else row['away_team_points']
+            opponent_points = row['away_team_points'] if is_home else row['home_team_points']
 
             schedule.append({
                 "match_key": row['match_key'],
@@ -365,7 +391,10 @@ def get_team_schedule(season: int, team_key: str):
                 "opponent_name": opponent_name,
                 "venue": row['venue_key'],
                 "is_home": is_home,
-                "state": row['state']
+                "state": row['state'],
+                "team_points": team_points,
+                "opponent_points": opponent_points,
+                "opponent_avg_ipr": team_avg_ipr_lookup.get(opponent_key),
             })
 
         # Get roster (players who have played for this team in this season)
@@ -384,6 +413,7 @@ def get_team_schedule(season: int, team_key: str):
             "team_key": team_key_upper,
             "team_name": team_info['team_name'],
             "home_venue": team_info['home_venue_key'],
+            "team_avg_ipr": team_avg_ipr_lookup.get(team_key_upper),
             "schedule": schedule,
             "roster": roster
         }

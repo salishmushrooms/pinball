@@ -146,13 +146,15 @@ export function TableHead({
 interface TableCellProps {
   children: React.ReactNode;
   className?: string;
+  colSpan?: number;
 }
 
-export function TableCell({ children, className }: TableCellProps) {
+export function TableCell({ children, className, colSpan }: TableCellProps) {
   return (
     <td
       className={cn('px-3 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm', className)}
       style={{ color: 'var(--text-primary)' }}
+      colSpan={colSpan}
     >
       {children}
     </td>

@@ -20,6 +20,7 @@ import {
   Table,
   LoadingSpinner,
   EmptyState,
+  FilterPanel,
 } from '@/components/ui';
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { TeamMultiSelect } from '@/components/TeamMultiSelect';
@@ -365,11 +366,12 @@ function ScoresPageContent() {
       />
 
       {/* Filters */}
-      <Card>
-        <Card.Header>
-          <Card.Title>Filters</Card.Title>
-        </Card.Header>
-        <Card.Content>
+      <FilterPanel
+        title="Filters"
+        collapsible={true}
+        defaultOpen={true}
+      >
+        <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <SeasonMultiSelect
               value={seasons}
@@ -412,15 +414,16 @@ function ScoresPageContent() {
 
           {/* Advanced options */}
           {selectedVenue && (
-            <div className="mt-4 flex items-center gap-4">
+            <div className="flex items-center gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={includeAllVenues}
                   onChange={(e) => setIncludeAllVenues(e.target.checked)}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="rounded focus:ring-blue-500"
+                  style={{ borderColor: 'var(--input-border)' }}
                 />
-                <span className="text-sm text-gray-600">
+                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                   Include scores from all venues for selected machines
                 </span>
               </label>
@@ -429,12 +432,12 @@ function ScoresPageContent() {
 
           {/* Machine-venue mismatch warning */}
           {machineVenueMismatch && !machineWarningDismissed && (
-            <Alert variant="warning" className="mt-4">
+            <Alert variant="warning">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <strong>{machineVenueMismatch.notAtVenue} of {machineVenueMismatch.total}</strong> selected machines aren&apos;t at this venue.
                   {machineVenueMismatch.atVenue > 0 && (
-                    <span className="text-gray-600"> ({machineVenueMismatch.atVenue} match)</span>
+                    <span style={{ color: 'var(--text-secondary)' }}> ({machineVenueMismatch.atVenue} match)</span>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
@@ -460,7 +463,7 @@ function ScoresPageContent() {
             </Alert>
           )}
 
-          <div className="mt-6 flex items-center gap-4">
+          <div className="flex items-center gap-4">
             <Button
               onClick={fetchScores}
               disabled={loading || seasons.length === 0}
@@ -477,7 +480,7 @@ function ScoresPageContent() {
             </Button>
 
             {scoreData && (
-              <span className="text-sm text-gray-500">
+              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
                 {scoreData.total_score_count.toLocaleString()} total scores across {scoreData.machine_groups.length} machines
               </span>
             )}
@@ -488,8 +491,8 @@ function ScoresPageContent() {
               {error}
             </Alert>
           )}
-        </Card.Content>
-      </Card>
+        </div>
+      </FilterPanel>
 
       {/* Results */}
       {scoreData && scoreData.machine_groups.length === 0 && (
@@ -503,7 +506,7 @@ function ScoresPageContent() {
         <div className="space-y-4">
           {/* Sorting controls */}
           <div className="flex items-center justify-end gap-4">
-            <span className="text-sm text-gray-500">Sort by:</span>
+            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Sort by:</span>
             <select
               value={sortField}
               onChange={(e) => setSortField(e.target.value as SortField)}
@@ -584,8 +587,8 @@ function MachineScoreCard({
           <span className="font-semibold text-lg">{group.machine_name}</span>
           <Badge variant="default">{group.stats.count} scores</Badge>
         </div>
-        <div className="flex items-center gap-4 text-sm text-gray-500">
-          <span>Median: <strong className="text-blue-600">{formatScore(group.stats.median)}</strong></span>
+        <div className="flex items-center gap-4 text-sm" style={{ color: 'var(--text-muted)' }}>
+          <span>Median: <strong style={{ color: 'var(--text-link)' }}>{formatScore(group.stats.median)}</strong></span>
           <span className="hidden sm:inline">Range: {formatScore(group.stats.min)} - {formatScore(group.stats.max)}</span>
         </div>
       </button>
@@ -608,20 +611,21 @@ function MachineScoreCard({
               <Table.Body>
                 {sortedScores.map((score, idx) => (
                   <Table.Row key={`${score.player_key}-${score.date}-${idx}`}>
-                    <Table.Cell className="font-semibold text-blue-600">
+                    <Table.Cell className="font-semibold" style={{ color: 'var(--text-link)' }}>
                       {formatScore(score.score)}
                     </Table.Cell>
                     <Table.Cell>
                       <a
                         href={`/players/${score.player_key}`}
-                        className="text-blue-600 hover:underline"
+                        className="hover:underline"
+                        style={{ color: 'var(--text-link)' }}
                       >
                         {score.player_name}
                       </a>
                     </Table.Cell>
                     <Table.Cell>{score.team_name}</Table.Cell>
                     <Table.Cell>{score.venue_name}</Table.Cell>
-                    <Table.Cell className="text-gray-500 text-sm">
+                    <Table.Cell className="text-sm" style={{ color: 'var(--text-muted)' }}>
                       {score.date || '-'}
                     </Table.Cell>
                   </Table.Row>
@@ -638,21 +642,22 @@ function MachineScoreCard({
                 className="px-4 py-3"
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-blue-600 text-lg">
+                  <span className="font-bold text-lg" style={{ color: 'var(--text-link)' }}>
                     {formatScore(score.score)}
                   </span>
-                  <span className="text-xs text-gray-500">{score.date || '-'}</span>
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{score.date || '-'}</span>
                 </div>
                 <div className="text-sm">
                   <a
                     href={`/players/${score.player_key}`}
-                    className="text-blue-600 hover:underline font-medium"
+                    className="hover:underline font-medium"
+                    style={{ color: 'var(--text-link)' }}
                   >
                     {score.player_name}
                   </a>
-                  <span className="text-gray-500"> · {score.team_name}</span>
+                  <span style={{ color: 'var(--text-muted)' }}> · {score.team_name}</span>
                 </div>
-                <div className="text-xs text-gray-400 mt-1">
+                <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
                   {score.venue_name}
                 </div>
               </div>
