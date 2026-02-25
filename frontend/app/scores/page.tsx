@@ -611,8 +611,8 @@ function MachineScoreCard({
               <Table.Body>
                 {sortedScores.map((score, idx) => (
                   <Table.Row key={`${score.player_key}-${score.date}-${idx}`}>
-                    <Table.Cell className="font-semibold" style={{ color: 'var(--text-link)' }}>
-                      {formatScore(score.score)}
+                    <Table.Cell className="font-semibold">
+                      <span style={{ color: 'var(--text-link)' }}>{formatScore(score.score)}</span>
                     </Table.Cell>
                     <Table.Cell>
                       <a
@@ -625,8 +625,8 @@ function MachineScoreCard({
                     </Table.Cell>
                     <Table.Cell>{score.team_name}</Table.Cell>
                     <Table.Cell>{score.venue_name}</Table.Cell>
-                    <Table.Cell className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                      {score.date || '-'}
+                    <Table.Cell className="text-sm">
+                      <span style={{ color: 'var(--text-muted)' }}>{score.date || '-'}</span>
                     </Table.Cell>
                   </Table.Row>
                 ))}

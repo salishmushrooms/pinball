@@ -558,7 +558,8 @@ export default function PlayerDetailPage() {
                             <Table.Cell>
                               <Link
                                 href={`/machines/${stat.machine_key}`}
-                                className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                                className="text-sm font-medium hover:underline"
+                                style={{ color: 'var(--text-link)' }}
                               >
                                 {stat.machine_name}
                               </Link>

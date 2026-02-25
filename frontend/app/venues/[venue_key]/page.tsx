@@ -263,7 +263,7 @@ export default function VenueDetailPage() {
                       <Link
                         key={team.team_key}
                         href={`/teams/${team.team_key}`}
-                        className="inline-flex items-center px-3 py-1 rounded text-sm font-medium transition-colors hover:bg-blue-100 hover:text-blue-700"
+                        className="inline-flex items-center px-3 py-1 rounded text-sm font-medium transition-colors hover:opacity-80"
                         style={{
                           backgroundColor: 'var(--card-bg-secondary)',
                           color: 'var(--text-secondary)',
@@ -342,8 +342,8 @@ export default function VenueDetailPage() {
                     value="venue"
                     checked={scoresFrom === 'venue'}
                     onChange={(e) => setScoresFrom(e.target.value as 'venue')}
-                    className="h-4 w-4 text-blue-600 focus:ring-2 focus:ring-blue-500"
-                    style={{ borderColor: 'var(--input-border)' }}
+                    className="h-4 w-4"
+                    style={{ borderColor: 'var(--input-border)', accentColor: 'var(--color-primary-600)' }}
                   />
                   <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
                     Scores at this venue only
@@ -355,8 +355,8 @@ export default function VenueDetailPage() {
                     value="all"
                     checked={scoresFrom === 'all'}
                     onChange={(e) => setScoresFrom(e.target.value as 'all')}
-                    className="h-4 w-4 text-blue-600 focus:ring-2 focus:ring-blue-500"
-                    style={{ borderColor: 'var(--input-border)' }}
+                    className="h-4 w-4"
+                    style={{ borderColor: 'var(--input-border)', accentColor: 'var(--color-primary-600)' }}
                   />
                   <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
                     All scores on these machines (scouting mode)
@@ -594,14 +594,14 @@ export default function VenueDetailPage() {
                           <Table.Cell className="text-right">
                             {machine.total_scores.toLocaleString()}
                           </Table.Cell>
-                          <Table.Cell className="text-right" style={{ color: 'var(--text-muted)' }}>
-                            {machine.unique_players}
+                          <Table.Cell className="text-right">
+                            <span style={{ color: 'var(--text-muted)' }}>{machine.unique_players}</span>
                           </Table.Cell>
                           <Table.Cell className="text-right">
                             {formatScore(machine.median_score)}
                           </Table.Cell>
-                          <Table.Cell className="text-right font-medium" style={{ color: 'var(--color-success-500)' }}>
-                            {formatScore(machine.max_score)}
+                          <Table.Cell className="text-right font-medium">
+                            <span style={{ color: 'var(--color-success-500)' }}>{formatScore(machine.max_score)}</span>
                           </Table.Cell>
                           {!currentOnly && (
                             <Table.Cell className="text-center">

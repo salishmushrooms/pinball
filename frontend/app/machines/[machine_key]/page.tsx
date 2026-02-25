@@ -8,7 +8,6 @@ import { Machine, MachineScore, MachineVenue, MachineTeam } from '@/lib/types';
 import {
   Card,
   PageHeader,
-  Select,
   Alert,
   LoadingSpinner,
   StatCard,
@@ -23,6 +22,12 @@ import { VenueSelect } from '@/components/VenueMultiSelect';
 import { TeamMultiSelect } from '@/components/TeamMultiSelect';
 import { SUPPORTED_SEASONS, filterSupportedSeasons } from '@/lib/utils';
 import { useURLFilters, filterConfigs } from '@/lib/hooks';
+
+// Helper to get CSS variable values
+function getCSSVariableValue(varName: string): string {
+  if (typeof window === 'undefined') return '#000000';
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
 
 export default function MachineDetailPage() {
   const params = useParams();
@@ -49,6 +54,31 @@ export default function MachineDetailPage() {
   const [availableSeasons, setAvailableSeasons] = useState<number[]>([...SUPPORTED_SEASONS]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [themeColors, setThemeColors] = useState({
+    gridLine: '#e5e7eb',
+    gridText: '#4b5563',
+    axis: '#374151',
+    axisLabel: '#1f2937',
+  });
+
+  // Initialize theme colors on mount and when theme changes
+  useEffect(() => {
+    const updateThemeColors = () => {
+      setThemeColors({
+        gridLine: getCSSVariableValue('--color-gray-200'),
+        gridText: getCSSVariableValue('--text-secondary'),
+        axis: getCSSVariableValue('--color-gray-700'),
+        axisLabel: getCSSVariableValue('--text-primary'),
+      });
+    };
+
+    updateThemeColors();
+
+    // Listen for theme changes
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    mediaQuery.addEventListener('change', updateThemeColors);
+    return () => mediaQuery.removeEventListener('change', updateThemeColors);
+  }, []);
 
   // Load available seasons on mount
   useEffect(() => {
@@ -452,9 +482,8 @@ export default function MachineDetailPage() {
               height="100%"
               viewBox="0 0 800 520"
               className="border rounded"
-              style={{ borderColor: 'var(--border)' }}
               preserveAspectRatio="xMidYMid meet"
-              style={{ minHeight: '400px' }}
+              style={{ borderColor: 'var(--border)', minHeight: '400px' }}
             >
               {/* Calculate score range for y-axis */}
               {(() => {
@@ -489,8 +518,8 @@ export default function MachineDetailPage() {
                       const y = chartBottom - (chartHeight * i / 5);
                       return (
                         <g key={`y-${i}`}>
-                          <line x1={chartLeft} y1={y} x2={chartRight} y2={y} stroke="#e5e7eb" strokeWidth="1" />
-                          <text x={chartLeft - 10} y={y + 5} textAnchor="end" fontSize="16" fill="#4b5563" fontWeight="500">
+                          <line x1={chartLeft} y1={y} x2={chartRight} y2={y} stroke={themeColors.gridLine} strokeWidth="1" />
+                          <text x={chartLeft - 10} y={y + 5} textAnchor="end" fontSize="16" fill={themeColors.gridText} fontWeight="500">
                             {formatScore(score)}
                           </text>
                         </g>
@@ -502,8 +531,8 @@ export default function MachineDetailPage() {
                       const x = chartLeft + (percentile / 100) * chartWidth;
                       return (
                         <g key={`x-${percentile}`}>
-                          <line x1={x} y1={chartTop} x2={x} y2={chartBottom} stroke="#e5e7eb" strokeWidth="1" />
-                          <text x={x} y={chartBottom + 25} textAnchor="middle" fontSize="16" fill="#4b5563" fontWeight="500">
+                          <line x1={x} y1={chartTop} x2={x} y2={chartBottom} stroke={themeColors.gridLine} strokeWidth="1" />
+                          <text x={x} y={chartBottom + 25} textAnchor="middle" fontSize="16" fill={themeColors.gridText} fontWeight="500">
                             {percentile}%
                           </text>
                         </g>
@@ -543,14 +572,14 @@ export default function MachineDetailPage() {
                     })}
 
                     {/* Axes */}
-                    <line x1={chartLeft} y1={chartBottom} x2={chartRight} y2={chartBottom} stroke="#374151" strokeWidth="2" />
-                    <line x1={chartLeft} y1={chartTop} x2={chartLeft} y2={chartBottom} stroke="#374151" strokeWidth="2" />
+                    <line x1={chartLeft} y1={chartBottom} x2={chartRight} y2={chartBottom} stroke={themeColors.axis} strokeWidth="2" />
+                    <line x1={chartLeft} y1={chartTop} x2={chartLeft} y2={chartBottom} stroke={themeColors.axis} strokeWidth="2" />
 
                     {/* Axis Labels */}
-                    <text x={(chartLeft + chartRight) / 2} y="505" textAnchor="middle" fontSize="18" fill="#1f2937" fontWeight="600">
+                    <text x={(chartLeft + chartRight) / 2} y="505" textAnchor="middle" fontSize="18" fill={themeColors.axisLabel} fontWeight="600">
                       Percentile
                     </text>
-                    <text x="35" y={(chartTop + chartBottom) / 2} textAnchor="middle" fontSize="18" fill="#1f2937" fontWeight="600" transform={`rotate(-90 35 ${(chartTop + chartBottom) / 2})`}>
+                    <text x="35" y={(chartTop + chartBottom) / 2} textAnchor="middle" fontSize="18" fill={themeColors.axisLabel} fontWeight="600" transform={`rotate(-90 35 ${(chartTop + chartBottom) / 2})`}>
                       Score
                     </text>
                   </>

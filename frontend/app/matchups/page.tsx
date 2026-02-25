@@ -15,8 +15,6 @@ import {
 import {
   Card,
   PageHeader,
-  Select,
-  Button,
   Alert,
   Badge,
   Table,
@@ -26,7 +24,7 @@ import {
   LoadingSpinner,
 } from '@/components/ui';
 import { MachinePredictionCard } from '@/components/MachinePredictionCard';
-import { filterSupportedSeasons } from '@/lib/utils';
+import { filterSupportedSeasons, cn } from '@/lib/utils';
 
 export default function MatchupsPage() {
   return (
@@ -275,51 +273,88 @@ function MatchupsPageContent() {
         </Alert>
       )}
 
-      {/* Selection Form */}
+      {/* Match Selection Cards */}
       {!loadingMatches && matches.length > 0 && (
-        <Card>
-          <Card.Header>
-            <Card.Title>
-              {currentWeek !== null
-                ? `Week ${currentWeek} Matchups`
-                : 'Select Match'}
-            </Card.Title>
-            <p className="text-sm text-gray-500 mt-1">
-              {isOffSeason
-                ? 'Browse completed matches from the season'
-                : `Analysis uses data from Season ${currentSeason} and ${(currentSeason || 23) - 1}`}
-            </p>
-          </Card.Header>
-          <Card.Content>
-            <Select
-              label={currentWeek !== null ? `Week ${currentWeek} Matches` : 'Match'}
-              value={selectedMatch}
-              onChange={(e) => setSelectedMatch(e.target.value)}
-              disabled={loadingMatches}
-              options={[
-                { value: '', label: 'Select a match' },
-                ...matches.map((match) => ({
-                  value: match.match_key,
-                  label: `${match.away_name} @ ${match.home_name} (${match.venue.name})`,
-                })),
-              ]}
-            />
-
-          <div className="mt-6">
-            <Button
-              onClick={() => handleAnalyzeMatchup()}
-              disabled={loading || !selectedMatch}
-              variant="primary"
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2
+              className="text-lg font-semibold"
+              style={{ color: 'var(--text-primary)' }}
             >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <LoadingSpinner size="sm" />
-                  Analyzing...
-                </span>
-              ) : (
-                'Analyze Matchup'
-              )}
-            </Button>
+              {currentWeek !== null ? `Week ${currentWeek} Matchups` : 'Select Match'}
+            </h2>
+            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              {isOffSeason
+                ? 'Browse completed matches'
+                : `Season ${currentSeason} & ${(currentSeason || 23) - 1} data`}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {matches.map((match) => {
+              const isSelected = selectedMatch === match.match_key;
+              const isAnalyzed = matchup && selectedMatch === match.match_key;
+              return (
+                <button
+                  key={match.match_key}
+                  onClick={() => {
+                    setSelectedMatch(match.match_key);
+                    handleAnalyzeMatchup(match.match_key);
+                  }}
+                  disabled={loading}
+                  className={cn(
+                    'border rounded-lg p-4 text-left transition-all',
+                    loading && !isSelected ? 'opacity-50' : 'cursor-pointer',
+                    isSelected
+                      ? 'shadow-md'
+                      : 'hover:shadow-md'
+                  )}
+                  style={{
+                    borderColor: isSelected ? 'var(--color-primary-600)' : 'var(--border)',
+                    borderWidth: isSelected ? '2px' : '1px',
+                    backgroundColor: isSelected ? 'var(--color-primary-50)' : 'var(--card-bg)',
+                  }}
+                >
+                  {/* Week & Date */}
+                  <div className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
+                    Week {match.week}{match.date ? ` \u2022 ${match.date}` : ''}
+                  </div>
+
+                  {/* Teams */}
+                  <div className="space-y-0.5">
+                    <div className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
+                      {match.away_name}
+                    </div>
+                    <div className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>@</div>
+                    <div className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
+                      {match.home_name}
+                    </div>
+                  </div>
+
+                  {/* Venue */}
+                  <div className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {match.venue.name}
+                  </div>
+
+                  {/* Status indicator */}
+                  {isSelected && isAnalyzed && (
+                    <div className="mt-2">
+                      <span
+                        className="text-xs font-medium px-2 py-0.5 rounded-full"
+                        style={{ backgroundColor: 'var(--color-primary-100)', color: 'var(--color-primary-700)' }}
+                      >
+                        Viewing
+                      </span>
+                    </div>
+                  )}
+                  {isSelected && loading && (
+                    <div className="mt-2">
+                      <LoadingSpinner size="sm" text="Analyzing..." />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           {error && (
@@ -327,8 +362,7 @@ function MatchupsPageContent() {
               {error}
             </Alert>
           )}
-        </Card.Content>
-      </Card>
+        </div>
       )}
 
       {/* Matchup Results */}
@@ -337,10 +371,10 @@ function MatchupsPageContent() {
           {/* Matchup Header */}
           <Card>
             <Card.Content>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
                 {matchup.home_team_name} vs {matchup.away_team_name}
               </h2>
-              <p className="text-gray-600">
+              <p style={{ color: 'var(--text-secondary)' }}>
                 Venue: {matchup.venue_name} | Season{typeof matchup.season === 'string' && matchup.season.includes('-') ? 's' : ''}: {matchup.season}
               </p>
             </Card.Content>
@@ -360,12 +394,13 @@ function MatchupsPageContent() {
               {(matchup.available_machines_info || matchup.available_machines.map(k => ({ key: k, name: k }))).map((machine) => (
                 <div
                   key={typeof machine === 'string' ? machine : machine.key}
-                  className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm"
+                  className="flex items-center justify-between p-2 rounded text-sm"
+                  style={{ backgroundColor: 'var(--card-bg-secondary)' }}
                 >
-                  <span className="font-medium text-gray-900">
+                  <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
                     {typeof machine === 'string' ? machine : machine.name}
                   </span>
-                  <span className="text-xs text-gray-500 ml-2">
+                  <span className="text-xs ml-2" style={{ color: 'var(--text-muted)' }}>
                     {typeof machine === 'string' ? '' : machine.key}
                   </span>
                 </div>
@@ -405,7 +440,7 @@ function MatchupsPageContent() {
                 <Card>
                   <Card.Header>
                     <Card.Title>Expected Scores (Team Average)</Card.Title>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
                       Based on all team members' performance at this venue
                     </p>
                   </Card.Header>
@@ -426,7 +461,7 @@ function MatchupsPageContent() {
                     </Badge>
                   }
                 >
-                  <p className="text-sm text-gray-500 mb-3">
+                  <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>
                     Machines this team has historically picked in doubles rounds
                   </p>
                   <MachinePickTable picks={matchup.home_team_pick_frequency} />
@@ -454,7 +489,7 @@ function MatchupsPageContent() {
                     <Badge variant="info">Requires 5+ games</Badge>
                   }
                 >
-                  <p className="text-sm text-gray-600 mb-4">
+                  <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
                     Only showing roster players with 5 or more games on each machine for
                     statistical confidence (95% confidence interval).
                   </p>
@@ -474,7 +509,7 @@ function MatchupsPageContent() {
                 <Card>
                   <Card.Header>
                     <Card.Title>Expected Scores (Team Average)</Card.Title>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
                       Based on all team members' performance at this venue
                     </p>
                   </Card.Header>
@@ -495,7 +530,7 @@ function MatchupsPageContent() {
                     </Badge>
                   }
                 >
-                  <p className="text-sm text-gray-500 mb-3">
+                  <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>
                     Machines this team has historically picked in doubles rounds
                   </p>
                   <MachinePickTable picks={matchup.away_team_pick_frequency} />
@@ -523,7 +558,7 @@ function MatchupsPageContent() {
                     <Badge variant="info">Requires 5+ games</Badge>
                   }
                 >
-                  <p className="text-sm text-gray-600 mb-4">
+                  <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
                     Only showing roster players with 5 or more games on each machine for
                     statistical confidence (95% confidence interval).
                   </p>
@@ -603,13 +638,17 @@ function TeamConfidenceTable({
                 ? formatScore(conf.confidence_interval.mean)
                 : 'N/A'}
             </Table.Cell>
-            <Table.Cell className="text-right text-gray-600 text-xs">
-              {conf.confidence_interval
-                ? `${formatScore(conf.confidence_interval.lower_bound)} - ${formatScore(conf.confidence_interval.upper_bound)}`
-                : 'N/A'}
+            <Table.Cell className="text-right text-xs">
+              <span style={{ color: 'var(--text-secondary)' }}>
+                {conf.confidence_interval
+                  ? `${formatScore(conf.confidence_interval.lower_bound)} - ${formatScore(conf.confidence_interval.upper_bound)}`
+                  : 'N/A'}
+              </span>
             </Table.Cell>
-            <Table.Cell className="text-right text-gray-500 text-xs">
-              n={conf.confidence_interval?.sample_size || 0}
+            <Table.Cell className="text-right text-xs">
+              <span style={{ color: 'var(--text-muted)' }}>
+                n={conf.confidence_interval?.sample_size || 0}
+              </span>
             </Table.Cell>
           </Table.Row>
         ))}
@@ -637,16 +676,18 @@ function PlayerPreferencesGrid({
         return (
           <div
             key={pref.player_key}
-            className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+            className="border rounded-lg p-4 transition-colors"
+            style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg)' }}
           >
             <div className="flex items-center justify-between mb-3">
-              <p className="font-semibold text-gray-900">{pref.player_name}</p>
+              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{pref.player_name}</p>
               {mpRating && (
                 <a
                   href={mpRating.profile_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-blue-600 hover:text-blue-800"
+                  className="text-xs hover:underline"
+                  style={{ color: 'var(--text-link)' }}
                   title={`Matchplay: ${mpRating.matchplay_name}`}
                 >
                   MP: {mpRating.rating ?? '—'}
@@ -659,7 +700,7 @@ function PlayerPreferencesGrid({
                   key={machine.machine_key}
                   className="flex items-center justify-between text-sm"
                 >
-                  <span className="text-gray-700">
+                  <span style={{ color: 'var(--text-secondary)' }}>
                     {idx + 1}. {machine.machine_name}
                   </span>
                   <Badge variant="default" className="text-xs">
@@ -721,7 +762,8 @@ function PlayerConfidenceGrid({
                     href={mpRating.profile_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-blue-600 hover:text-blue-800"
+                    className="text-xs hover:underline"
+                    style={{ color: 'var(--text-link)' }}
                     title={`Matchplay: ${mpRating.matchplay_name}`}
                   >
                     MP: {mpRating.rating ?? '—'}
@@ -749,10 +791,12 @@ function PlayerConfidenceGrid({
                           ? formatScore(conf.confidence_interval.mean)
                           : 'N/A'}
                       </Table.Cell>
-                      <Table.Cell className="text-xs text-right text-gray-600 py-2">
-                        {conf.confidence_interval
-                          ? `${formatScore(conf.confidence_interval.lower_bound)}-${formatScore(conf.confidence_interval.upper_bound)}`
-                          : 'N/A'}
+                      <Table.Cell className="text-xs text-right py-2">
+                        <span style={{ color: 'var(--text-secondary)' }}>
+                          {conf.confidence_interval
+                            ? `${formatScore(conf.confidence_interval.lower_bound)}-${formatScore(conf.confidence_interval.upper_bound)}`
+                            : 'N/A'}
+                        </span>
                       </Table.Cell>
                     </Table.Row>
                   ))}
