@@ -100,13 +100,35 @@ jobs:
 
           echo "Running ETL for seasons: $VALID_SEASONS"
 
-          SEASON_ARGS=""
+          # Step 1: Load raw match data for all seasons
+          echo ""
+          echo "=========================================="
+          echo "Step 1: Loading raw data"
+          echo "=========================================="
           for season in $VALID_SEASONS; do
-            SEASON_ARGS="$SEASON_ARGS --season $season"
+            python etl/load_season.py --season $season
           done
 
-          python etl/update_season.py $SEASON_ARGS
+          # Step 2: Run weekly-relevant aggregations only
+          # Skip: calculate_percentiles.py, calculate_player_stats.py
+          # (These should only be recalculated at season end, not weekly)
+          echo ""
+          echo "=========================================="
+          echo "Step 2: Calculating weekly aggregations"
+          echo "=========================================="
+          for season in $VALID_SEASONS; do
+            python etl/calculate_team_machine_picks.py --season $season
+            python etl/calculate_match_points.py --season $season
+          done
 
+          # Step 3: Calculate cross-season player totals
+          echo ""
+          echo "=========================================="
+          echo "Step 3: Calculating cross-season totals"
+          echo "=========================================="
+          python etl/calculate_player_totals.py
+
+          echo ""
           echo "ETL completed successfully"
 
       - name: Commit and push submodule update
