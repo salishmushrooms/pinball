@@ -131,6 +131,26 @@ jobs:
           echo ""
           echo "ETL completed successfully"
 
+      - name: Revalidate frontend static pages
+        if: steps.detect.outputs.seasons != ''
+        env:
+          REVALIDATION_SECRET: ${{ secrets.REVALIDATION_SECRET }}
+        run: |
+          if [ -z "$REVALIDATION_SECRET" ]; then
+            echo "REVALIDATION_SECRET not configured, skipping frontend refresh"
+            exit 0
+          fi
+
+          echo "Refreshing frontend static pages..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "https://pinball.salishmushrooms.com/api/revalidate?secret=$REVALIDATION_SECRET")
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "Static pages refreshed successfully"
+          else
+            echo "Warning: Revalidation returned HTTP $HTTP_CODE"
+          fi
+
       - name: Commit and push submodule update
         if: steps.submodule.outputs.changed == 'true'
         run: |
@@ -159,7 +179,8 @@ jobs:
             echo "## Sync Successful" >> $GITHUB_STEP_SUMMARY
             echo "Processed seasons: **${{ steps.detect.outputs.seasons }}**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Submodule updated and committed to repo." >> $GITHUB_STEP_SUMMARY
+            echo "- Submodule updated and committed to repo" >> $GITHUB_STEP_SUMMARY
+            echo "- Frontend static pages revalidated" >> $GITHUB_STEP_SUMMARY
           else
             echo "## Sync Failed" >> $GITHUB_STEP_SUMMARY
             echo "Check logs above for details." >> $GITHUB_STEP_SUMMARY
