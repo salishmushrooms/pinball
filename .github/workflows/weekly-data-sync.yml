@@ -9,9 +9,6 @@ jobs:
   sync-data:
     name: Sync MNP Data to Production
     runs-on: ubuntu-latest
-    permissions:
-      contents: write  # Required to push submodule updates
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -151,16 +148,6 @@ jobs:
             echo "Warning: Revalidation returned HTTP $HTTP_CODE"
           fi
 
-      - name: Commit and push submodule update
-        if: steps.submodule.outputs.changed == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git add mnp-data-archive
-          git commit -m "Update mnp-data-archive submodule to ${{ steps.submodule.outputs.after }}"
-          git push
-
       - name: Create workflow summary
         if: always()
         run: |
@@ -179,7 +166,7 @@ jobs:
             echo "## Sync Successful" >> $GITHUB_STEP_SUMMARY
             echo "Processed seasons: **${{ steps.detect.outputs.seasons }}**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "- Submodule updated and committed to repo" >> $GITHUB_STEP_SUMMARY
+            echo "- Production database updated" >> $GITHUB_STEP_SUMMARY
             echo "- Frontend static pages revalidated" >> $GITHUB_STEP_SUMMARY
           else
             echo "## Sync Failed" >> $GITHUB_STEP_SUMMARY
