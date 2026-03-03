@@ -5,24 +5,24 @@ This module contains the core matchup calculation functions that can be
 used by both the API endpoint (on-demand) and ETL script (batch pre-calculation).
 """
 
-from typing import Optional, List, Dict, Any
-from collections import defaultdict
 import json
 import math
+from collections import defaultdict
+from typing import Any
 
+from api.dependencies import execute_query
 from api.models.schemas import (
-    MatchupAnalysis,
-    MachinePickFrequency,
-    PlayerMachinePreference,
-    PlayerMachineConfidence,
-    TeamMachineConfidence,
     ConfidenceInterval,
     MachineInfo,
+    MachinePickFrequency,
+    MatchupAnalysis,
+    PlayerMachineConfidence,
+    PlayerMachinePreference,
+    TeamMachineConfidence,
 )
-from api.dependencies import execute_query
 
 
-def get_current_machines_for_venue(venue_key: str, seasons: List[int]) -> List[str]:
+def get_current_machines_for_venue(venue_key: str, seasons: list[int]) -> list[str]:
     """
     Get the machine lineup for a venue from the database.
     Returns list of machine keys that are active at this venue for the most recent season requested.
@@ -41,13 +41,13 @@ def get_current_machines_for_venue(venue_key: str, seasons: List[int]) -> List[s
             AND vm.active = true
             ORDER BY vm.machine_key
         """
-        results = execute_query(query, {'venue_key': venue_key, 'seasons': seasons})
-        return [row['machine_key'] for row in results]
+        results = execute_query(query, {"venue_key": venue_key, "seasons": seasons})
+        return [row["machine_key"] for row in results]
     except Exception:
         return []
 
 
-def get_machine_names(machine_keys: List[str]) -> Dict[str, str]:
+def get_machine_names(machine_keys: list[str]) -> dict[str, str]:
     """
     Get full machine names for a list of machine keys.
     Returns dict mapping machine_key -> machine_name.
@@ -60,17 +60,17 @@ def get_machine_names(machine_keys: List[str]) -> Dict[str, str]:
         FROM machines
         WHERE machine_key = ANY(:machines)
     """
-    results = execute_query(machine_names_query, {'machines': machine_keys})
-    name_map = {m['machine_key']: m['machine_name'] for m in results}
+    results = execute_query(machine_names_query, {"machines": machine_keys})
+    name_map = {m["machine_key"]: m["machine_name"] for m in results}
 
     missing_keys = [k for k in machine_keys if k not in name_map]
     if missing_keys:
         try:
-            with open("machine_variations.json", 'r') as f:
+            with open("machine_variations.json") as f:
                 machine_variations = json.load(f)
                 for key in missing_keys:
                     if key in machine_variations:
-                        name_map[key] = machine_variations[key].get('name', key)
+                        name_map[key] = machine_variations[key].get("name", key)
                     else:
                         name_map[key] = key
         except Exception:
@@ -81,9 +81,8 @@ def get_machine_names(machine_keys: List[str]) -> Dict[str, str]:
 
 
 def calculate_confidence_interval(
-    scores: List[float],
-    confidence_level: float = 95.0
-) -> Optional[ConfidenceInterval]:
+    scores: list[float], confidence_level: float = 95.0
+) -> ConfidenceInterval | None:
     """
     Calculate confidence interval for a list of scores.
     Returns None if insufficient data (< 5 scores).
@@ -105,17 +104,17 @@ def calculate_confidence_interval(
         lower_bound=max(0, mean - margin_of_error),
         upper_bound=mean + margin_of_error,
         sample_size=len(scores),
-        confidence_level=confidence_level
+        confidence_level=confidence_level,
     )
 
 
 def get_team_machine_pick_frequency(
     team_key: str,
     team_home_venue: str,
-    available_machines: List[str],
-    seasons: List[int],
-    is_home_team_at_venue: bool = True
-) -> List[MachinePickFrequency]:
+    available_machines: list[str],
+    seasons: list[int],
+    is_home_team_at_venue: bool = True,
+) -> list[MachinePickFrequency]:
     """
     Calculate how often a team picks each machine across multiple seasons.
     Uses pre-calculated team_machine_picks table from the database.
@@ -147,16 +146,14 @@ def get_team_machine_pick_frequency(
             ORDER BY wilson_lower DESC
         """
 
-        results = execute_query(query, {
-            'team_key': team_key,
-            'seasons': seasons,
-            'machines': available_machines
-        })
+        results = execute_query(
+            query, {"team_key": team_key, "seasons": seasons, "machines": available_machines}
+        )
 
         result = []
         for row in results:
-            times_picked = row['total_picked']
-            total_opportunities = row['total_opportunities'] or 0
+            times_picked = row["total_picked"]
+            total_opportunities = row["total_opportunities"] or 0
 
             # Calculate pick percentage as pick rate (picks / opportunities)
             # Capped at 100% to handle data inconsistencies where picks > opportunities
@@ -164,13 +161,15 @@ def get_team_machine_pick_frequency(
             if total_opportunities > 0:
                 pick_percentage = round(min((times_picked / total_opportunities) * 100, 100.0), 1)
 
-            result.append(MachinePickFrequency(
-                machine_key=row['machine_key'],
-                machine_name=row['machine_name'],
-                times_picked=times_picked,
-                total_opportunities=total_opportunities,
-                pick_percentage=pick_percentage
-            ))
+            result.append(
+                MachinePickFrequency(
+                    machine_key=row["machine_key"],
+                    machine_name=row["machine_name"],
+                    times_picked=times_picked,
+                    total_opportunities=total_opportunities,
+                    pick_percentage=pick_percentage,
+                )
+            )
 
         return result
 
@@ -180,22 +179,15 @@ def get_team_machine_pick_frequency(
 
 
 def get_player_machine_preferences(
-    team_key: str,
-    available_machines: List[str],
-    seasons: List[int],
-    roster_only: bool = True
-) -> List[PlayerMachinePreference]:
+    team_key: str, available_machines: list[str], seasons: list[int], roster_only: bool = True
+) -> list[PlayerMachinePreference]:
     """
     Get each player's machine picking preferences on this team across multiple seasons.
     """
     if not available_machines:
         return []
 
-    query_params = {
-        'team_key': team_key,
-        'seasons': seasons,
-        'machines': available_machines
-    }
+    query_params = {"team_key": team_key, "seasons": seasons, "machines": available_machines}
 
     roster_filter = ""
     if roster_only:
@@ -223,44 +215,43 @@ def get_player_machine_preferences(
 
     player_picks = defaultdict(list)
     for pick in all_picks:
-        player_key = pick['player_key']
-        player_picks[player_key].append({
-            'player_name': pick['player_name'],
-            'machine_key': pick['machine_key'],
-            'machine_name': pick['machine_name'],
-            'times_played': pick['times_played']
-        })
+        player_key = pick["player_key"]
+        player_picks[player_key].append(
+            {
+                "player_name": pick["player_name"],
+                "machine_key": pick["machine_key"],
+                "machine_name": pick["machine_name"],
+                "times_played": pick["times_played"],
+            }
+        )
 
     result = []
     for player_key, picks in player_picks.items():
         if picks:
-            player_name = picks[0]['player_name']
+            player_name = picks[0]["player_name"]
             top_machines = [
                 MachinePickFrequency(
-                    machine_key=pick['machine_key'],
-                    machine_name=pick['machine_name'],
-                    times_picked=pick['times_played'],
-                    total_opportunities=pick['times_played'],
-                    pick_percentage=100.0
+                    machine_key=pick["machine_key"],
+                    machine_name=pick["machine_name"],
+                    times_picked=pick["times_played"],
+                    total_opportunities=pick["times_played"],
+                    pick_percentage=100.0,
                 )
                 for pick in picks[:5]
             ]
 
-            result.append(PlayerMachinePreference(
-                player_key=player_key,
-                player_name=player_name,
-                top_machines=top_machines
-            ))
+            result.append(
+                PlayerMachinePreference(
+                    player_key=player_key, player_name=player_name, top_machines=top_machines
+                )
+            )
 
     return result
 
 
 def get_player_machine_confidence(
-    team_key: str,
-    available_machines: List[str],
-    seasons: List[int],
-    roster_only: bool = True
-) -> List[PlayerMachineConfidence]:
+    team_key: str, available_machines: list[str], seasons: list[int], roster_only: bool = True
+) -> list[PlayerMachineConfidence]:
     """
     Get confidence intervals for each player on each available machine across multiple seasons.
     """
@@ -272,14 +263,10 @@ def get_player_machine_confidence(
         FROM machines
         WHERE machine_key = ANY(:machines)
     """
-    machine_names = execute_query(machine_names_query, {'machines': available_machines})
-    machine_name_map = {m['machine_key']: m['machine_name'] for m in machine_names}
+    machine_names = execute_query(machine_names_query, {"machines": available_machines})
+    machine_name_map = {m["machine_key"]: m["machine_name"] for m in machine_names}
 
-    query_params = {
-        'team_key': team_key,
-        'seasons': seasons,
-        'machines': available_machines
-    }
+    query_params = {"team_key": team_key, "seasons": seasons, "machines": available_machines}
 
     roster_filter = ""
     if roster_only:
@@ -306,10 +293,10 @@ def get_player_machine_confidence(
     player_names = {}
 
     for row in all_scores:
-        player_key = row['player_key']
-        player_names[player_key] = row['player_name']
-        machine_key = row['machine_key']
-        player_machine_scores[player_key][machine_key].append(row['score'])
+        player_key = row["player_key"]
+        player_names[player_key] = row["player_name"]
+        machine_key = row["machine_key"]
+        player_machine_scores[player_key][machine_key].append(row["score"])
 
     result = []
 
@@ -322,28 +309,28 @@ def get_player_machine_confidence(
 
             if len(scores) >= 5:
                 ci = calculate_confidence_interval(scores)
-                result.append(PlayerMachineConfidence(
-                    player_key=player_key,
-                    player_name=player_name,
-                    machine_key=machine_key,
-                    machine_name=machine_name,
-                    confidence_interval=ci,
-                    insufficient_data=False
-                ))
+                result.append(
+                    PlayerMachineConfidence(
+                        player_key=player_key,
+                        player_name=player_name,
+                        machine_key=machine_key,
+                        machine_name=machine_name,
+                        confidence_interval=ci,
+                        insufficient_data=False,
+                    )
+                )
 
     result.sort(
         key=lambda x: x.confidence_interval.sample_size if x.confidence_interval else 0,
-        reverse=True
+        reverse=True,
     )
 
     return result
 
 
 def get_team_machine_confidence(
-    team_key: str,
-    available_machines: List[str],
-    seasons: List[int]
-) -> List[TeamMachineConfidence]:
+    team_key: str, available_machines: list[str], seasons: list[int]
+) -> list[TeamMachineConfidence]:
     """
     Get confidence intervals for the team (all players combined) on each available machine.
     """
@@ -355,16 +342,16 @@ def get_team_machine_confidence(
         WHERE team_key = :team_key AND season = ANY(:seasons)
         ORDER BY season DESC LIMIT 1
     """
-    team_result = execute_query(team_query, {'team_key': team_key, 'seasons': seasons})
-    team_name = team_result[0]['team_name'] if team_result else team_key
+    team_result = execute_query(team_query, {"team_key": team_key, "seasons": seasons})
+    team_name = team_result[0]["team_name"] if team_result else team_key
 
     machine_names_query = """
         SELECT machine_key, machine_name
         FROM machines
         WHERE machine_key = ANY(:machines)
     """
-    machine_names = execute_query(machine_names_query, {'machines': available_machines})
-    machine_name_map = {m['machine_key']: m['machine_name'] for m in machine_names}
+    machine_names = execute_query(machine_names_query, {"machines": available_machines})
+    machine_name_map = {m["machine_key"]: m["machine_name"] for m in machine_names}
 
     all_scores_query = """
         SELECT machine_key, score
@@ -375,15 +362,13 @@ def get_team_machine_confidence(
         ORDER BY machine_key, score
     """
 
-    all_scores = execute_query(all_scores_query, {
-        'team_key': team_key,
-        'seasons': seasons,
-        'machines': available_machines
-    })
+    all_scores = execute_query(
+        all_scores_query, {"team_key": team_key, "seasons": seasons, "machines": available_machines}
+    )
 
     machine_scores = defaultdict(list)
     for row in all_scores:
-        machine_scores[row['machine_key']].append(row['score'])
+        machine_scores[row["machine_key"]].append(row["score"])
 
     result = []
     for machine_key in available_machines:
@@ -392,29 +377,28 @@ def get_team_machine_confidence(
 
         if len(scores) >= 5:
             ci = calculate_confidence_interval(scores)
-            result.append(TeamMachineConfidence(
-                team_key=team_key,
-                team_name=team_name,
-                machine_key=machine_key,
-                machine_name=machine_name,
-                confidence_interval=ci,
-                insufficient_data=False
-            ))
+            result.append(
+                TeamMachineConfidence(
+                    team_key=team_key,
+                    team_name=team_name,
+                    machine_key=machine_key,
+                    machine_name=machine_name,
+                    confidence_interval=ci,
+                    insufficient_data=False,
+                )
+            )
 
     result.sort(
         key=lambda x: x.confidence_interval.sample_size if x.confidence_interval else 0,
-        reverse=True
+        reverse=True,
     )
 
     return result
 
 
 def calculate_full_matchup_analysis(
-    home_team: str,
-    away_team: str,
-    venue: str,
-    seasons: List[int]
-) -> Optional[Dict[str, Any]]:
+    home_team: str, away_team: str, venue: str, seasons: list[int]
+) -> dict[str, Any] | None:
     """
     Calculate complete matchup analysis.
 
@@ -429,27 +413,27 @@ def calculate_full_matchup_analysis(
         ORDER BY season DESC LIMIT 1
     """
 
-    home_team_result = execute_query(team_query, {'team_key': home_team, 'seasons': seasons})
+    home_team_result = execute_query(team_query, {"team_key": home_team, "seasons": seasons})
     if not home_team_result:
         return None
 
-    home_team_name = home_team_result[0]['team_name']
-    home_team_home_venue = home_team_result[0]['home_venue_key']
+    home_team_name = home_team_result[0]["team_name"]
+    home_team_home_venue = home_team_result[0]["home_venue_key"]
 
-    away_team_result = execute_query(team_query, {'team_key': away_team, 'seasons': seasons})
+    away_team_result = execute_query(team_query, {"team_key": away_team, "seasons": seasons})
     if not away_team_result:
         return None
 
-    away_team_name = away_team_result[0]['team_name']
-    away_team_home_venue = away_team_result[0]['home_venue_key']
+    away_team_name = away_team_result[0]["team_name"]
+    away_team_home_venue = away_team_result[0]["home_venue_key"]
 
     # Get venue name
     venue_query = "SELECT venue_name FROM venues WHERE venue_key = :venue_key"
-    venue_result = execute_query(venue_query, {'venue_key': venue})
+    venue_result = execute_query(venue_query, {"venue_key": venue})
     if not venue_result:
         return None
 
-    venue_name = venue_result[0]['venue_name']
+    venue_name = venue_result[0]["venue_name"]
 
     # Get available machines
     available_machines = get_current_machines_for_venue(venue, seasons)
@@ -467,8 +451,12 @@ def calculate_full_matchup_analysis(
     home_player_prefs = get_player_machine_preferences(home_team, available_machines, seasons, True)
     away_player_prefs = get_player_machine_preferences(away_team, available_machines, seasons, True)
 
-    home_player_confidence = get_player_machine_confidence(home_team, available_machines, seasons, True)
-    away_player_confidence = get_player_machine_confidence(away_team, available_machines, seasons, True)
+    home_player_confidence = get_player_machine_confidence(
+        home_team, available_machines, seasons, True
+    )
+    away_player_confidence = get_player_machine_confidence(
+        away_team, available_machines, seasons, True
+    )
 
     home_team_confidence = get_team_machine_confidence(home_team, available_machines, seasons)
     away_team_confidence = get_team_machine_confidence(away_team, available_machines, seasons)
@@ -479,8 +467,7 @@ def calculate_full_matchup_analysis(
     # Get machine names
     machine_name_map = get_machine_names(available_machines)
     available_machines_info = [
-        MachineInfo(key=key, name=machine_name_map.get(key, key))
-        for key in available_machines
+        MachineInfo(key=key, name=machine_name_map.get(key, key)) for key in available_machines
     ]
     available_machines_info.sort(key=lambda m: m.name)
 
@@ -502,7 +489,7 @@ def calculate_full_matchup_analysis(
         home_team_player_confidence=home_player_confidence,
         away_team_player_confidence=away_player_confidence,
         home_team_machine_confidence=home_team_confidence,
-        away_team_machine_confidence=away_team_confidence
+        away_team_machine_confidence=away_team_confidence,
     )
 
     # Convert to dict for JSONB storage

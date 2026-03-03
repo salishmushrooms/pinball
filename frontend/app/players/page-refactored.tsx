@@ -49,7 +49,7 @@ export default function PlayersPageRefactored() {
     setLoading(true);
     setError(null);
     try {
-      const params: any = {
+      const params: Record<string, unknown> = {
         limit: 100,
       };
 

@@ -3,17 +3,18 @@ Seasons Router
 
 Endpoints for fetching season schedule data from the database.
 """
-from fastapi import APIRouter, HTTPException, Query
-from typing import List, Optional
-from datetime import datetime, timedelta
+
 import logging
+from datetime import datetime, timedelta
+
+from fastapi import APIRouter, HTTPException, Query
 
 from api.dependencies import execute_query
 
 logger = logging.getLogger(__name__)
 
 
-def parse_season_date(date_str: str) -> Optional[datetime]:
+def parse_season_date(date_str: str) -> datetime | None:
     """
     Parse date from season.json format (MM/DD/YYYY or YYYYMMDD).
     Returns None if parsing fails.
@@ -22,12 +23,13 @@ def parse_season_date(date_str: str) -> Optional[datetime]:
         return None
     try:
         # Try MM/DD/YYYY format first
-        if '/' in date_str:
+        if "/" in date_str:
             return datetime.strptime(date_str, "%m/%d/%Y")
         # Try YYYYMMDD format
         return datetime.strptime(date_str, "%Y%m%d")
     except ValueError:
         return None
+
 
 router = APIRouter(
     prefix="/seasons",
@@ -60,18 +62,15 @@ def get_season_status(season: int):
         """
         results = execute_query(query, {"season": season})
 
-        if not results or results[0]['total_matches'] == 0:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Season {season} not found"
-            )
+        if not results or results[0]["total_matches"] == 0:
+            raise HTTPException(status_code=404, detail=f"Season {season} not found")
 
         row = results[0]
-        first_week_date = row['first_date']
-        last_week_date = row['last_date']
-        total_matches = row['total_matches']
-        upcoming_matches = row['upcoming_matches'] or 0
-        completed_matches = row['completed_matches'] or 0
+        first_week_date = row["first_date"]
+        last_week_date = row["last_date"]
+        total_matches = row["total_matches"]
+        upcoming_matches = row["upcoming_matches"] or 0
+        completed_matches = row["completed_matches"] or 0
 
         now = datetime.now()
 
@@ -87,7 +86,9 @@ def get_season_status(season: int):
             message = f"Season {season} has completed. Check back for Season {season + 1}!"
         elif now.date() <= last_week_date + timedelta(days=1):
             status = "in_progress"
-            message = f"Season {season} is currently in progress with {upcoming_matches} upcoming matches"
+            message = (
+                f"Season {season} is currently in progress with {upcoming_matches} upcoming matches"
+            )
         else:
             status = "completed"
             message = f"Season {season} has completed. Check back for Season {season + 1}!"
@@ -99,17 +100,14 @@ def get_season_status(season: int):
             "first_week_date": first_week_date.strftime("%Y-%m-%d") if first_week_date else None,
             "last_week_date": last_week_date.strftime("%Y-%m-%d") if last_week_date else None,
             "total_matches": total_matches,
-            "upcoming_matches": upcoming_matches
+            "upcoming_matches": upcoming_matches,
         }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error fetching season {season} status: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to fetch season status"
-        )
+        raise HTTPException(status_code=500, detail="Failed to fetch season status")
 
 
 @router.get("/{season}/schedule")
@@ -144,10 +142,7 @@ def get_season_schedule(season: int):
         matches_result = execute_query(matches_query, {"season": season})
 
         if not matches_result:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Season {season} schedule not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Season {season} schedule not found")
 
         # Get teams for this season
         teams_query = """
@@ -166,52 +161,41 @@ def get_season_schedule(season: int):
         # Build teams dict
         teams = {}
         for row in teams_result:
-            teams[row['team_key']] = {
-                "name": row['team_name'],
-                "venue": row['home_venue_key']
-            }
+            teams[row["team_key"]] = {"name": row["team_name"], "venue": row["home_venue_key"]}
 
         # Group matches by week
         weeks_dict = {}
         for row in matches_result:
-            week_num = row['week']
+            week_num = row["week"]
             if week_num not in weeks_dict:
                 weeks_dict[week_num] = {
                     "week": week_num,
-                    "date": row['date'].strftime("%m/%d/%Y") if row['date'] else None,
-                    "matches": []
+                    "date": row["date"].strftime("%m/%d/%Y") if row["date"] else None,
+                    "matches": [],
                 }
 
             match_info = {
-                "match_key": row['match_key'],
-                "home": row['home_team_key'],
-                "away": row['away_team_key'],
-                "venue": row['venue_key']
+                "match_key": row["match_key"],
+                "home": row["home_team_key"],
+                "away": row["away_team_key"],
+                "venue": row["venue_key"],
             }
             weeks_dict[week_num]["matches"].append(match_info)
 
         weeks = [weeks_dict[k] for k in sorted(weeks_dict.keys())]
 
-        return {
-            "season": season,
-            "weeks": weeks,
-            "teams": teams
-        }
+        return {"season": season, "weeks": weeks, "teams": teams}
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error fetching season {season} schedule: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to fetch season schedule"
-        )
+        raise HTTPException(status_code=500, detail="Failed to fetch season schedule")
 
 
 @router.get("/{season}/matches")
 def get_season_matches(
-    season: int,
-    week: Optional[int] = Query(None, description="Filter by week number")
+    season: int, week: int | None = Query(None, description="Filter by week number")
 ):
     """
     Get all matches for a season, optionally filtered by week
@@ -253,53 +237,38 @@ def get_season_matches(
         if not results:
             # Check if season exists at all
             season_check = execute_query(
-                "SELECT COUNT(*) as cnt FROM matches WHERE season = :season",
-                {"season": season}
+                "SELECT COUNT(*) as cnt FROM matches WHERE season = :season", {"season": season}
             )
-            if not season_check or season_check[0]['cnt'] == 0:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Season {season} not found"
-                )
+            if not season_check or season_check[0]["cnt"] == 0:
+                raise HTTPException(status_code=404, detail=f"Season {season} not found")
 
         # Format matches for frontend compatibility
         all_matches = []
         for row in results:
             match_info = {
-                "match_key": row['match_key'],
-                "week": row['week'],
+                "match_key": row["match_key"],
+                "week": row["week"],
                 "week_label": f"WEEK {row['week']}",
-                "date": row['date'].strftime("%m/%d/%Y") if row['date'] else None,
-                "home_key": row['home_key'],
-                "home_name": row['home_name'] or row['home_key'],
+                "date": row["date"].strftime("%m/%d/%Y") if row["date"] else None,
+                "home_key": row["home_key"],
+                "home_name": row["home_name"] or row["home_key"],
                 "home_linked": True,
-                "away_key": row['away_key'],
-                "away_name": row['away_name'] or row['away_key'],
+                "away_key": row["away_key"],
+                "away_name": row["away_name"] or row["away_key"],
                 "away_linked": True,
-                "venue": {
-                    "key": row['venue_key'],
-                    "name": row['venue_name'] or row['venue_key']
-                },
-                "is_playoffs": row['week'] > 10,  # Weeks 11+ are typically playoffs
-                "state": row['state']
+                "venue": {"key": row["venue_key"], "name": row["venue_name"] or row["venue_key"]},
+                "is_playoffs": row["week"] > 10,  # Weeks 11+ are typically playoffs
+                "state": row["state"],
             }
             all_matches.append(match_info)
 
-        return {
-            "season": season,
-            "week": week,
-            "matches": all_matches,
-            "count": len(all_matches)
-        }
+        return {"season": season, "week": week, "matches": all_matches, "count": len(all_matches)}
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error fetching season {season} matches: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to fetch season matches"
-        )
+        raise HTTPException(status_code=500, detail="Failed to fetch season matches")
 
 
 @router.get("/{season}/teams/{team_key}/schedule")
@@ -323,8 +292,7 @@ def get_team_schedule(season: int, team_key: str):
 
         if not team_result:
             raise HTTPException(
-                status_code=404,
-                detail=f"Team {team_key} not found in season {season}"
+                status_code=404, detail=f"Team {team_key} not found in season {season}"
             )
 
         team_info = team_result[0]
@@ -350,7 +318,9 @@ def get_team_schedule(season: int, team_key: str):
             AND (m.home_team_key = :team_key OR m.away_team_key = :team_key)
             ORDER BY m.week
         """
-        matches_result = execute_query(matches_query, {"team_key": team_key_upper, "season": season})
+        matches_result = execute_query(
+            matches_query, {"team_key": team_key_upper, "season": season}
+        )
 
         # Get average IPR for all teams in this season (one query for all)
         ipr_query = """
@@ -370,32 +340,36 @@ def get_team_schedule(season: int, team_key: str):
         ipr_result = execute_query(ipr_query, {"season": season})
         team_avg_ipr_lookup = {}
         for row in ipr_result:
-            if row['player_count'] > 0:
-                team_avg_ipr_lookup[row['team_key']] = round(row['total_ipr'] / row['player_count'], 1)
+            if row["player_count"] > 0:
+                team_avg_ipr_lookup[row["team_key"]] = round(
+                    row["total_ipr"] / row["player_count"], 1
+                )
 
         # Build schedule list
         schedule = []
         for row in matches_result:
-            is_home = row['home_team_key'] == team_key_upper
-            opponent_key = row['away_team_key'] if is_home else row['home_team_key']
-            opponent_name = row['away_name'] if is_home else row['home_name']
+            is_home = row["home_team_key"] == team_key_upper
+            opponent_key = row["away_team_key"] if is_home else row["home_team_key"]
+            opponent_name = row["away_name"] if is_home else row["home_name"]
 
-            team_points = row['home_team_points'] if is_home else row['away_team_points']
-            opponent_points = row['away_team_points'] if is_home else row['home_team_points']
+            team_points = row["home_team_points"] if is_home else row["away_team_points"]
+            opponent_points = row["away_team_points"] if is_home else row["home_team_points"]
 
-            schedule.append({
-                "match_key": row['match_key'],
-                "week": row['week'],
-                "date": row['date'].strftime("%m/%d/%Y") if row['date'] else None,
-                "opponent": opponent_key,
-                "opponent_name": opponent_name,
-                "venue": row['venue_key'],
-                "is_home": is_home,
-                "state": row['state'],
-                "team_points": team_points,
-                "opponent_points": opponent_points,
-                "opponent_avg_ipr": team_avg_ipr_lookup.get(opponent_key),
-            })
+            schedule.append(
+                {
+                    "match_key": row["match_key"],
+                    "week": row["week"],
+                    "date": row["date"].strftime("%m/%d/%Y") if row["date"] else None,
+                    "opponent": opponent_key,
+                    "opponent_name": opponent_name,
+                    "venue": row["venue_key"],
+                    "is_home": is_home,
+                    "state": row["state"],
+                    "team_points": team_points,
+                    "opponent_points": opponent_points,
+                    "opponent_avg_ipr": team_avg_ipr_lookup.get(opponent_key),
+                }
+            )
 
         # Get roster (players who have played for this team in this season)
         roster_query = """
@@ -406,26 +380,23 @@ def get_team_schedule(season: int, team_key: str):
             ORDER BY p.name
         """
         roster_result = execute_query(roster_query, {"team_key": team_key_upper, "season": season})
-        roster = [row['player_key'] for row in roster_result]
+        roster = [row["player_key"] for row in roster_result]
 
         return {
             "season": season,
             "team_key": team_key_upper,
-            "team_name": team_info['team_name'],
-            "home_venue": team_info['home_venue_key'],
+            "team_name": team_info["team_name"],
+            "home_venue": team_info["home_venue_key"],
             "team_avg_ipr": team_avg_ipr_lookup.get(team_key_upper),
             "schedule": schedule,
-            "roster": roster
+            "roster": roster,
         }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error fetching team {team_key} schedule for season {season}: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to fetch team schedule"
-        )
+        raise HTTPException(status_code=500, detail="Failed to fetch team schedule")
 
 
 @router.get("/matchups-init")
@@ -439,7 +410,7 @@ def get_matchups_init():
         # Get available seasons from database
         seasons_query = "SELECT DISTINCT season FROM matches ORDER BY season"
         seasons_result = execute_query(seasons_query, {})
-        all_seasons = [row['season'] for row in seasons_result] if seasons_result else []
+        all_seasons = [row["season"] for row in seasons_result] if seasons_result else []
 
         # Find the latest season
         latest_season = max(all_seasons) if all_seasons else 23
@@ -459,13 +430,13 @@ def get_matchups_init():
         status_result = execute_query(status_query, {"season": latest_season})
 
         season_status = None
-        if status_result and status_result[0]['total_matches'] > 0:
+        if status_result and status_result[0]["total_matches"] > 0:
             row = status_result[0]
-            first_week_date = row['first_date']
-            last_week_date = row['last_date']
-            total_matches = row['total_matches']
-            upcoming_matches = row['upcoming_matches'] or 0
-            completed_matches = row['completed_matches'] or 0
+            first_week_date = row["first_date"]
+            last_week_date = row["last_date"]
+            total_matches = row["total_matches"]
+            upcoming_matches = row["upcoming_matches"] or 0
+            completed_matches = row["completed_matches"] or 0
 
             now = datetime.now()
 
@@ -474,7 +445,9 @@ def get_matchups_init():
                 message = "Unable to determine season dates"
             elif now.date() < first_week_date:
                 status = "upcoming"
-                message = f"Season {latest_season} starts on {first_week_date.strftime('%B %d, %Y')}"
+                message = (
+                    f"Season {latest_season} starts on {first_week_date.strftime('%B %d, %Y')}"
+                )
             elif completed_matches == total_matches:
                 status = "completed"
                 message = f"Season {latest_season} has completed. Check back for Season {latest_season + 1}!"
@@ -489,10 +462,12 @@ def get_matchups_init():
                 "season": latest_season,
                 "status": status,
                 "message": message,
-                "first_week_date": first_week_date.strftime("%Y-%m-%d") if first_week_date else None,
+                "first_week_date": first_week_date.strftime("%Y-%m-%d")
+                if first_week_date
+                else None,
                 "last_week_date": last_week_date.strftime("%Y-%m-%d") if last_week_date else None,
                 "total_matches": total_matches,
-                "upcoming_matches": upcoming_matches
+                "upcoming_matches": upcoming_matches,
             }
 
         # Get matches for the latest season (inline logic from get_season_matches)
@@ -521,22 +496,19 @@ def get_matchups_init():
         all_matches = []
         for row in matches_result or []:
             match_info = {
-                "match_key": row['match_key'],
-                "week": row['week'],
+                "match_key": row["match_key"],
+                "week": row["week"],
                 "week_label": f"WEEK {row['week']}",
-                "date": row['date'].strftime("%m/%d/%Y") if row['date'] else None,
-                "home_key": row['home_key'],
-                "home_name": row['home_name'] or row['home_key'],
+                "date": row["date"].strftime("%m/%d/%Y") if row["date"] else None,
+                "home_key": row["home_key"],
+                "home_name": row["home_name"] or row["home_key"],
                 "home_linked": True,
-                "away_key": row['away_key'],
-                "away_name": row['away_name'] or row['away_key'],
+                "away_key": row["away_key"],
+                "away_name": row["away_name"] or row["away_key"],
                 "away_linked": True,
-                "venue": {
-                    "key": row['venue_key'],
-                    "name": row['venue_name'] or row['venue_key']
-                },
-                "is_playoffs": row['week'] > 10,
-                "state": row['state']
+                "venue": {"key": row["venue_key"], "name": row["venue_name"] or row["venue_key"]},
+                "is_playoffs": row["week"] > 10,
+                "state": row["state"],
             }
             all_matches.append(match_info)
 
@@ -544,12 +516,9 @@ def get_matchups_init():
             "seasons": all_seasons,
             "current_season": latest_season,
             "season_status": season_status,
-            "matches": all_matches
+            "matches": all_matches,
         }
 
     except Exception as e:
         logger.error(f"Error in matchups-init: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to initialize matchups page"
-        )
+        raise HTTPException(status_code=500, detail="Failed to initialize matchups page")

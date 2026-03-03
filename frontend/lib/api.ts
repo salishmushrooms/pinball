@@ -60,6 +60,7 @@ import {
   MachineScoresBrowseParams,
   LiveWeekResponse,
   LiveMatchDetail,
+  WeeklyRecap,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -68,6 +69,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
  * Build query string from parameters
  * Handles arrays by repeating the key for each value (e.g., seasons=21&seasons=22)
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildQueryString(params: Record<string, any>): string {
   const searchParams = new URLSearchParams();
 
@@ -89,6 +91,7 @@ function buildQueryString(params: Record<string, any>): string {
 /**
  * Generic fetch wrapper with error handling
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fetchAPI<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
   const queryString = params ? buildQueryString(params) : '';
   const url = `${API_BASE_URL}${endpoint}${queryString}`;
@@ -357,7 +360,7 @@ export const api = {
     venue_key?: string,
     exclude_subs?: boolean
   ): Promise<TeamPlayerList> => {
-    const params: any = {};
+    const params: Record<string, unknown> = {};
     if (seasons && seasons.length > 0) params.seasons = seasons.join(',');
     if (venue_key) params.venue_key = venue_key;
     if (exclude_subs !== undefined) params.exclude_subs = exclude_subs;
@@ -535,7 +538,7 @@ export const api = {
    * @param refresh - Bypass the server-side cache
    */
   getLiveWeek: (season?: number, week?: number, refresh?: boolean): Promise<LiveWeekResponse> => {
-    const params: Record<string, any> = {};
+    const params: Record<string, unknown> = {};
     if (season !== undefined) params.season = season;
     if (week !== undefined) params.week = week;
     if (refresh) params.refresh = true;
@@ -549,9 +552,20 @@ export const api = {
    * @param refresh - Bypass the server-side cache
    */
   getLiveMatch: (matchKey: string, refresh?: boolean): Promise<LiveMatchDetail> => {
-    const params: Record<string, any> = {};
+    const params: Record<string, unknown> = {};
     if (refresh) params.refresh = true;
     return fetchAPI<LiveMatchDetail>(`/live/matches/${matchKey}`, params);
+  },
+
+  /**
+   * Get weekly analysis recap for a given season/week.
+   * @param season - Season number (e.g., 23)
+   * @param week - Week number (defaults to most recent completed week)
+   */
+  getWeeklyRecap: (season: number, week?: number): Promise<WeeklyRecap> => {
+    const params: Record<string, unknown> = { season };
+    if (week !== undefined) params.week = week;
+    return fetchAPI<WeeklyRecap>('/analysis/weekly-recap', params);
   },
 };
 

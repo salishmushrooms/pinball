@@ -1,23 +1,19 @@
 """
 Matchup API endpoints for analyzing team vs team matchups
 """
-from typing import Optional, List, Union
+
 from fastapi import APIRouter, HTTPException, Query
 
-from api.models.schemas import (
-    MatchupAnalysis,
-    MachineInfo,
-    ErrorResponse
-)
 from api.dependencies import execute_query
+from api.models.schemas import ErrorResponse, MachineInfo, MatchupAnalysis
 from api.services.matchup_calculator import (
+    calculate_full_matchup_analysis,
     get_current_machines_for_venue,
     get_machine_names,
-    get_team_machine_pick_frequency,
-    get_player_machine_preferences,
     get_player_machine_confidence,
+    get_player_machine_preferences,
     get_team_machine_confidence,
-    calculate_full_matchup_analysis,
+    get_team_machine_pick_frequency,
 )
 
 router = APIRouter(prefix="/matchups", tags=["matchups"])
@@ -28,7 +24,7 @@ router = APIRouter(prefix="/matchups", tags=["matchups"])
     response_model=MatchupAnalysis,
     responses={404: {"model": ErrorResponse}},
     summary="Get pre-computed matchup analysis",
-    description="Returns pre-computed matchup analysis for a scheduled match. Much faster than on-demand calculation."
+    description="Returns pre-computed matchup analysis for a scheduled match. Much faster than on-demand calculation.",
 )
 def get_precomputed_matchup(match_key: str):
     """
@@ -43,11 +39,11 @@ def get_precomputed_matchup(match_key: str):
         FROM pre_calculated_matchups
         WHERE match_key = :match_key
     """
-    results = execute_query(query, {'match_key': match_key})
+    results = execute_query(query, {"match_key": match_key})
 
-    if results and results[0]['analysis_data']:
+    if results and results[0]["analysis_data"]:
         # Return pre-computed data directly
-        return results[0]['analysis_data']
+        return results[0]["analysis_data"]
 
     # Fallback: Get match details and calculate on-demand
     match_query = """
@@ -56,26 +52,25 @@ def get_precomputed_matchup(match_key: str):
         FROM matches m
         WHERE m.match_key = :match_key
     """
-    match_results = execute_query(match_query, {'match_key': match_key})
+    match_results = execute_query(match_query, {"match_key": match_key})
 
     if not match_results:
         raise HTTPException(status_code=404, detail=f"Match '{match_key}' not found")
 
     match = match_results[0]
-    seasons = [match['season'], match['season'] - 1]
+    seasons = [match["season"], match["season"] - 1]
 
     # Calculate on-demand using the service
     analysis = calculate_full_matchup_analysis(
-        home_team=match['home_team_key'],
-        away_team=match['away_team_key'],
-        venue=match['venue_key'],
-        seasons=seasons
+        home_team=match["home_team_key"],
+        away_team=match["away_team_key"],
+        venue=match["venue_key"],
+        seasons=seasons,
     )
 
     if analysis is None:
         raise HTTPException(
-            status_code=404,
-            detail=f"Insufficient data to analyze match '{match_key}'"
+            status_code=404, detail=f"Insufficient data to analyze match '{match_key}'"
         )
 
     return analysis
@@ -86,13 +81,13 @@ def get_precomputed_matchup(match_key: str):
     response_model=MatchupAnalysis,
     responses={404: {"model": ErrorResponse}},
     summary="Analyze team matchup at a venue",
-    description="Get comprehensive matchup analysis between two teams at a specific venue across one or more seasons"
+    description="Get comprehensive matchup analysis between two teams at a specific venue across one or more seasons",
 )
 def get_matchup_analysis(
     home_team: str = Query(..., description="Home team key (e.g., 'TRL')"),
     away_team: str = Query(..., description="Away team key (e.g., 'ETB')"),
     venue: str = Query(..., description="Venue key (e.g., 'T4B')"),
-    seasons: Union[List[int], None] = Query(None, description="Season numbers (e.g., [21, 22])")
+    seasons: list[int] | None = Query(None, description="Season numbers (e.g., [21, 22])"),
 ):
     """
     Analyze a matchup between two teams at a specific venue across one or more seasons.
@@ -115,7 +110,11 @@ def get_matchup_analysis(
     if not seasons or len(seasons) == 0:
         latest_season_query = "SELECT MAX(season) as max_season FROM matches"
         latest_result = execute_query(latest_season_query, {})
-        current_season = latest_result[0]['max_season'] if latest_result and latest_result[0]['max_season'] else 23
+        current_season = (
+            latest_result[0]["max_season"]
+            if latest_result and latest_result[0]["max_season"]
+            else 23
+        )
         seasons = [current_season, current_season - 1]
 
     # Validate teams exist in at least one season
@@ -125,30 +124,34 @@ def get_matchup_analysis(
         WHERE team_key = :team_key AND season = ANY(:seasons)
         ORDER BY season DESC LIMIT 1
     """
-    home_team_result = execute_query(team_query, {'team_key': home_team, 'seasons': seasons})
+    home_team_result = execute_query(team_query, {"team_key": home_team, "seasons": seasons})
 
     if not home_team_result:
-        raise HTTPException(status_code=404, detail=f"Home team '{home_team}' not found in seasons {seasons}")
+        raise HTTPException(
+            status_code=404, detail=f"Home team '{home_team}' not found in seasons {seasons}"
+        )
 
-    home_team_name = home_team_result[0]['team_name']
-    home_team_home_venue = home_team_result[0]['home_venue_key']
+    home_team_name = home_team_result[0]["team_name"]
+    home_team_home_venue = home_team_result[0]["home_venue_key"]
 
-    away_team_result = execute_query(team_query, {'team_key': away_team, 'seasons': seasons})
+    away_team_result = execute_query(team_query, {"team_key": away_team, "seasons": seasons})
 
     if not away_team_result:
-        raise HTTPException(status_code=404, detail=f"Away team '{away_team}' not found in seasons {seasons}")
+        raise HTTPException(
+            status_code=404, detail=f"Away team '{away_team}' not found in seasons {seasons}"
+        )
 
-    away_team_name = away_team_result[0]['team_name']
-    away_team_home_venue = away_team_result[0]['home_venue_key']
+    away_team_name = away_team_result[0]["team_name"]
+    away_team_home_venue = away_team_result[0]["home_venue_key"]
 
     # Validate venue exists
     venue_query = "SELECT venue_name FROM venues WHERE venue_key = :venue_key"
-    venue_result = execute_query(venue_query, {'venue_key': venue})
+    venue_result = execute_query(venue_query, {"venue_key": venue})
 
     if not venue_result:
         raise HTTPException(status_code=404, detail=f"Venue '{venue}' not found")
 
-    venue_name = venue_result[0]['venue_name']
+    venue_name = venue_result[0]["venue_name"]
 
     # Get available machines at venue
     available_machines = get_current_machines_for_venue(venue, seasons)
@@ -156,7 +159,7 @@ def get_matchup_analysis(
     if not available_machines:
         raise HTTPException(
             status_code=404,
-            detail=f"No machine data found for venue '{venue}' in seasons {seasons}"
+            detail=f"No machine data found for venue '{venue}' in seasons {seasons}",
         )
 
     # Get team machine pick frequencies
@@ -193,8 +196,7 @@ def get_matchup_analysis(
     # Get full machine names for available machines
     machine_name_map = get_machine_names(available_machines)
     available_machines_info = [
-        MachineInfo(key=key, name=machine_name_map.get(key, key))
-        for key in available_machines
+        MachineInfo(key=key, name=machine_name_map.get(key, key)) for key in available_machines
     ]
     available_machines_info.sort(key=lambda m: m.name)
 
@@ -215,5 +217,5 @@ def get_matchup_analysis(
         home_team_player_confidence=home_player_confidence,
         away_team_player_confidence=away_player_confidence,
         home_team_machine_confidence=home_team_confidence,
-        away_team_machine_confidence=away_team_confidence
+        away_team_machine_confidence=away_team_confidence,
     )

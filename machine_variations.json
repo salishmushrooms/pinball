@@ -111,7 +111,8 @@
     "name": "BanzaiRun",
     "variations": [
       "banzairun",
-      "Banzai Run"
+      "Banzai Run",
+      "banzai run"
     ]
   },
   "BDK": {
@@ -544,7 +545,8 @@
     "name": "Junkyard",
     "variations": [
       "junkyard",
-      "Junk Yard"
+      "Junk Yard",
+      "junk yard"
     ]
   },
   "Jurassic": {
@@ -1000,7 +1002,8 @@
       "theater of magic",
       "theaterofmagic",
       "Theater of Magic",
-      "Theatre of Magic"
+      "Theatre of Magic",
+      "Theater of magic"
     ]
   },
   "Toledo": {
@@ -1360,7 +1363,9 @@
   "Guardians": {
     "name": "Guardians of the Galaxy",
     "variations": [
-      "guardians"
+      "guardians",
+      "Guardians of the Galaxy",
+      "guardians of the galaxy"
     ]
   },
   "StarRace": {
@@ -1436,7 +1441,8 @@
     "variations": [
       "dp",
       "deadpool",
-      "dead pool"
+      "dead pool",
+      "Deadpool"
     ]
   },
   "IronMaiden": {
@@ -1622,7 +1628,8 @@
       "godzilla",
       "godzilla (stern)",
       "godzilla (Stern)",
-      "Godzilla"
+      "Godzilla",
+      "Godzilla (Stern)"
     ]
   },
   "Galaxy": {
@@ -1674,7 +1681,8 @@
   "MotorDome": {
     "name": "MotorDome",
     "variations": [
-      "motordome"
+      "motordome",
+      "Motordome"
     ]
   },
   "RickAndMorty": {
@@ -1772,7 +1780,8 @@
       "foofighters",
       "foo fighters",
       "FOO",
-      "Foo"
+      "Foo",
+      "Foo Fighters"
     ]
   },
   "Godzilla (Stern)": {
@@ -1791,13 +1800,16 @@
   "Rush": {
     "name": "Rush",
     "variations": [
-      "rush"
+      "rush",
+      "RUSH"
     ]
   },
   "Galactic Tank Force": {
     "name": "Galactic Tank Force",
     "variations": [
-      "galactic tank force"
+      "galactic tank force",
+      "GTF",
+      "gtf"
     ]
   },
   "Godfather": {
@@ -1824,7 +1836,8 @@
       "sdnd",
       "Dungeons and Dragons Stern",
       "Dungeons and Dragons (Stern)",
-      "D&D Stern"
+      "D&D Stern",
+      "dungeons and dragons stern"
     ]
   },
   "UXMEN": {
@@ -1832,14 +1845,16 @@
     "variations": [
       "uxmen",
       "Uncanny X-men",
-      "Uncanny X-men "
+      "uncanny x-men"
     ]
   },
   "EJ": {
     "name": "Elton John",
     "variations": [
       "ej",
-      "Elton John"
+      "Elton John",
+      "Elton john",
+      "elton john"
     ]
   },
   "JW": {
@@ -1868,15 +1883,6 @@
       "the godfather (jjp)"
     ]
   },
-  "Venom": {
-    "name": "Venom",
-    "variations": [
-      "venom",
-      "venom right",
-      "venom left",
-      "venom (r)"
-    ]
-  },
   "Alien Star": {
     "name": "Alien Star",
     "variations": [
@@ -1886,21 +1892,18 @@
   "Jaws": {
     "name": "Jaws",
     "variations": [
-      "jaws",
-      "jaws "
+      "jaws"
     ]
   },
   "Toy Story": {
     "name": "Toy Story",
     "variations": [
-      "toy story",
       "toy story"
     ]
   },
   "Scooby-Doo": {
     "name": "Scooby-Doo",
     "variations": [
-      "scooby-doo",
       "scooby-doo",
       "Scooby Doo",
       "scooby doo",
@@ -1911,7 +1914,6 @@
   "TX Sector": {
     "name": "TX Sector",
     "variations": [
-      "tx sector",
       "tx sector"
     ]
   },
@@ -1919,22 +1921,19 @@
     "name": "Trident",
     "variations": [
       "trident",
-      "trident",
-      "Trident "
+      "Trident"
     ]
   },
   "Viking": {
     "name": "Viking",
     "variations": [
       "viking",
-      "viking",
-      "Viking "
+      "Viking"
     ]
   },
   "Lights Camera Action": {
     "name": "Lights Camera Action",
     "variations": [
-      "lights camera action",
       "lights camera action",
       "Lights Camera Action!"
     ]
@@ -1943,16 +1942,14 @@
     "name": "Frontier",
     "variations": [
       "frontier",
-      "frontier",
-      "Frontier "
+      "Frontier"
     ]
   },
   "Sharkey's Shootout": {
     "name": "Sharkey's Shootout",
     "variations": [
       "sharkey's shootout",
-      "sharkey's shootout",
-      "Sharkey's Shootout "
+      "Sharkey's Shootout"
     ]
   },
   "PULP": {
@@ -1960,21 +1957,24 @@
     "variations": [
       "pulp",
       "pulp fiction",
-      "Pulp Fiction"
+      "Pulp Fiction",
+      "Pulp fiction"
     ]
   },
   "AS": {
     "name": "Alien Star",
     "variations": [
       "as",
-      "Alien Star"
+      "Alien Star",
+      "alien star"
     ]
   },
   "BOPP": {
     "name": "Bobby Orr Power Player",
     "variations": [
       "bopp",
-      "Bobby Orr Power Player"
+      "Bobby Orr Power Player",
+      "bobby orr power player"
     ]
   },
   "BallyTrek": {
@@ -1999,7 +1999,8 @@
   "DRAGON": {
     "name": "Dragon",
     "variations": [
-      "dragon"
+      "dragon",
+      "Dragon"
     ]
   },
   "DUNE": {
@@ -2012,14 +2013,18 @@
     "name": "Funhouse Rudy's Nightmare",
     "variations": [
       "fhrn",
-      "Funhouse Rudy's Nightmare"
+      "Funhouse Rudy's Nightmare",
+      "Funhouse 2.0 Rudy's Nightmare",
+      "funhouse 2.0 rudy's nightmare"
     ]
   },
   "GF": {
     "name": "Godfather",
     "variations": [
       "gf",
-      "Godfather"
+      "Godfather",
+      "The Godfather",
+      "the godfather"
     ]
   },
   "Gamatron": {
@@ -2033,7 +2038,8 @@
     "name": "Hot Wheels",
     "variations": [
       "hw",
-      "Hot Wheels"
+      "Hot Wheels",
+      "hot wheels"
     ]
   },
   "JB60": {
@@ -2075,7 +2081,8 @@
     "name": "Outer Space",
     "variations": [
       "outer space",
-      "OuterSpace"
+      "OuterSpace",
+      "outerspace"
     ]
   },
   "PHAR": {
@@ -2089,13 +2096,8 @@
     "name": "Quicksilver",
     "variations": [
       "qs",
-      "Quicksilver"
-    ]
-  },
-  "RUSH": {
-    "name": "Rush",
-    "variations": [
-      "rush"
+      "Quicksilver",
+      "quicksilver"
     ]
   },
   "SB": {
@@ -2109,7 +2111,8 @@
     "name": "Star Gazer",
     "variations": [
       "sg",
-      "Star Gazer"
+      "Star Gazer",
+      "star gazer"
     ]
   },
   "SWFOTE": {
@@ -2123,7 +2126,8 @@
     "name": "Toy Story",
     "variations": [
       "ts",
-      "Toy Story"
+      "Toy Story",
+      "toy story"
     ]
   },
   "ULTRA": {
@@ -2137,7 +2141,17 @@
     "name": "Venom",
     "variations": [
       "ven",
-      "Venom"
+      "Venom",
+      "venom",
+      "venom right",
+      "venom left",
+      "venom (r)",
+      "Venom (L)",
+      "Venom (R)",
+      "Venom Left",
+      "Venom Right",
+      "Venom Pro",
+      "venom pro"
     ]
   },
   "4Aces": {
@@ -2145,7 +2159,8 @@
     "variations": [
       "4 aces",
       "4aces",
-      "four aces"
+      "four aces",
+      "4 Aces"
     ]
   },
   "Alien": {
@@ -2153,7 +2168,8 @@
     "manufacturer": "Data East",
     "year": 1980,
     "variations": [
-      "alien"
+      "alien",
+      "ALIEN"
     ]
   },
   "BarryOs": {
@@ -2162,7 +2178,8 @@
       "barry o's bbq challenge",
       "barry os bbq challenge",
       "barryos",
-      "barry o's"
+      "barry o's",
+      "Barry O's BBQ Challenge"
     ]
   },
   "BigGame": {
@@ -2171,7 +2188,8 @@
     "year": 1980,
     "variations": [
       "big game",
-      "biggame"
+      "biggame",
+      "Big Game"
     ]
   },
   "BuckRogers": {
@@ -2181,7 +2199,9 @@
     "variations": [
       "buck rogers",
       "buckrogers",
-      "BR"
+      "BR",
+      "Buck Rogers",
+      "br"
     ]
   },
   "DrDude": {
@@ -2205,7 +2225,9 @@
       "eight ball beyond",
       "eightballbeyond",
       "8 ball beyond",
-      "EBB"
+      "EBB",
+      "Eight Ball Beyond",
+      "ebb"
     ]
   },
   "MysteryC": {
@@ -2232,7 +2254,8 @@
     "year": 1987,
     "variations": [
       "spring break",
-      "springbreak"
+      "springbreak",
+      "Spring Break"
     ]
   },
   "TimeMachine": {
@@ -2241,7 +2264,8 @@
     "year": 1988,
     "variations": [
       "time machine",
-      "timemachine"
+      "timemachine",
+      "Time Machine"
     ]
   },
   "TCM": {
@@ -2261,16 +2285,18 @@
     "variations": [
       "hp",
       "harry potter",
-      "potter"
+      "potter",
+      "Harry potter"
     ]
   },
-    
   "CF": {
     "name": "Captain Fantastic",
     "manufacturer": "",
     "year": "",
     "variations": [
-      "Captain Fantastic"
+      "Captain Fantastic",
+      "captain fantastic",
+      "Captain fantastic"
     ]
   },
   "ED": {
@@ -2279,6 +2305,18 @@
     "year": "",
     "variations": [
       "evil dead"
+    ]
+  },
+  "LCA": {
+    "name": "Lights Camera Action",
+    "variations": [
+      "lca",
+      "lights camera action",
+      "Lights Camera Action",
+      "Lights Camera Action!",
+      "lights camera action!",
+      "Light Camera Action",
+      "light camera action"
     ]
   }
 }

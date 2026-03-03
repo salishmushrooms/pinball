@@ -1,8 +1,11 @@
 """
 FastAPI dependencies for database connections and common utilities
 """
-from typing import Generator
+
+from collections.abc import Generator
+
 from sqlalchemy import text
+
 from etl.database import db
 
 

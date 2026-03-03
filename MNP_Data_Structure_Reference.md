@@ -56,7 +56,7 @@ mnp-data-archive/
   "lineup": [
     {
       "key": "player_hash_id",
-      "name": "Player Name", 
+      "name": "Player Name",
       "IPR": 4,
       "num_played": 3,
       "sub": false

@@ -18,19 +18,17 @@ import argparse
 import logging
 import sys
 from collections import defaultdict
+
 import numpy as np
 from sqlalchemy import text
 
-from etl.config import config
 from etl.database import db
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 logger = logging.getLogger(__name__)
@@ -60,7 +58,7 @@ def fetch_player_scores(season: int):
     """
 
     with db.engine.connect() as conn:
-        result = conn.execute(text(query), {'season': season})
+        result = conn.execute(text(query), {"season": season})
         rows = result.fetchall()
 
     logger.info(f"Fetched {len(rows)} score records")
@@ -88,7 +86,7 @@ def fetch_percentile_map(season: int):
     """
 
     with db.engine.connect() as conn:
-        result = conn.execute(text(query), {'season': season})
+        result = conn.execute(text(query), {"season": season})
         rows = result.fetchall()
 
     # Build map: {machine_key: {percentile: threshold}}
@@ -181,34 +179,36 @@ def aggregate_player_stats(scores, percentile_map):
 
         # Basic statistics
         stat_dict = {
-            'player_key': player_key,
-            'machine_key': machine_key,
-            'venue_key': venue_key,
-            'games_played': len(score_list),
-            'total_score': int(np.sum(scores_array)),
-            'median_score': int(np.median(scores_array)),
-            'avg_score': int(np.mean(scores_array)),
-            'best_score': int(np.max(scores_array)),
-            'worst_score': int(np.min(scores_array))
+            "player_key": player_key,
+            "machine_key": machine_key,
+            "venue_key": venue_key,
+            "games_played": len(score_list),
+            "total_score": int(np.sum(scores_array)),
+            "median_score": int(np.median(scores_array)),
+            "avg_score": int(np.mean(scores_array)),
+            "best_score": int(np.max(scores_array)),
+            "worst_score": int(np.min(scores_array)),
         }
 
         # Calculate percentile based on median score
         if machine_key in percentile_map:
             percentile_thresholds = percentile_map[machine_key]
-            median_score = stat_dict['median_score']
+            median_score = stat_dict["median_score"]
 
             # Calculate percentile for the median score
             percentile = calculate_percentile_for_score(median_score, percentile_thresholds)
-            stat_dict['percentile'] = round(percentile, 2) if percentile is not None else None
+            stat_dict["percentile"] = round(percentile, 2) if percentile is not None else None
         else:
-            stat_dict['percentile'] = None
+            stat_dict["percentile"] = None
 
         stats[(player_key, machine_key, venue_key)] = stat_dict
         players_processed += 1
 
         # Log progress every 1000 records
         if players_processed % 1000 == 0:
-            logger.info(f"  Processed {players_processed}/{total_combinations} player/machine combinations...")
+            logger.info(
+                f"  Processed {players_processed}/{total_combinations} player/machine combinations..."
+            )
 
     logger.info(f"Calculated stats for {len(stats)} player/machine/venue combinations")
 
@@ -222,7 +222,7 @@ def clear_existing_stats(season: int):
         DELETE FROM player_machine_stats
         WHERE season = :season AND venue_key = '_ALL_'
     """
-    params = {'season': season}
+    params = {"season": season}
 
     logger.info(f"Clearing existing player stats for season {season}")
 
@@ -238,7 +238,7 @@ def insert_player_stats(stats_dict, season: int):
         stats_dict: dict of {(player_key, machine_key, venue_key): stat_values}
         season: Season number
     """
-    logger.info(f"Inserting player statistics...")
+    logger.info("Inserting player statistics...")
 
     query = """
         INSERT INTO player_machine_stats (
@@ -272,18 +272,18 @@ def insert_player_stats(stats_dict, season: int):
 
         for stat in stats_dict.values():
             record = {
-                'player_key': stat['player_key'],
-                'machine_key': stat['machine_key'],
-                'venue_key': '_ALL_',  # Global stats (special value for all venues)
-                'season': season,
-                'games_played': stat['games_played'],
-                'total_score': stat['total_score'],
-                'median_score': stat['median_score'],
-                'avg_score': stat['avg_score'],
-                'best_score': stat['best_score'],
-                'worst_score': stat['worst_score'],
-                'median_percentile': stat['percentile'],
-                'avg_percentile': stat['percentile']  # Using median percentile for now
+                "player_key": stat["player_key"],
+                "machine_key": stat["machine_key"],
+                "venue_key": "_ALL_",  # Global stats (special value for all venues)
+                "season": season,
+                "games_played": stat["games_played"],
+                "total_score": stat["total_score"],
+                "median_score": stat["median_score"],
+                "avg_score": stat["avg_score"],
+                "best_score": stat["best_score"],
+                "worst_score": stat["worst_score"],
+                "median_percentile": stat["percentile"],
+                "avg_percentile": stat["percentile"],  # Using median percentile for now
             }
 
             batch.append(record)
@@ -312,9 +312,9 @@ def calculate_and_store_player_stats(season: int):
         season: Season number
     """
 
-    logger.info(f"=" * 60)
+    logger.info("=" * 60)
     logger.info(f"Calculating Player Machine Statistics for Season {season}")
-    logger.info(f"=" * 60)
+    logger.info("=" * 60)
 
     # Step 1: Clear existing stats
     clear_existing_stats(season)
@@ -352,9 +352,9 @@ def calculate_and_store_player_stats(season: int):
     insert_player_stats(stats, season)
 
     logger.info("")
-    logger.info(f"=" * 60)
-    logger.info(f"✓ Player statistics calculated successfully!")
-    logger.info(f"=" * 60)
+    logger.info("=" * 60)
+    logger.info("✓ Player statistics calculated successfully!")
+    logger.info("=" * 60)
 
     return True
 
@@ -379,7 +379,7 @@ def verify_player_stats(season: int):
     """
 
     with db.engine.connect() as conn:
-        result = conn.execute(text(query), {'season': season})
+        result = conn.execute(text(query), {"season": season})
         row = result.fetchone()
 
     if row:
@@ -412,7 +412,7 @@ def verify_player_stats(season: int):
     """
 
     with db.engine.connect() as conn:
-        result = conn.execute(text(query), {'season': season})
+        result = conn.execute(text(query), {"season": season})
         rows = result.fetchall()
 
     for row in rows:
@@ -429,11 +429,12 @@ def verify_player_stats(season: int):
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(description='Calculate player machine statistics')
-    parser.add_argument('--season', type=int, required=True, help='Season number (e.g., 22)')
-    parser.add_argument('--venue-specific', action='store_true',
-                       help='Calculate stats per venue (future feature)')
-    parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
+    parser = argparse.ArgumentParser(description="Calculate player machine statistics")
+    parser.add_argument("--season", type=int, required=True, help="Season number (e.g., 22)")
+    parser.add_argument(
+        "--venue-specific", action="store_true", help="Calculate stats per venue (future feature)"
+    )
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
 
@@ -468,5 +469,5 @@ def main():
         db.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

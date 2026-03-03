@@ -2,11 +2,12 @@
 Database connection and session management.
 """
 
+import logging
 import os
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import NullPool, QueuePool
-import logging
+from sqlalchemy.pool import NullPool
 
 from etl.config import config
 
@@ -33,8 +34,10 @@ class Database:
             # Auto-detect: use pooling in API mode, NullPool for ETL
             if use_pool is None:
                 # Check if we're running in API context (e.g., via uvicorn)
-                use_pool = os.environ.get('API_MODE', '').lower() == 'true' or \
-                           'uvicorn' in os.environ.get('SERVER_SOFTWARE', '').lower()
+                use_pool = (
+                    os.environ.get("API_MODE", "").lower() == "true"
+                    or "uvicorn" in os.environ.get("SERVER_SOFTWARE", "").lower()
+                )
 
             if use_pool:
                 # Connection pooling for API - keeps connections alive
@@ -44,15 +47,13 @@ class Database:
                     max_overflow=10,
                     pool_pre_ping=True,  # Verify connections before use
                     pool_recycle=300,  # Recycle connections after 5 minutes
-                    echo=False
+                    echo=False,
                 )
                 logger.info("Database engine created with connection pooling")
             else:
                 # No pooling for ETL batch jobs
                 self.engine = create_engine(
-                    config.get_database_url(),
-                    poolclass=NullPool,
-                    echo=False
+                    config.get_database_url(), poolclass=NullPool, echo=False
                 )
                 logger.info("Database engine created without connection pooling (ETL mode)")
 

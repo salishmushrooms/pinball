@@ -22,6 +22,7 @@ Usage:
 import argparse
 import logging
 import sys
+
 from sqlalchemy import text
 
 from etl.database import db
@@ -29,8 +30,8 @@ from etl.database import db
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 logger = logging.getLogger(__name__)
@@ -54,25 +55,30 @@ def find_duplicate_players(conn) -> dict:
     Returns:
         Dictionary mapping player names to list of their player records
     """
-    result = conn.execute(text("""
+    result = conn.execute(
+        text("""
         SELECT name, COUNT(*) as count
         FROM players
         GROUP BY name
         HAVING COUNT(*) > 1
         ORDER BY count DESC
-    """))
+    """)
+    )
 
     duplicates = {}
     for row in result:
         name = row[0]
         # Get all records for this player
-        player_result = conn.execute(text("""
+        player_result = conn.execute(
+            text("""
             SELECT player_key, name, first_seen_season, last_seen_season,
                    total_games_played, current_ipr
             FROM players
             WHERE name = :name
             ORDER BY first_seen_season
-        """), {'name': name})
+        """),
+            {"name": name},
+        )
 
         duplicates[name] = [dict(r._mapping) for r in player_result]
 
@@ -92,22 +98,28 @@ def select_canonical_key(players: list) -> tuple:
         Tuple of (canonical_key, list of keys to remove)
     """
     # Separate SHA-1 keys from other formats
-    sha1_players = [p for p in players if is_sha1_key(p['player_key'])]
-    other_players = [p for p in players if not is_sha1_key(p['player_key'])]
+    sha1_players = [p for p in players if is_sha1_key(p["player_key"])]
+    other_players = [p for p in players if not is_sha1_key(p["player_key"])]
 
     # Prefer SHA-1 keys
     if sha1_players:
         # Among SHA-1 keys, prefer the one with most games or earliest season
-        canonical = max(sha1_players,
-                       key=lambda p: (p['total_games_played'] or 0,
-                                     -(p['first_seen_season'] or 999)))
-        keys_to_remove = [p['player_key'] for p in players if p['player_key'] != canonical['player_key']]
+        canonical = max(
+            sha1_players,
+            key=lambda p: (p["total_games_played"] or 0, -(p["first_seen_season"] or 999)),
+        )
+        keys_to_remove = [
+            p["player_key"] for p in players if p["player_key"] != canonical["player_key"]
+        ]
     else:
         # No SHA-1 keys, use the one with most games
-        canonical = max(other_players,
-                       key=lambda p: (p['total_games_played'] or 0,
-                                     -(p['first_seen_season'] or 999)))
-        keys_to_remove = [p['player_key'] for p in players if p['player_key'] != canonical['player_key']]
+        canonical = max(
+            other_players,
+            key=lambda p: (p["total_games_played"] or 0, -(p["first_seen_season"] or 999)),
+        )
+        keys_to_remove = [
+            p["player_key"] for p in players if p["player_key"] != canonical["player_key"]
+        ]
 
     return canonical, keys_to_remove
 
@@ -124,23 +136,26 @@ def merge_player_stats(conn, canonical: dict, duplicates: list, dry_run: bool = 
     """
     all_players = [canonical] + duplicates
 
-    first_seen = min(p['first_seen_season'] for p in all_players if p['first_seen_season'])
-    last_seen = max(p['last_seen_season'] for p in all_players if p['last_seen_season'])
-    total_games = sum(p['total_games_played'] or 0 for p in all_players)
+    first_seen = min(p["first_seen_season"] for p in all_players if p["first_seen_season"])
+    last_seen = max(p["last_seen_season"] for p in all_players if p["last_seen_season"])
+    total_games = sum(p["total_games_played"] or 0 for p in all_players)
 
     # Find first non-null IPR
-    current_ipr = canonical.get('current_ipr')
+    current_ipr = canonical.get("current_ipr")
     if current_ipr is None:
         for p in all_players:
-            if p.get('current_ipr') is not None:
-                current_ipr = p['current_ipr']
+            if p.get("current_ipr") is not None:
+                current_ipr = p["current_ipr"]
                 break
 
     if dry_run:
-        logger.info(f"    Would update canonical player stats: first_seen={first_seen}, "
-                   f"last_seen={last_seen}, total_games={total_games}")
+        logger.info(
+            f"    Would update canonical player stats: first_seen={first_seen}, "
+            f"last_seen={last_seen}, total_games={total_games}"
+        )
     else:
-        conn.execute(text("""
+        conn.execute(
+            text("""
             UPDATE players
             SET first_seen_season = :first_seen,
                 last_seen_season = :last_seen,
@@ -148,33 +163,41 @@ def merge_player_stats(conn, canonical: dict, duplicates: list, dry_run: bool = 
                 current_ipr = :current_ipr,
                 updated_at = CURRENT_TIMESTAMP
             WHERE player_key = :player_key
-        """), {
-            'player_key': canonical['player_key'],
-            'first_seen': first_seen,
-            'last_seen': last_seen,
-            'total_games': total_games,
-            'current_ipr': current_ipr
-        })
+        """),
+            {
+                "player_key": canonical["player_key"],
+                "first_seen": first_seen,
+                "last_seen": last_seen,
+                "total_games": total_games,
+                "current_ipr": current_ipr,
+            },
+        )
 
 
 def update_score_references(conn, canonical_key: str, old_keys: list, dry_run: bool = False):
     """Update scores table to reference the canonical player_key"""
     for old_key in old_keys:
         # Count affected scores
-        result = conn.execute(text("""
+        result = conn.execute(
+            text("""
             SELECT COUNT(*) FROM scores WHERE player_key = :old_key
-        """), {'old_key': old_key})
+        """),
+            {"old_key": old_key},
+        )
         count = result.scalar()
 
         if count > 0:
             if dry_run:
                 logger.info(f"    Would update {count} scores from {old_key} -> {canonical_key}")
             else:
-                conn.execute(text("""
+                conn.execute(
+                    text("""
                     UPDATE scores
                     SET player_key = :canonical_key
                     WHERE player_key = :old_key
-                """), {'canonical_key': canonical_key, 'old_key': old_key})
+                """),
+                    {"canonical_key": canonical_key, "old_key": old_key},
+                )
                 logger.info(f"    Updated {count} scores from {old_key} -> {canonical_key}")
 
 
@@ -184,9 +207,12 @@ def delete_duplicate_players(conn, keys_to_remove: list, dry_run: bool = False):
         if dry_run:
             logger.info(f"    Would delete player_key: {key}")
         else:
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 DELETE FROM players WHERE player_key = :key
-            """), {'key': key})
+            """),
+                {"key": key},
+            )
             logger.info(f"    Deleted player_key: {key}")
 
 
@@ -215,27 +241,32 @@ def deduplicate_players(dry_run: bool = False):
 
             # Show current state
             for p in players:
-                key_type = "SHA-1" if is_sha1_key(p['player_key']) else "generated"
-                logger.info(f"  - {p['player_key'][:20]}... ({key_type}) "
-                           f"seasons {p['first_seen_season']}-{p['last_seen_season']}, "
-                           f"{p['total_games_played'] or 0} games")
+                key_type = "SHA-1" if is_sha1_key(p["player_key"]) else "generated"
+                logger.info(
+                    f"  - {p['player_key'][:20]}... ({key_type}) "
+                    f"seasons {p['first_seen_season']}-{p['last_seen_season']}, "
+                    f"{p['total_games_played'] or 0} games"
+                )
 
             # Select canonical key
             canonical, keys_to_remove = select_canonical_key(players)
             logger.info(f"  Canonical key: {canonical['player_key'][:20]}...")
 
             # Get duplicate player records for stats merging
-            dup_players = [p for p in players if p['player_key'] in keys_to_remove]
+            dup_players = [p for p in players if p["player_key"] in keys_to_remove]
 
             # Update score references
             for old_key in keys_to_remove:
-                result = conn.execute(text("""
+                result = conn.execute(
+                    text("""
                     SELECT COUNT(*) FROM scores WHERE player_key = :old_key
-                """), {'old_key': old_key})
+                """),
+                    {"old_key": old_key},
+                )
                 count = result.scalar()
                 total_scores_updated += count
 
-            update_score_references(conn, canonical['player_key'], keys_to_remove, dry_run)
+            update_score_references(conn, canonical["player_key"], keys_to_remove, dry_run)
 
             # Merge stats
             merge_player_stats(conn, canonical, dup_players, dry_run)
@@ -250,7 +281,9 @@ def deduplicate_players(dry_run: bool = False):
         logger.info("Summary:")
         logger.info(f"  Players deduplicated: {len(duplicates)}")
         logger.info(f"  Duplicate records {'would be ' if dry_run else ''}removed: {total_removed}")
-        logger.info(f"  Score references {'would be ' if dry_run else ''}updated: {total_scores_updated}")
+        logger.info(
+            f"  Score references {'would be ' if dry_run else ''}updated: {total_scores_updated}"
+        )
         logger.info("=" * 60)
 
         if dry_run:
@@ -261,12 +294,10 @@ def deduplicate_players(dry_run: bool = False):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Deduplicate players with same name but different keys'
+        description="Deduplicate players with same name but different keys"
     )
     parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Preview changes without applying them'
+        "--dry-run", action="store_true", help="Preview changes without applying them"
     )
 
     args = parser.parse_args()
@@ -284,5 +315,5 @@ def main():
         db.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

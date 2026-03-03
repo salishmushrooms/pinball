@@ -158,10 +158,10 @@ function Scoreboard({ match }: { match: LiveMatchDetail }) {
                 );
               })}
               <td className="py-2 px-2 text-center text-sm" style={{ color: match.away_participation > 0 ? '#a78bfa' : '#6b7280' }}>
-                {isComplete ? match.away_participation : '—'}
+                {match.away_participation}
               </td>
               <td className="py-2 px-2 text-center text-sm" style={{ color: match.away_handicap > 0 ? '#34d399' : '#6b7280' }}>
-                {isComplete ? match.away_handicap : '—'}
+                {match.away_handicap}
               </td>
               <td className="py-2 px-3 text-center text-sm font-bold" style={{ color: awayWinning ? '#60a5fa' : '#e5e7eb' }}>
                 {match.away_final_points}
@@ -181,10 +181,10 @@ function Scoreboard({ match }: { match: LiveMatchDetail }) {
                 );
               })}
               <td className="py-2 px-2 text-center text-sm" style={{ color: match.home_participation > 0 ? '#a78bfa' : '#6b7280' }}>
-                {isComplete ? match.home_participation : '—'}
+                {match.home_participation}
               </td>
               <td className="py-2 px-2 text-center text-sm" style={{ color: match.home_handicap > 0 ? '#34d399' : '#6b7280' }}>
-                {isComplete ? match.home_handicap : '—'}
+                {match.home_handicap}
               </td>
               <td className="py-2 px-3 text-center text-sm font-bold" style={{ color: homeWinning ? '#f87171' : '#e5e7eb' }}>
                 {match.home_final_points}
@@ -233,8 +233,8 @@ function PlayerRow({ player }: { player: LiveRosterPlayer }) {
 function TeamRoster({ match }: { match: LiveMatchDetail }) {
   const [open, setOpen] = useState(true);
 
-  const awayRoster = [...match.away_lineup].sort((a, b) => b.total_points - a.total_points);
-  const homeRoster = [...match.home_lineup].sort((a, b) => b.total_points - a.total_points);
+  const awayRoster = [...match.away_lineup].sort((a, b) => a.name.localeCompare(b.name));
+  const homeRoster = [...match.home_lineup].sort((a, b) => a.name.localeCompare(b.name));
 
   const awayTeamIpr = match.away_lineup.reduce((sum, p) => sum + (p.ipr ?? 0), 0);
   const homeTeamIpr = match.home_lineup.reduce((sum, p) => sum + (p.ipr ?? 0), 0);
@@ -257,7 +257,7 @@ function TeamRoster({ match }: { match: LiveMatchDetail }) {
             {/* Away team */}
             <div>
               <div className="flex items-center justify-between mb-2 pb-2" style={{ borderBottom: '2px solid #60a5fa' }}>
-                <span className="text-sm font-bold" style={{ color: '#60a5fa' }}>{match.away_team_key}</span>
+                <span className="text-sm font-bold" style={{ color: '#60a5fa' }}>{match.away_team_name}</span>
                 <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: '#60a5fa22', color: '#60a5fa' }}>
                   IPR {Math.round(awayTeamIpr)}
                 </span>
@@ -267,7 +267,7 @@ function TeamRoster({ match }: { match: LiveMatchDetail }) {
             {/* Home team */}
             <div>
               <div className="flex items-center justify-between mb-2 pb-2" style={{ borderBottom: '2px solid #f87171' }}>
-                <span className="text-sm font-bold" style={{ color: '#f87171' }}>{match.home_team_key}</span>
+                <span className="text-sm font-bold" style={{ color: '#f87171' }}>{match.home_team_name}</span>
                 <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: '#f8717122', color: '#f87171' }}>
                   IPR {Math.round(homeTeamIpr)}
                 </span>
@@ -544,19 +544,9 @@ export default function LiveMatchDetailPage() {
         <TeamRoster match={match} />
 
         {/* Percentile legend */}
-        <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
-          <span className="font-medium text-gray-400">Percentiles:</span>
-          {[
-            { color: '#f59e0b', label: '90th+' },
-            { color: '#a78bfa', label: '75–89th' },
-            { color: '#60a5fa', label: '50–74th' },
-            { color: '#6b7280', label: '< 50th' },
-          ].map(({ color, label }) => (
-            <span key={label} className="flex items-center gap-1">
-              <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-              {label}
-            </span>
-          ))}
+        <div className="flex items-center gap-2 text-xs text-gray-500">
+          <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: '#f59e0b' }} />
+          <span>90th percentile and above highlighted</span>
         </div>
 
         {/* Error banner */}
@@ -568,8 +558,17 @@ export default function LiveMatchDetailPage() {
 
         {/* Rounds with game cards */}
         {match.rounds.length === 0 ? (
-          <div className="rounded-lg p-8 text-center text-gray-400" style={{ backgroundColor: '#1f2937' }}>
-            No round data yet. Check back once the match is underway.
+          <div className="rounded-lg p-8 text-center" style={{ backgroundColor: '#1f2937' }}>
+            <p className="text-gray-400">
+              {match.state === 'UNAVAILABLE'
+                ? 'Match data is not yet available from the MNP site. Scores will appear here once the match is processed.'
+                : 'No round data yet. Check back once the match is underway.'}
+            </p>
+            {match.state === 'UNAVAILABLE' && (
+              <p className="text-gray-500 text-sm mt-2">
+                This usually takes a day or two after match night.
+              </p>
+            )}
           </div>
         ) : (
           <div className="space-y-6">

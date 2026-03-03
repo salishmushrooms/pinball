@@ -1,0 +1,23 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+exclude = [
+    "mnp-data-archive",
+    "frontend",
+    ".git",
+    "__pycache__",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "SIM", "C90", "UP"]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "SIM108", # ternary operator (sometimes less readable)
+    "UP038",  # X | Y in isinstance — marked unsafe in ruff v0.9, existing tuple style is fine
+]
+
+[tool.ruff.lint.per-file-ignores]
+"etl/*.py" = ["SIM"]  # ETL scripts may have intentional repetition
+
+[tool.ruff.lint.mccabe]
+max-complexity = 12

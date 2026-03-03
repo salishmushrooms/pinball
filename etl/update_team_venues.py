@@ -17,7 +17,6 @@ import argparse
 import csv
 import logging
 import sys
-from pathlib import Path
 
 from etl.config import config
 from etl.database import db
@@ -25,10 +24,8 @@ from etl.database import db
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 logger = logging.getLogger(__name__)
@@ -47,17 +44,14 @@ def load_teams_csv(season: int) -> dict:
         return {}
 
     teams = {}
-    with open(teams_file, 'r') as f:
+    with open(teams_file) as f:
         reader = csv.reader(f)
         for row in reader:
             if len(row) >= 3:
                 team_key = row[0].strip()
                 venue_key = row[1].strip()
                 team_name = row[2].strip()
-                teams[team_key] = {
-                    'venue_key': venue_key,
-                    'team_name': team_name
-                }
+                teams[team_key] = {"venue_key": venue_key, "team_name": team_name}
 
     logger.info(f"Loaded {len(teams)} team-venue mappings from teams.csv")
     return teams
@@ -71,7 +65,7 @@ def update_team_venues(season: int, team_venues: dict):
 
     updated = 0
     for team_key, info in team_venues.items():
-        venue_key = info['venue_key']
+        venue_key = info["venue_key"]
 
         result = db.execute(
             """
@@ -79,7 +73,7 @@ def update_team_venues(season: int, team_venues: dict):
             SET home_venue_key = :venue_key
             WHERE team_key = :team_key AND season = :season
             """,
-            {'venue_key': venue_key, 'team_key': team_key, 'season': season}
+            {"venue_key": venue_key, "team_key": team_key, "season": season},
         )
 
         if result.rowcount > 0:
@@ -92,29 +86,20 @@ def update_team_venues(season: int, team_venues: dict):
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(
-        description='Update team home venues from season CSV files'
-    )
+    parser = argparse.ArgumentParser(description="Update team home venues from season CSV files")
     parser.add_argument(
-        '--season',
-        type=int,
-        required=True,
-        help='Season number to update (e.g., 22)'
+        "--season", type=int, required=True, help="Season number to update (e.g., 22)"
     )
-    parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Enable verbose logging'
-    )
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
 
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    logger.info(f"=" * 60)
+    logger.info("=" * 60)
     logger.info(f"Updating team venues for Season {args.season}")
-    logger.info(f"=" * 60)
+    logger.info("=" * 60)
 
     # Connect to database
     try:
@@ -142,5 +127,5 @@ def main():
     sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

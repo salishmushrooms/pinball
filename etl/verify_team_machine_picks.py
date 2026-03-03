@@ -13,14 +13,15 @@ Usage:
 import argparse
 import logging
 import sys
+
 from sqlalchemy import text
 
 from etl.database import db
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
 
@@ -53,11 +54,8 @@ def get_fresh_calculation(season: int) -> dict:
     """
 
     with db.engine.connect() as conn:
-        result = conn.execute(text(query), {'season': season})
-        return {
-            (row[0], row[1], row[2], row[3]): row[4]
-            for row in result
-        }
+        result = conn.execute(text(query), {"season": season})
+        return {(row[0], row[1], row[2], row[3]): row[4] for row in result}
 
 
 def get_precalculated(season: int) -> dict:
@@ -73,11 +71,8 @@ def get_precalculated(season: int) -> dict:
     """
 
     with db.engine.connect() as conn:
-        result = conn.execute(text(query), {'season': season})
-        return {
-            (row[0], row[1], row[2], row[3]): row[4]
-            for row in result
-        }
+        result = conn.execute(text(query), {"season": season})
+        return {(row[0], row[1], row[2], row[3]): row[4] for row in result}
 
 
 def compare_calculations(season: int) -> dict:
@@ -87,8 +82,8 @@ def compare_calculations(season: int) -> dict:
 
     # Find discrepancies
     missing_from_precalc = []  # In fresh but not in precalc
-    missing_from_fresh = []    # In precalc but not in fresh (shouldn't happen)
-    mismatched = []            # Different counts
+    missing_from_fresh = []  # In precalc but not in fresh (shouldn't happen)
+    mismatched = []  # Different counts
 
     for key, fresh_count in fresh.items():
         if key not in precalc:
@@ -101,65 +96,76 @@ def compare_calculations(season: int) -> dict:
             missing_from_fresh.append((key, precalc[key]))
 
     return {
-        'season': season,
-        'fresh_total': sum(fresh.values()),
-        'fresh_records': len(fresh),
-        'precalc_total': sum(precalc.values()),
-        'precalc_records': len(precalc),
-        'missing_from_precalc': missing_from_precalc,
-        'missing_from_fresh': missing_from_fresh,
-        'mismatched': mismatched,
-        'is_valid': len(missing_from_precalc) == 0 and len(missing_from_fresh) == 0 and len(mismatched) == 0
+        "season": season,
+        "fresh_total": sum(fresh.values()),
+        "fresh_records": len(fresh),
+        "precalc_total": sum(precalc.values()),
+        "precalc_records": len(precalc),
+        "missing_from_precalc": missing_from_precalc,
+        "missing_from_fresh": missing_from_fresh,
+        "mismatched": mismatched,
+        "is_valid": len(missing_from_precalc) == 0
+        and len(missing_from_fresh) == 0
+        and len(mismatched) == 0,
     }
 
 
 def print_report(results: dict):
     """Print a detailed report of the comparison."""
-    season = results['season']
+    season = results["season"]
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Season {season} Verification Report")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
-    print(f"\nTotals:")
-    print(f"  Fresh calculation:  {results['fresh_records']:,} records, {results['fresh_total']:,} total picks")
-    print(f"  Pre-calculated:     {results['precalc_records']:,} records, {results['precalc_total']:,} total picks")
+    print("\nTotals:")
+    print(
+        f"  Fresh calculation:  {results['fresh_records']:,} records, {results['fresh_total']:,} total picks"
+    )
+    print(
+        f"  Pre-calculated:     {results['precalc_records']:,} records, {results['precalc_total']:,} total picks"
+    )
 
-    if results['is_valid']:
-        print(f"\n✅ VALID: Pre-calculated data matches fresh calculation")
+    if results["is_valid"]:
+        print("\n✅ VALID: Pre-calculated data matches fresh calculation")
         return
 
-    print(f"\n❌ INVALID: Discrepancies found!")
+    print("\n❌ INVALID: Discrepancies found!")
 
-    if results['missing_from_precalc']:
+    if results["missing_from_precalc"]:
         print(f"\n  Missing from pre-calculated ({len(results['missing_from_precalc'])} records):")
         # Show top 10
         for (team, machine, is_home, round_type), count in sorted(
-            results['missing_from_precalc'],
-            key=lambda x: -x[1]
+            results["missing_from_precalc"], key=lambda x: -x[1]
         )[:10]:
             home_str = "home" if is_home else "away"
             print(f"    {team} | {machine:20} | {home_str:4} | {round_type:7} | {count} picks")
-        if len(results['missing_from_precalc']) > 10:
+        if len(results["missing_from_precalc"]) > 10:
             print(f"    ... and {len(results['missing_from_precalc']) - 10} more")
 
-    if results['missing_from_fresh']:
-        print(f"\n  In pre-calc but NOT in fresh data ({len(results['missing_from_fresh'])} records):")
-        for (team, machine, is_home, round_type), count in results['missing_from_fresh'][:10]:
+    if results["missing_from_fresh"]:
+        print(
+            f"\n  In pre-calc but NOT in fresh data ({len(results['missing_from_fresh'])} records):"
+        )
+        for (team, machine, is_home, round_type), count in results["missing_from_fresh"][:10]:
             home_str = "home" if is_home else "away"
             print(f"    {team} | {machine:20} | {home_str:4} | {round_type:7} | {count} picks")
 
-    if results['mismatched']:
+    if results["mismatched"]:
         print(f"\n  Mismatched counts ({len(results['mismatched'])} records):")
-        for (team, machine, is_home, round_type), fresh_count, precalc_count in results['mismatched'][:10]:
+        for (team, machine, is_home, round_type), fresh_count, precalc_count in results[
+            "mismatched"
+        ][:10]:
             home_str = "home" if is_home else "away"
-            print(f"    {team} | {machine:20} | {home_str:4} | {round_type:7} | fresh={fresh_count} vs precalc={precalc_count}")
+            print(
+                f"    {team} | {machine:20} | {home_str:4} | {round_type:7} | fresh={fresh_count} vs precalc={precalc_count}"
+            )
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Verify team_machine_picks calculations')
-    parser.add_argument('--season', type=int, help='Season to verify')
-    parser.add_argument('--all-seasons', action='store_true', help='Verify all seasons (18-22)')
+    parser = argparse.ArgumentParser(description="Verify team_machine_picks calculations")
+    parser.add_argument("--season", type=int, help="Season to verify")
+    parser.add_argument("--all-seasons", action="store_true", help="Verify all seasons (18-22)")
 
     args = parser.parse_args()
 
@@ -175,15 +181,15 @@ def main():
         for season in seasons:
             results = compare_calculations(season)
             print_report(results)
-            if not results['is_valid']:
+            if not results["is_valid"]:
                 all_valid = False
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         if all_valid:
             print("✅ All seasons VALID")
         else:
             print("❌ Some seasons have discrepancies - re-run ETL to fix")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         return 0 if all_valid else 1
 
@@ -194,5 +200,5 @@ def main():
         db.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

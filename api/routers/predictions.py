@@ -4,9 +4,10 @@ Predictions router for MNP Analyzer API
 Provides endpoints for predicting machine picks, player lineups, and scores
 based on historical data.
 """
-from fastapi import APIRouter, Query, HTTPException
-from typing import Optional, List
+
 import logging
+
+from fastapi import APIRouter, HTTPException, Query
 
 from api.dependencies import execute_query
 
@@ -19,7 +20,7 @@ router = APIRouter(
 )
 
 
-def get_venue_machines(venue_key: str, seasons: List[int]) -> List[str]:
+def get_venue_machines(venue_key: str, seasons: list[int]) -> list[str]:
     """
     Get the current machine lineup for a venue from the database.
     Returns list of machine keys that are active at this venue for the most recent season requested.
@@ -39,8 +40,8 @@ def get_venue_machines(venue_key: str, seasons: List[int]) -> List[str]:
             AND vm.active = true
             ORDER BY vm.machine_key
         """
-        results = execute_query(query, {'venue_key': venue_key, 'seasons': seasons})
-        return [row['machine_key'] for row in results]
+        results = execute_query(query, {"venue_key": venue_key, "seasons": seasons})
+        return [row["machine_key"] for row in results]
     except Exception as e:
         logger.warning(f"Could not get machines for venue {venue_key}: {e}")
         return []
@@ -51,12 +52,13 @@ def predict_machine_picks(
     team_key: str = Query(..., description="Team making the pick (3-letter key)"),
     round_num: int = Query(..., ge=1, le=4, description="Round number (1-4)"),
     venue_key: str = Query(..., description="Venue where match is being played"),
-    seasons: Optional[List[int]] = Query(
-        default=[22, 23],
-        description="Seasons to analyze for prediction (default: [22, 23])"
+    seasons: list[int] | None = Query(
+        default=[22, 23], description="Seasons to analyze for prediction (default: [22, 23])"
     ),
     limit: int = Query(default=10, ge=1, le=20, description="Number of predictions to return"),
-    min_opportunities: int = Query(default=3, ge=1, le=10, description="Minimum opportunities required")
+    min_opportunities: int = Query(
+        default=3, ge=1, le=10, description="Minimum opportunities required"
+    ),
 ):
     """
     Predict which machines a team is likely to pick for a given round.
@@ -99,7 +101,7 @@ def predict_machine_picks(
         # the team's machine preferences (e.g., if they love Medieval Madness,
         # they'll pick it both at home and when visiting venues that have it)
         is_doubles_round = round_num in [1, 4]
-        round_type = 'doubles' if is_doubles_round else 'singles'
+        round_type = "doubles" if is_doubles_round else "singles"
         context = round_type
 
         # Query team_machine_picks table combining home and away picks
@@ -123,18 +125,21 @@ def predict_machine_picks(
             LIMIT :limit
         """
 
-        results = execute_query(query, {
-            'team_key': team_key,
-            'seasons': season_list,
-            'round_type': round_type,
-            'min_opportunities': min_opportunities,
-            'limit': limit
-        })
+        results = execute_query(
+            query,
+            {
+                "team_key": team_key,
+                "seasons": season_list,
+                "round_type": round_type,
+                "min_opportunities": min_opportunities,
+                "limit": limit,
+            },
+        )
 
         # Calculate actual pick rounds (max opportunities for any single machine)
         # This represents the true number of times the team had a pick in this round type
         # (summing across machines would give a meaninglessly large number)
-        actual_pick_rounds = max(row['opportunities'] for row in results) if results else 0
+        actual_pick_rounds = max(row["opportunities"] for row in results) if results else 0
 
         if not results:
             return {
@@ -146,29 +151,33 @@ def predict_machine_picks(
                 "team_key": team_key,
                 "venue_key": venue_key,
                 "seasons_analyzed": season_list,
-                "message": f"No historical data found for {team_key} in {context} round {round_num}"
+                "message": f"No historical data found for {team_key} in {context} round {round_num}",
             }
 
         # Build predictions with pick rate (picks/opportunities)
         predictions = []
         for row in results:
-            pick_count = row['pick_count']
-            opportunities = row['opportunities']
-            wilson_lower = row['wilson_lower'] or 0
+            pick_count = row["pick_count"]
+            opportunities = row["opportunities"]
+            wilson_lower = row["wilson_lower"] or 0
 
             # Calculate pick rate as percentage (capped at 100% for data inconsistencies)
-            pick_rate_pct = min((pick_count / opportunities * 100), 100.0) if opportunities > 0 else 0
-            available_at_venue = row['machine_key'] in venue_machines
+            pick_rate_pct = (
+                min((pick_count / opportunities * 100), 100.0) if opportunities > 0 else 0
+            )
+            available_at_venue = row["machine_key"] in venue_machines
 
-            predictions.append({
-                "machine_key": row['machine_key'],
-                "machine_name": row['machine_name'],
-                "pick_count": pick_count,
-                "opportunities": opportunities,
-                "confidence_pct": round(pick_rate_pct, 1),  # Keep name for backward compat
-                "confidence_score": round(wilson_lower * 100, 1),  # Wilson score as 0-100
-                "available_at_venue": available_at_venue
-            })
+            predictions.append(
+                {
+                    "machine_key": row["machine_key"],
+                    "machine_name": row["machine_name"],
+                    "pick_count": pick_count,
+                    "opportunities": opportunities,
+                    "confidence_pct": round(pick_rate_pct, 1),  # Keep name for backward compat
+                    "confidence_score": round(wilson_lower * 100, 1),  # Wilson score as 0-100
+                    "available_at_venue": available_at_venue,
+                }
+            )
 
         return {
             "predictions": predictions,
@@ -178,14 +187,11 @@ def predict_machine_picks(
             "team_key": team_key,
             "venue_key": venue_key,
             "venue_machines": venue_machines,
-            "seasons_analyzed": season_list
+            "seasons_analyzed": season_list,
         }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error predicting machine picks: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to predict machine picks: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to predict machine picks: {str(e)}")

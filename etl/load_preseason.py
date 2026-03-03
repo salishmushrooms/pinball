@@ -21,20 +21,17 @@ import json
 import logging
 import sys
 from datetime import datetime
-from pathlib import Path
 
 from etl.config import config
 from etl.database import db
-from etl.parsers.machine_parser import MachineParser
 from etl.loaders.db_loader import DatabaseLoader
+from etl.parsers.machine_parser import MachineParser
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 logger = logging.getLogger(__name__)
@@ -48,10 +45,10 @@ def generate_player_key(name: str) -> str:
     in the database. The load_preseason_data function will first check for
     existing players by name to preserve their original keys.
     """
-    return name.strip().lower().replace(' ', '_').replace('.', '').replace("'", '')
+    return name.strip().lower().replace(" ", "_").replace(".", "").replace("'", "")
 
 
-def load_preseason_data(season: int):
+def load_preseason_data(season: int):  # noqa: C901
     """Load preseason metadata for a season"""
 
     logger.info("=" * 60)
@@ -100,20 +97,20 @@ def load_preseason_data(season: int):
         # Load venue metadata from venues.json
         venue_metadata = {}
         if venues_json_path.exists():
-            with open(venues_json_path, 'r') as f:
+            with open(venues_json_path) as f:
                 venues_data = json.load(f)
                 for venue_key, venue_info in venues_data.items():
                     venue_metadata[venue_key] = {
-                        'venue_name': venue_info.get('name', venue_key),
-                        'address': venue_info.get('address', ''),
-                        'neighborhood': venue_info.get('neighborhood', '')
+                        "venue_name": venue_info.get("name", venue_key),
+                        "address": venue_info.get("address", ""),
+                        "neighborhood": venue_info.get("neighborhood", ""),
                     }
             logger.info(f"  Loaded metadata for {len(venue_metadata)} venues from venues.json")
 
         # Load venues from venues.csv
         venues = []
         if venues_csv.exists():
-            with open(venues_csv, 'r') as f:
+            with open(venues_csv) as f:
                 reader = csv.reader(f)
                 for row in reader:
                     if len(row) >= 2:
@@ -121,17 +118,19 @@ def load_preseason_data(season: int):
                         venue_name = row[1].strip()
 
                         venue = {
-                            'venue_key': venue_key,
-                            'venue_name': venue_name,
-                            'address': None,
-                            'neighborhood': None,
-                            'active': True
+                            "venue_key": venue_key,
+                            "venue_name": venue_name,
+                            "address": None,
+                            "neighborhood": None,
+                            "active": True,
                         }
 
                         # Enrich with metadata from venues.json
                         if venue_key in venue_metadata:
-                            venue['address'] = venue_metadata[venue_key].get('address') or None
-                            venue['neighborhood'] = venue_metadata[venue_key].get('neighborhood') or None
+                            venue["address"] = venue_metadata[venue_key].get("address") or None
+                            venue["neighborhood"] = (
+                                venue_metadata[venue_key].get("neighborhood") or None
+                            )
 
                         venues.append(venue)
 
@@ -155,7 +154,7 @@ def load_preseason_data(season: int):
         teams = []
 
         if teams_csv.exists():
-            with open(teams_csv, 'r') as f:
+            with open(teams_csv) as f:
                 reader = csv.reader(f)
                 for row in reader:
                     if len(row) >= 3:
@@ -163,12 +162,14 @@ def load_preseason_data(season: int):
                         home_venue_key = row[1].strip()
                         team_name = row[2].strip()
 
-                        teams.append({
-                            'team_key': team_key,
-                            'season': season,
-                            'team_name': team_name,
-                            'home_venue_key': home_venue_key
-                        })
+                        teams.append(
+                            {
+                                "team_key": team_key,
+                                "season": season,
+                                "team_name": team_name,
+                                "home_venue_key": home_venue_key,
+                            }
+                        )
 
             loader.load_teams(teams)
             teams_loaded = len(teams)
@@ -195,7 +196,7 @@ def load_preseason_data(season: int):
             existing_players = loader.get_all_player_keys_by_name()
             logger.info(f"  Found {len(existing_players)} existing players in database")
 
-            with open(rosters_csv, 'r') as f:
+            with open(rosters_csv) as f:
                 reader = csv.reader(f)
                 for row in reader:
                     if len(row) >= 2:
@@ -213,16 +214,18 @@ def load_preseason_data(season: int):
 
                         if player_key not in players:
                             players[player_key] = {
-                                'player_key': player_key,
-                                'name': player_name,
-                                'current_ipr': None,
-                                'first_seen_season': season,
-                                'last_seen_season': season
+                                "player_key": player_key,
+                                "name": player_name,
+                                "current_ipr": None,
+                                "first_seen_season": season,
+                                "last_seen_season": season,
                             }
 
             loader.load_players(list(players.values()))
             players_loaded = len(players)
-            logger.info(f"  Loaded {players_loaded} players from rosters.csv ({players_reused} reused existing keys)")
+            logger.info(
+                f"  Loaded {players_loaded} players from rosters.csv ({players_reused} reused existing keys)"
+            )
         else:
             logger.warning(f"  rosters.csv not found at {rosters_csv}")
 
@@ -240,7 +243,7 @@ def load_preseason_data(season: int):
         matches = []
 
         if matches_csv.exists():
-            with open(matches_csv, 'r') as f:
+            with open(matches_csv) as f:
                 reader = csv.reader(f)
                 for row in reader:
                     if len(row) >= 5:
@@ -252,23 +255,25 @@ def load_preseason_data(season: int):
 
                         # Parse date
                         try:
-                            date = datetime.strptime(date_str, '%Y%m%d').date()
+                            date = datetime.strptime(date_str, "%Y%m%d").date()
                         except ValueError:
                             date = None
 
                         # Generate match key (format must match JSON file keys: mnp-{season}-{week}-{AWAY}-{HOME})
                         match_key = f"mnp-{season}-{week}-{away_team_key}-{home_team_key}"
 
-                        matches.append({
-                            'match_key': match_key,
-                            'season': season,
-                            'week': week,
-                            'date': date,
-                            'venue_key': venue_key,
-                            'home_team_key': home_team_key,
-                            'away_team_key': away_team_key,
-                            'state': 'scheduled'  # Preseason matches are scheduled, not completed
-                        })
+                        matches.append(
+                            {
+                                "match_key": match_key,
+                                "season": season,
+                                "week": week,
+                                "date": date,
+                                "venue_key": venue_key,
+                                "home_team_key": home_team_key,
+                                "away_team_key": away_team_key,
+                                "state": "scheduled",  # Preseason matches are scheduled, not completed
+                            }
+                        )
 
             loader.load_matches(matches)
             matches_loaded = len(matches)
@@ -298,20 +303,11 @@ def load_preseason_data(season: int):
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(
-        description='Load MNP preseason metadata into database'
-    )
+    parser = argparse.ArgumentParser(description="Load MNP preseason metadata into database")
     parser.add_argument(
-        '--season',
-        type=int,
-        required=True,
-        help='Season number to load (e.g., 23)'
+        "--season", type=int, required=True, help="Season number to load (e.g., 23)"
     )
-    parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Enable verbose logging'
-    )
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
 
@@ -334,5 +330,5 @@ def main():
     sys.exit(0 if success else 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

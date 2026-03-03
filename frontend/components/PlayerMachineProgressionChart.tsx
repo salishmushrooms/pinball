@@ -36,8 +36,9 @@ export default function PlayerMachineProgressionChart({
     mutedText: '#6b7280',
   });
 
-  // Fix for SSR issues with Recharts
+  // Fix for SSR issues with Recharts — intentional one-time mount side effect
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsClient(true);
   }, []);
 

@@ -6,7 +6,6 @@ Extracts canonical machine definitions and aliases.
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -19,10 +18,10 @@ class MachineParser:
         self.variations_data = {}
         self.alias_map = {}
 
-    def load(self) -> Dict:
+    def load(self) -> dict:
         """Load and parse machine variations file"""
         try:
-            with open(self.variations_file, 'r') as f:
+            with open(self.variations_file) as f:
                 self.variations_data = json.load(f)
 
             logger.info(f"Loaded {len(self.variations_data)} machines from variations file")
@@ -35,7 +34,7 @@ class MachineParser:
             logger.error(f"Invalid JSON in variations file: {e}")
             raise
 
-    def extract_machines(self) -> List[Dict]:
+    def extract_machines(self) -> list[dict]:
         """Extract machine definitions for database loading"""
         if not self.variations_data:
             self.load()
@@ -44,50 +43,50 @@ class MachineParser:
         for machine_key, machine_info in self.variations_data.items():
             if isinstance(machine_info, dict):
                 # Convert empty strings to None for nullable fields
-                manufacturer = machine_info.get('manufacturer')
-                year = machine_info.get('year')
-                game_type = machine_info.get('type')
+                manufacturer = machine_info.get("manufacturer")
+                year = machine_info.get("year")
+                game_type = machine_info.get("type")
 
                 machine = {
-                    'machine_key': machine_key,
-                    'machine_name': machine_info.get('name', machine_key),
-                    'manufacturer': manufacturer if manufacturer else None,
-                    'year': year if year else None,
-                    'game_type': game_type if game_type else None
+                    "machine_key": machine_key,
+                    "machine_name": machine_info.get("name", machine_key),
+                    "manufacturer": manufacturer if manufacturer else None,
+                    "year": year if year else None,
+                    "game_type": game_type if game_type else None,
                 }
                 machines.append(machine)
 
         logger.info(f"Extracted {len(machines)} machine definitions")
         return machines
 
-    def extract_aliases(self) -> List[Dict]:
+    def extract_aliases(self) -> list[dict]:
         """Extract machine aliases for database loading"""
         if not self.variations_data:
             self.load()
 
         aliases = []
         for machine_key, machine_info in self.variations_data.items():
-            if isinstance(machine_info, dict) and 'variations' in machine_info:
+            if isinstance(machine_info, dict) and "variations" in machine_info:
                 # Add canonical key as alias to itself
-                aliases.append({
-                    'alias': machine_key,
-                    'machine_key': machine_key,
-                    'alias_type': 'canonical'
-                })
+                aliases.append(
+                    {"alias": machine_key, "machine_key": machine_key, "alias_type": "canonical"}
+                )
 
                 # Add all variations
-                for variation in machine_info['variations']:
+                for variation in machine_info["variations"]:
                     if variation != machine_key:  # Don't duplicate canonical
-                        aliases.append({
-                            'alias': variation,
-                            'machine_key': machine_key,
-                            'alias_type': 'variation'
-                        })
+                        aliases.append(
+                            {
+                                "alias": variation,
+                                "machine_key": machine_key,
+                                "alias_type": "variation",
+                            }
+                        )
 
         logger.info(f"Extracted {len(aliases)} machine aliases")
         return aliases
 
-    def build_alias_map(self) -> Dict[str, str]:
+    def build_alias_map(self) -> dict[str, str]:
         """Build mapping from all aliases to canonical machine keys"""
         if not self.variations_data:
             self.load()
@@ -99,8 +98,8 @@ class MachineParser:
             alias_map[machine_key.lower()] = machine_key
 
             # Map all variations to canonical key
-            if isinstance(machine_info, dict) and 'variations' in machine_info:
-                for variation in machine_info['variations']:
+            if isinstance(machine_info, dict) and "variations" in machine_info:
+                for variation in machine_info["variations"]:
                     alias_map[variation] = machine_key
                     alias_map[variation.lower()] = machine_key
                     alias_map[variation.strip()] = machine_key

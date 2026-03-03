@@ -31,20 +31,20 @@ import asyncio
 import logging
 import os
 import sys
-import time
 from datetime import datetime
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy import text
+
 from etl.database import db
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,9 @@ def check_matchplay_configured() -> bool:
     token = os.getenv("MATCHPLAY_API_TOKEN")
     if not token:
         logger.error("MATCHPLAY_API_TOKEN environment variable not set")
-        logger.error("Get your token from: https://app.matchplay.events (Account Settings -> API tokens)")
+        logger.error(
+            "Get your token from: https://app.matchplay.events (Account Settings -> API tokens)"
+        )
         return False
     return True
 
@@ -94,41 +96,45 @@ def update_cached_data(conn, matchplay_user_id: int, profile_data: dict) -> bool
         return False
 
     # Extract user info
-    user_info = profile_data.get('user', {})
-    location = user_info.get('location')
-    avatar = user_info.get('avatar')
+    user_info = profile_data.get("user", {})
+    location = user_info.get("location")
+    avatar = user_info.get("avatar")
 
     # Extract rating data
-    rating_data = profile_data.get('rating', {})
-    rating_value = rating_data.get('rating')
-    rating_rd = rating_data.get('rd')
-    game_count = rating_data.get('gameCount')
-    win_count = rating_data.get('winCount')
-    loss_count = rating_data.get('lossCount')
-    efficiency_percent = rating_data.get('efficiencyPercent')
-    lower_bound = rating_data.get('lowerBound')
+    rating_data = profile_data.get("rating", {})
+    rating_value = rating_data.get("rating")
+    rating_rd = rating_data.get("rd")
+    game_count = rating_data.get("gameCount")
+    win_count = rating_data.get("winCount")
+    loss_count = rating_data.get("lossCount")
+    efficiency_percent = rating_data.get("efficiencyPercent")
+    lower_bound = rating_data.get("lowerBound")
 
     # Extract IFPA data
-    ifpa_data = profile_data.get('ifpa', {})
-    ifpa_id = ifpa_data.get('ifpaId') if ifpa_data else None
-    ifpa_rank = ifpa_data.get('rank') if ifpa_data else None
-    ifpa_rating = ifpa_data.get('rating') if ifpa_data else None
-    ifpa_womens_rank = ifpa_data.get('womensRank') if ifpa_data else None
+    ifpa_data = profile_data.get("ifpa", {})
+    ifpa_id = ifpa_data.get("ifpaId") if ifpa_data else None
+    ifpa_rank = ifpa_data.get("rank") if ifpa_data else None
+    ifpa_rating = ifpa_data.get("rating") if ifpa_data else None
+    ifpa_womens_rank = ifpa_data.get("womensRank") if ifpa_data else None
 
     # Extract tournament count
-    counts = profile_data.get('userCounts', {})
-    tournament_count = counts.get('tournamentPlayCount')
+    counts = profile_data.get("userCounts", {})
+    tournament_count = counts.get("tournamentPlayCount")
 
     now = datetime.utcnow()
 
     # Delete existing cached rating
-    conn.execute(text("""
+    conn.execute(
+        text("""
         DELETE FROM matchplay_ratings
         WHERE matchplay_user_id = :matchplay_user_id
-    """), {'matchplay_user_id': matchplay_user_id})
+    """),
+        {"matchplay_user_id": matchplay_user_id},
+    )
 
     # Insert new cached data
-    conn.execute(text("""
+    conn.execute(
+        text("""
         INSERT INTO matchplay_ratings
             (matchplay_user_id, rating_value, rating_rd, game_count, win_count,
              loss_count, efficiency_percent, lower_bound, ifpa_id, ifpa_rank,
@@ -137,39 +143,41 @@ def update_cached_data(conn, matchplay_user_id: int, profile_data: dict) -> bool
             (:matchplay_user_id, :rating_value, :rating_rd, :game_count, :win_count,
              :loss_count, :efficiency_percent, :lower_bound, :ifpa_id, :ifpa_rank,
              :ifpa_rating, :ifpa_womens_rank, :tournament_count, :location, :avatar, :fetched_at)
-    """), {
-        'matchplay_user_id': matchplay_user_id,
-        'rating_value': rating_value,
-        'rating_rd': rating_rd,
-        'game_count': game_count,
-        'win_count': win_count,
-        'loss_count': loss_count,
-        'efficiency_percent': efficiency_percent,
-        'lower_bound': lower_bound,
-        'ifpa_id': ifpa_id,
-        'ifpa_rank': ifpa_rank,
-        'ifpa_rating': ifpa_rating,
-        'ifpa_womens_rank': ifpa_womens_rank,
-        'tournament_count': tournament_count,
-        'location': location,
-        'avatar': avatar,
-        'fetched_at': now
-    })
+    """),
+        {
+            "matchplay_user_id": matchplay_user_id,
+            "rating_value": rating_value,
+            "rating_rd": rating_rd,
+            "game_count": game_count,
+            "win_count": win_count,
+            "loss_count": loss_count,
+            "efficiency_percent": efficiency_percent,
+            "lower_bound": lower_bound,
+            "ifpa_id": ifpa_id,
+            "ifpa_rank": ifpa_rank,
+            "ifpa_rating": ifpa_rating,
+            "ifpa_womens_rank": ifpa_womens_rank,
+            "tournament_count": tournament_count,
+            "location": location,
+            "avatar": avatar,
+            "fetched_at": now,
+        },
+    )
 
     # Update last_synced in mappings table
-    conn.execute(text("""
+    conn.execute(
+        text("""
         UPDATE matchplay_player_mappings
         SET last_synced = :last_synced
         WHERE matchplay_user_id = :matchplay_user_id
-    """), {
-        'matchplay_user_id': matchplay_user_id,
-        'last_synced': now
-    })
+    """),
+        {"matchplay_user_id": matchplay_user_id, "last_synced": now},
+    )
 
     return True
 
 
-async def refresh_all_players(dry_run: bool = False, limit: int = None, verbose: bool = False):
+async def refresh_all_players(dry_run: bool = False, limit: int = None, verbose: bool = False):  # noqa: C901
     """Refresh Matchplay data for all linked players."""
 
     # Import the Matchplay client
@@ -177,7 +185,9 @@ async def refresh_all_players(dry_run: bool = False, limit: int = None, verbose:
 
     client = MatchplayClient()
     if not client.is_configured():
-        logger.error("Matchplay client not configured. Set MATCHPLAY_API_TOKEN environment variable.")
+        logger.error(
+            "Matchplay client not configured. Set MATCHPLAY_API_TOKEN environment variable."
+        )
         return False
 
     # Connect to database
@@ -198,7 +208,9 @@ async def refresh_all_players(dry_run: bool = False, limit: int = None, verbose:
             if dry_run:
                 logger.info("DRY RUN - No changes will be made")
                 for player in players:
-                    logger.info(f"  Would refresh: {player['mnp_name']} -> Matchplay user {player['matchplay_user_id']}")
+                    logger.info(
+                        f"  Would refresh: {player['mnp_name']} -> Matchplay user {player['matchplay_user_id']}"
+                    )
                 return True
 
             # Process each player
@@ -207,17 +219,21 @@ async def refresh_all_players(dry_run: bool = False, limit: int = None, verbose:
             skipped_count = 0
 
             for i, player in enumerate(players, 1):
-                mnp_name = player['mnp_name']
-                matchplay_user_id = player['matchplay_user_id']
+                mnp_name = player["mnp_name"]
+                matchplay_user_id = player["matchplay_user_id"]
 
                 # Check rate limit before each request
                 if client.rate_limit_remaining is not None and client.rate_limit_remaining <= 5:
-                    logger.warning(f"Rate limit nearly exhausted ({client.rate_limit_remaining} remaining). Stopping.")
+                    logger.warning(
+                        f"Rate limit nearly exhausted ({client.rate_limit_remaining} remaining). Stopping."
+                    )
                     skipped_count = total_players - i + 1
                     break
 
                 if verbose:
-                    logger.info(f"[{i}/{total_players}] Refreshing {mnp_name} (user {matchplay_user_id})...")
+                    logger.info(
+                        f"[{i}/{total_players}] Refreshing {mnp_name} (user {matchplay_user_id})..."
+                    )
 
                 # Fetch profile from API
                 profile = await fetch_matchplay_profile(client, matchplay_user_id)
@@ -227,7 +243,7 @@ async def refresh_all_players(dry_run: bool = False, limit: int = None, verbose:
                     if update_cached_data(conn, matchplay_user_id, profile):
                         success_count += 1
                         if verbose:
-                            rating = profile.get('rating', {}).get('rating', 'N/A')
+                            rating = profile.get("rating", {}).get("rating", "N/A")
                             logger.info(f"  Rating: {rating}")
                     else:
                         error_count += 1
@@ -252,7 +268,9 @@ async def refresh_all_players(dry_run: bool = False, limit: int = None, verbose:
             if skipped_count > 0:
                 logger.info(f"Skipped (rate limit): {skipped_count}")
             if client.rate_limit_remaining is not None:
-                logger.info(f"API rate limit remaining: {client.rate_limit_remaining}/{client.rate_limit_total}")
+                logger.info(
+                    f"API rate limit remaining: {client.rate_limit_remaining}/{client.rate_limit_total}"
+                )
             logger.info("=" * 50)
 
             return error_count == 0
@@ -278,25 +296,16 @@ Examples:
 
     # Refresh only first 10 players (for testing)
     python etl/refresh_matchplay_data.py --limit 10 --verbose
-"""
+""",
     )
 
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show what would be refreshed without making changes"
+        "--dry-run", action="store_true", help="Show what would be refreshed without making changes"
     )
     parser.add_argument(
-        "--limit",
-        type=int,
-        default=None,
-        help="Limit number of players to refresh (for testing)"
+        "--limit", type=int, default=None, help="Limit number of players to refresh (for testing)"
     )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Enable verbose logging"
-    )
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
 
@@ -305,17 +314,16 @@ Examples:
         sys.exit(1)
 
     # Load .env file if present
-    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
     if os.path.exists(env_path):
         from dotenv import load_dotenv
+
         load_dotenv(env_path)
 
     # Run the refresh
-    success = asyncio.run(refresh_all_players(
-        dry_run=args.dry_run,
-        limit=args.limit,
-        verbose=args.verbose
-    ))
+    success = asyncio.run(
+        refresh_all_players(dry_run=args.dry_run, limit=args.limit, verbose=args.verbose)
+    )
 
     sys.exit(0 if success else 1)
 

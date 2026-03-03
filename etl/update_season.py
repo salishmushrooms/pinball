@@ -39,10 +39,8 @@ from etl.database import db
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 logger = logging.getLogger(__name__)
@@ -79,8 +77,8 @@ def run_etl_script(script_name: str, args: list = None) -> bool:
         result = subprocess.run(
             cmd,
             cwd=config.PROJECT_ROOT,
-            env={**subprocess.os.environ, 'PYTHONPATH': str(config.PROJECT_ROOT)},
-            capture_output=False  # Let output flow through
+            env={**subprocess.os.environ, "PYTHONPATH": str(config.PROJECT_ROOT)},
+            capture_output=False,  # Let output flow through
         )
         return result.returncode == 0
     except Exception as e:
@@ -102,7 +100,8 @@ def cleanup_preseason_duplicates(season: int) -> bool:
     try:
         db.connect()
         with db.engine.connect() as conn:
-            result = conn.execute(text("""
+            result = conn.execute(
+                text("""
                 DELETE FROM matches m1
                 WHERE m1.season = :season
                 AND EXISTS (
@@ -115,12 +114,16 @@ def cleanup_preseason_duplicates(season: int) -> bool:
                       AND m2.state != 'scheduled'
                 )
                 AND m1.state = 'scheduled'
-            """), {'season': season})
+            """),
+                {"season": season},
+            )
             conn.commit()
 
             deleted = result.rowcount
             if deleted > 0:
-                logger.info(f"  Cleaned up {deleted} stale preseason match records for season {season}")
+                logger.info(
+                    f"  Cleaned up {deleted} stale preseason match records for season {season}"
+                )
 
         db.close()
         return True
@@ -132,7 +135,7 @@ def cleanup_preseason_duplicates(season: int) -> bool:
 def load_season_data(season: int) -> bool:
     """Load/upsert season data into database."""
     logger.info(f"Loading data for season {season}...")
-    if not run_etl_script('load_season.py', ['--season', str(season)]):
+    if not run_etl_script("load_season.py", ["--season", str(season)]):
         return False
     cleanup_preseason_duplicates(season)
     return True
@@ -148,10 +151,10 @@ def calculate_aggregations(season: int) -> bool:
     logger.info(f"Calculating aggregations for season {season}...")
 
     scripts = [
-        ('calculate_percentiles.py', ['--season', str(season)]),
-        ('calculate_player_stats.py', ['--season', str(season)]),
-        ('calculate_team_machine_picks.py', ['--season', str(season)]),
-        ('calculate_match_points.py', ['--season', str(season)]),
+        ("calculate_percentiles.py", ["--season", str(season)]),
+        ("calculate_player_stats.py", ["--season", str(season)]),
+        ("calculate_team_machine_picks.py", ["--season", str(season)]),
+        ("calculate_match_points.py", ["--season", str(season)]),
     ]
 
     for script_name, args in scripts:
@@ -165,7 +168,7 @@ def calculate_aggregations(season: int) -> bool:
 def calculate_player_totals() -> bool:
     """Calculate cross-season player totals."""
     logger.info("Calculating cross-season player totals...")
-    return run_etl_script('calculate_player_totals.py')
+    return run_etl_script("calculate_player_totals.py")
 
 
 def verify_data(seasons: list) -> None:
@@ -185,25 +188,27 @@ def verify_data(seasons: list) -> None:
                 # Count matches
                 result = conn.execute(
                     text("SELECT COUNT(*) FROM matches WHERE season = :season"),
-                    {'season': str(season)}
+                    {"season": str(season)},
                 )
                 match_count = result.scalar()
 
                 # Count scores
                 result = conn.execute(
                     text("SELECT COUNT(*) FROM scores WHERE season = :season"),
-                    {'season': str(season)}
+                    {"season": str(season)},
                 )
                 score_count = result.scalar()
 
                 # Count percentile records
                 result = conn.execute(
                     text("SELECT COUNT(*) FROM score_percentiles WHERE season = :season"),
-                    {'season': str(season)}
+                    {"season": str(season)},
                 )
                 percentile_count = result.scalar()
 
-                logger.info(f"Season {season}: {match_count} matches, {score_count} scores, {percentile_count} percentile records")
+                logger.info(
+                    f"Season {season}: {match_count} matches, {score_count} scores, {percentile_count} percentile records"
+                )
 
         db.close()
 
@@ -214,7 +219,7 @@ def verify_data(seasons: list) -> None:
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description='Update database with latest season data',
+        description="Update database with latest season data",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -226,25 +231,21 @@ Examples:
 
   # Update and sync to production
   python etl/update_season.py --season 22 --sync-production
-        """
+        """,
     )
     parser.add_argument(
-        '--season',
+        "--season",
         type=int,
-        nargs='+',
+        nargs="+",
         required=True,
-        help='Season number(s) to update (e.g., 22 or 20 21 22)'
+        help="Season number(s) to update (e.g., 22 or 20 21 22)",
     )
     parser.add_argument(
-        '--skip-aggregations',
-        action='store_true',
-        help='Skip aggregation calculations (just load raw data)'
+        "--skip-aggregations",
+        action="store_true",
+        help="Skip aggregation calculations (just load raw data)",
     )
-    parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Enable verbose logging'
-    )
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
 
@@ -263,9 +264,9 @@ Examples:
     # Step 1: Load season data
     for season in seasons:
         logger.info("")
-        logger.info(f"{'='*60}")
+        logger.info(f"{'=' * 60}")
         logger.info(f"Processing Season {season}")
-        logger.info(f"{'='*60}")
+        logger.info(f"{'=' * 60}")
 
         if not load_season_data(season):
             logger.error(f"Failed to load season {season}")
@@ -297,5 +298,5 @@ Examples:
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

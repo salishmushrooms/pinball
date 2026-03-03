@@ -1,24 +1,22 @@
 """
 Machines API endpoints
 """
-from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import text
 
+from fastapi import APIRouter, HTTPException, Query
+
+from api.dependencies import execute_query
 from api.models.schemas import (
+    ErrorResponse,
     MachineBase,
+    MachineDashboardStats,
     MachineDetail,
     MachineList,
     MachinePercentiles,
-    ScorePercentile,
     MachineScore,
     MachineScoreList,
-    MachineDashboardStats,
     MachineTopScore,
-    ErrorResponse
+    ScorePercentile,
 )
-from api.dependencies import execute_query
-from etl.database import db
 
 router = APIRouter(prefix="/machines", tags=["machines"])
 
@@ -27,7 +25,7 @@ router = APIRouter(prefix="/machines", tags=["machines"])
     "/dashboard-stats",
     response_model=MachineDashboardStats,
     summary="Get machine dashboard statistics",
-    description="Get statistics for the machines page dashboard including total count, new machines, rare machines, and top machines by scores"
+    description="Get statistics for the machines page dashboard including total count, new machines, rare machines, and top machines by scores",
 )
 def get_machine_dashboard_stats():
     """
@@ -44,12 +42,16 @@ def get_machine_dashboard_stats():
     # Get latest season
     latest_season_query = "SELECT MAX(season) as latest FROM scores"
     latest_season_result = execute_query(latest_season_query)
-    latest_season = latest_season_result[0]['latest'] if latest_season_result and latest_season_result[0]['latest'] is not None else 22
+    latest_season = (
+        latest_season_result[0]["latest"]
+        if latest_season_result and latest_season_result[0]["latest"] is not None
+        else 22
+    )
 
     # Get total unique machines across all seasons
     total_machines_query = "SELECT COUNT(DISTINCT machine_key) as total FROM machines"
     total_machines_result = execute_query(total_machines_query)
-    total_machines = total_machines_result[0]['total'] if total_machines_result else 0
+    total_machines = total_machines_result[0]["total"] if total_machines_result else 0
 
     # Get total unique machines in latest season
     latest_season_machines_query = """
@@ -57,8 +59,12 @@ def get_machine_dashboard_stats():
         FROM scores
         WHERE season = :latest_season
     """
-    latest_season_machines_result = execute_query(latest_season_machines_query, {'latest_season': latest_season})
-    total_machines_latest_season = latest_season_machines_result[0]['total'] if latest_season_machines_result else 0
+    latest_season_machines_result = execute_query(
+        latest_season_machines_query, {"latest_season": latest_season}
+    )
+    total_machines_latest_season = (
+        latest_season_machines_result[0]["total"] if latest_season_machines_result else 0
+    )
 
     # Get new machines count (machines in latest season that don't appear in any prior season)
     new_machines_query = """
@@ -72,8 +78,8 @@ def get_machine_dashboard_stats():
               AND s_prior.season < :latest_season
           )
     """
-    new_machines_result = execute_query(new_machines_query, {'latest_season': latest_season})
-    new_machines_count = new_machines_result[0]['count'] if new_machines_result else 0
+    new_machines_result = execute_query(new_machines_query, {"latest_season": latest_season})
+    new_machines_count = new_machines_result[0]["count"] if new_machines_result else 0
 
     # Get rare machines count (machines that only exist at 1 venue across all data)
     rare_machines_query = """
@@ -86,7 +92,7 @@ def get_machine_dashboard_stats():
         ) rare
     """
     rare_machines_result = execute_query(rare_machines_query)
-    rare_machines_count = rare_machines_result[0]['count'] if rare_machines_result else 0
+    rare_machines_count = rare_machines_result[0]["count"] if rare_machines_result else 0
 
     # Get top 10 machines by total scores in latest season
     top_machines_query = """
@@ -101,7 +107,7 @@ def get_machine_dashboard_stats():
         ORDER BY total_scores DESC
         LIMIT 10
     """
-    top_machines_result = execute_query(top_machines_query, {'latest_season': latest_season})
+    top_machines_result = execute_query(top_machines_query, {"latest_season": latest_season})
     top_machines = [MachineTopScore(**row) for row in top_machines_result]
 
     return MachineDashboardStats(
@@ -110,7 +116,7 @@ def get_machine_dashboard_stats():
         new_machines_count=new_machines_count,
         rare_machines_count=rare_machines_count,
         latest_season=latest_season,
-        top_machines_by_scores=top_machines
+        top_machines_by_scores=top_machines,
     )
 
 
@@ -118,18 +124,22 @@ def get_machine_dashboard_stats():
     "",
     response_model=MachineList,
     summary="List all machines",
-    description="Get a paginated list of all machines with optional filtering"
+    description="Get a paginated list of all machines with optional filtering",
 )
 def list_machines(
-    manufacturer: Optional[str] = Query(None, description="Filter by manufacturer"),
-    year: Optional[int] = Query(None, description="Filter by year"),
-    game_type: Optional[str] = Query(None, description="Filter by game type (SS, EM, etc.)"),
-    search: Optional[str] = Query(None, description="Search machine names (case-insensitive)"),
-    has_percentiles: Optional[bool] = Query(None, description="Filter machines with percentile data"),
-    season: Optional[int] = Query(None, description="Filter by season (only show machines played in this season)"),
-    venue_key: Optional[str] = Query(None, description="Filter by venue (only show machines played at this venue)"),
+    manufacturer: str | None = Query(None, description="Filter by manufacturer"),
+    year: int | None = Query(None, description="Filter by year"),
+    game_type: str | None = Query(None, description="Filter by game type (SS, EM, etc.)"),
+    search: str | None = Query(None, description="Search machine names (case-insensitive)"),
+    has_percentiles: bool | None = Query(None, description="Filter machines with percentile data"),
+    season: int | None = Query(
+        None, description="Filter by season (only show machines played in this season)"
+    ),
+    venue_key: str | None = Query(
+        None, description="Filter by venue (only show machines played at this venue)"
+    ),
     limit: int = Query(100, ge=1, le=500, description="Number of results to return"),
-    offset: int = Query(0, ge=0, description="Number of results to skip")
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
 ):
     """
     List all machines with optional filtering and pagination.
@@ -149,25 +159,31 @@ def list_machines(
 
     if manufacturer:
         machine_where_clauses.append("LOWER(m.manufacturer) = LOWER(:manufacturer)")
-        params['manufacturer'] = manufacturer
+        params["manufacturer"] = manufacturer
 
     if year is not None:
         machine_where_clauses.append("m.year = :year")
-        params['year'] = year
+        params["year"] = year
 
     if game_type:
         machine_where_clauses.append("LOWER(m.game_type) = LOWER(:game_type)")
-        params['game_type'] = game_type
+        params["game_type"] = game_type
 
     if search:
-        machine_where_clauses.append("(LOWER(m.machine_name) LIKE LOWER(:search) OR LOWER(m.machine_key) LIKE LOWER(:search))")
-        params['search'] = f"%{search}%"
+        machine_where_clauses.append(
+            "(LOWER(m.machine_name) LIKE LOWER(:search) OR LOWER(m.machine_key) LIKE LOWER(:search))"
+        )
+        params["search"] = f"%{search}%"
 
     if has_percentiles is not None:
         if has_percentiles:
-            machine_where_clauses.append("EXISTS (SELECT 1 FROM score_percentiles sp WHERE sp.machine_key = m.machine_key)")
+            machine_where_clauses.append(
+                "EXISTS (SELECT 1 FROM score_percentiles sp WHERE sp.machine_key = m.machine_key)"
+            )
         else:
-            machine_where_clauses.append("NOT EXISTS (SELECT 1 FROM score_percentiles sp WHERE sp.machine_key = m.machine_key)")
+            machine_where_clauses.append(
+                "NOT EXISTS (SELECT 1 FROM score_percentiles sp WHERE sp.machine_key = m.machine_key)"
+            )
 
     machine_where_clause = " AND ".join(machine_where_clauses) if machine_where_clauses else "TRUE"
 
@@ -175,10 +191,10 @@ def list_machines(
     score_where_clauses = ["s.machine_key = m.machine_key"]
     if season is not None:
         score_where_clauses.append("s.season = :season")
-        params['season'] = season
+        params["season"] = season
     if venue_key is not None:
         score_where_clauses.append("s.venue_key = :venue_key")
-        params['venue_key'] = venue_key
+        params["venue_key"] = venue_key
 
     score_where_clause = " AND ".join(score_where_clauses)
 
@@ -198,7 +214,7 @@ def list_machines(
         WHERE {machine_filter}
     """
     count_result = execute_query(count_query, params)
-    total = count_result[0]['total'] if count_result else 0
+    total = count_result[0]["total"] if count_result else 0
 
     # Get paginated results with game count and median score
     query = f"""
@@ -217,22 +233,22 @@ def list_machines(
                 COUNT(*) as game_count,
                 CAST(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY s.score) AS INTEGER) as median_score
             FROM scores s
-            WHERE {score_where_clause.replace('m.machine_key', 's.machine_key').replace('s.machine_key = s.machine_key', 'TRUE')}
+            WHERE {score_where_clause.replace("m.machine_key", "s.machine_key").replace("s.machine_key = s.machine_key", "TRUE")}
             GROUP BY s.machine_key
         ) stats ON m.machine_key = stats.machine_key
         WHERE {machine_filter}
         ORDER BY m.machine_name
         LIMIT :limit OFFSET :offset
     """
-    params['limit'] = limit
-    params['offset'] = offset
+    params["limit"] = limit
+    params["offset"] = offset
     machines = execute_query(query, params)
 
     return MachineList(
         machines=[MachineBase(**machine) for machine in machines],
         total=total,
         limit=limit,
-        offset=offset
+        offset=offset,
     )
 
 
@@ -241,7 +257,7 @@ def list_machines(
     response_model=MachineDetail,
     responses={404: {"model": ErrorResponse}},
     summary="Get machine details",
-    description="Get detailed information about a specific machine"
+    description="Get detailed information about a specific machine",
 )
 def get_machine(machine_key: str):
     """
@@ -265,7 +281,7 @@ def get_machine(machine_key: str):
         WHERE m.machine_key = :machine_key
         GROUP BY m.machine_key, m.machine_name, m.manufacturer, m.year, m.game_type
     """
-    machines = execute_query(query, {'machine_key': machine_key})
+    machines = execute_query(query, {"machine_key": machine_key})
 
     if not machines:
         raise HTTPException(status_code=404, detail=f"Machine '{machine_key}' not found")
@@ -275,15 +291,17 @@ def get_machine(machine_key: str):
 
 @router.get(
     "/{machine_key}/percentiles",
-    response_model=List[MachinePercentiles],
+    response_model=list[MachinePercentiles],
     responses={404: {"model": ErrorResponse}},
     summary="Get machine score percentiles",
-    description="Get score percentile data for a specific machine"
+    description="Get score percentile data for a specific machine",
 )
 def get_machine_percentiles(
     machine_key: str,
-    season: Optional[int] = Query(None, description="Filter by season"),
-    venue_key: Optional[str] = Query(None, description="Filter by venue (use '_ALL_' for aggregate stats)")
+    season: int | None = Query(None, description="Filter by season"),
+    venue_key: str | None = Query(
+        None, description="Filter by venue (use '_ALL_' for aggregate stats)"
+    ),
 ):
     """
     Get score percentile data for a specific machine.
@@ -298,23 +316,23 @@ def get_machine_percentiles(
     """
     # First verify machine exists
     machine_query = "SELECT machine_name FROM machines WHERE machine_key = :machine_key"
-    machine_result = execute_query(machine_query, {'machine_key': machine_key})
+    machine_result = execute_query(machine_query, {"machine_key": machine_key})
     if not machine_result:
         raise HTTPException(status_code=404, detail=f"Machine '{machine_key}' not found")
 
-    machine_name = machine_result[0]['machine_name']
+    machine_name = machine_result[0]["machine_name"]
 
     # Build WHERE clauses
     where_clauses = ["sp.machine_key = :machine_key"]
-    params = {'machine_key': machine_key}
+    params = {"machine_key": machine_key}
 
     if season is not None:
         where_clauses.append("sp.season = :season")
-        params['season'] = season
+        params["season"] = season
 
     if venue_key is not None:
         where_clauses.append("sp.venue_key = :venue_key")
-        params['venue_key'] = venue_key
+        params["venue_key"] = venue_key
 
     where_clause = " AND ".join(where_clauses)
 
@@ -335,40 +353,39 @@ def get_machine_percentiles(
 
     if not rows:
         raise HTTPException(
-            status_code=404,
-            detail=f"No percentile data found for machine '{machine_key}'"
+            status_code=404, detail=f"No percentile data found for machine '{machine_key}'"
         )
 
     # Group by venue_key and season
     grouped = {}
     for row in rows:
-        key = (row['venue_key'], row['season'])
+        key = (row["venue_key"], row["season"])
         if key not in grouped:
             grouped[key] = {
-                'machine_key': machine_key,
-                'machine_name': machine_name,
-                'venue_key': row['venue_key'],
-                'season': row['season'],
-                'sample_size': row['sample_size'],
-                'percentiles': {}
+                "machine_key": machine_key,
+                "machine_name": machine_name,
+                "venue_key": row["venue_key"],
+                "season": row["season"],
+                "sample_size": row["sample_size"],
+                "percentiles": {},
             }
-        grouped[key]['percentiles'][row['percentile']] = row['score_threshold']
+        grouped[key]["percentiles"][row["percentile"]] = row["score_threshold"]
 
     return [MachinePercentiles(**data) for data in grouped.values()]
 
 
 @router.get(
     "/{machine_key}/percentiles/raw",
-    response_model=List[ScorePercentile],
+    response_model=list[ScorePercentile],
     responses={404: {"model": ErrorResponse}},
     summary="Get raw machine score percentiles",
-    description="Get raw score percentile records for a specific machine (one record per percentile)"
+    description="Get raw score percentile records for a specific machine (one record per percentile)",
 )
 def get_machine_percentiles_raw(
     machine_key: str,
-    season: Optional[int] = Query(None, description="Filter by season"),
-    venue_key: Optional[str] = Query(None, description="Filter by venue"),
-    percentile: Optional[int] = Query(None, ge=0, le=100, description="Filter by specific percentile")
+    season: int | None = Query(None, description="Filter by season"),
+    venue_key: str | None = Query(None, description="Filter by venue"),
+    percentile: int | None = Query(None, ge=0, le=100, description="Filter by specific percentile"),
 ):
     """
     Get raw score percentile records for a specific machine.
@@ -382,27 +399,27 @@ def get_machine_percentiles_raw(
     """
     # First verify machine exists
     machine_query = "SELECT machine_name FROM machines WHERE machine_key = :machine_key"
-    machine_result = execute_query(machine_query, {'machine_key': machine_key})
+    machine_result = execute_query(machine_query, {"machine_key": machine_key})
     if not machine_result:
         raise HTTPException(status_code=404, detail=f"Machine '{machine_key}' not found")
 
-    machine_name = machine_result[0]['machine_name']
+    machine_name = machine_result[0]["machine_name"]
 
     # Build WHERE clauses
     where_clauses = ["sp.machine_key = :machine_key"]
-    params = {'machine_key': machine_key}
+    params = {"machine_key": machine_key}
 
     if season is not None:
         where_clauses.append("sp.season = :season")
-        params['season'] = season
+        params["season"] = season
 
     if venue_key is not None:
         where_clauses.append("sp.venue_key = :venue_key")
-        params['venue_key'] = venue_key
+        params["venue_key"] = venue_key
 
     if percentile is not None:
         where_clauses.append("sp.percentile = :percentile")
-        params['percentile'] = percentile
+        params["percentile"] = percentile
 
     where_clause = " AND ".join(where_clauses)
 
@@ -422,13 +439,12 @@ def get_machine_percentiles_raw(
 
     if not rows:
         raise HTTPException(
-            status_code=404,
-            detail=f"No percentile data found for machine '{machine_key}'"
+            status_code=404, detail=f"No percentile data found for machine '{machine_key}'"
         )
 
     # Add machine_name to each row
     for row in rows:
-        row['machine_name'] = machine_name
+        row["machine_name"] = machine_name
 
     return [ScorePercentile(**row) for row in rows]
 
@@ -438,15 +454,17 @@ def get_machine_percentiles_raw(
     response_model=MachineScoreList,
     responses={404: {"model": ErrorResponse}},
     summary="Get all scores for a machine",
-    description="Get individual score records for a specific machine with optional filtering"
+    description="Get individual score records for a specific machine with optional filtering",
 )
 def get_machine_scores(
     machine_key: str,
-    season: Optional[int] = Query(None, description="Filter by season"),
-    venue_key: Optional[str] = Query(None, description="Filter by venue"),
-    team_keys: Optional[str] = Query(None, description="Filter by team keys (comma-separated, e.g., 'SKP,TRL,ADB')"),
+    season: int | None = Query(None, description="Filter by season"),
+    venue_key: str | None = Query(None, description="Filter by venue"),
+    team_keys: str | None = Query(
+        None, description="Filter by team keys (comma-separated, e.g., 'SKP,TRL,ADB')"
+    ),
     limit: int = Query(100, ge=1, le=1000, description="Number of results to return"),
-    offset: int = Query(0, ge=0, description="Number of results to skip")
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
 ):
     """
     Get all individual scores for a specific machine with optional filtering.
@@ -460,37 +478,37 @@ def get_machine_scores(
     """
     # First verify machine exists
     machine_query = "SELECT machine_name FROM machines WHERE machine_key = :machine_key"
-    machine_result = execute_query(machine_query, {'machine_key': machine_key})
+    machine_result = execute_query(machine_query, {"machine_key": machine_key})
     if not machine_result:
         raise HTTPException(status_code=404, detail=f"Machine '{machine_key}' not found")
 
     # Build WHERE clauses
     where_clauses = ["s.machine_key = :machine_key"]
-    params = {'machine_key': machine_key}
+    params = {"machine_key": machine_key}
 
     if season is not None:
         where_clauses.append("s.season = :season")
-        params['season'] = season
+        params["season"] = season
 
     if venue_key is not None:
         where_clauses.append("s.venue_key = :venue_key")
-        params['venue_key'] = venue_key
+        params["venue_key"] = venue_key
 
     if team_keys is not None:
         # Parse comma-separated team keys
-        team_list = [tk.strip() for tk in team_keys.split(',') if tk.strip()]
+        team_list = [tk.strip() for tk in team_keys.split(",") if tk.strip()]
         if team_list:
-            placeholders = ','.join([f":team_{i}" for i in range(len(team_list))])
+            placeholders = ",".join([f":team_{i}" for i in range(len(team_list))])
             where_clauses.append(f"s.team_key IN ({placeholders})")
             for i, team_key in enumerate(team_list):
-                params[f'team_{i}'] = team_key
+                params[f"team_{i}"] = team_key
 
     where_clause = " AND ".join(where_clauses)
 
     # Get total count
     count_query = f"SELECT COUNT(*) as total FROM scores s WHERE {where_clause}"
     count_result = execute_query(count_query, params)
-    total = count_result[0]['total'] if count_result else 0
+    total = count_result[0]["total"] if count_result else 0
 
     # Get paginated scores with player and venue names
     query = f"""
@@ -515,24 +533,21 @@ def get_machine_scores(
         ORDER BY s.score DESC
         LIMIT :limit OFFSET :offset
     """
-    params['limit'] = limit
-    params['offset'] = offset
+    params["limit"] = limit
+    params["offset"] = offset
     scores = execute_query(query, params)
 
     return MachineScoreList(
-        scores=[MachineScore(**score) for score in scores],
-        total=total,
-        limit=limit,
-        offset=offset
+        scores=[MachineScore(**score) for score in scores], total=total, limit=limit, offset=offset
     )
 
 
 @router.get(
     "/{machine_key}/venues",
-    response_model=List[dict],
+    response_model=list[dict],
     responses={404: {"model": ErrorResponse}},
     summary="Get venues where machine has been played",
-    description="Get list of venues with score counts for a specific machine"
+    description="Get list of venues with score counts for a specific machine",
 )
 def get_machine_venues(machine_key: str):
     """
@@ -542,7 +557,7 @@ def get_machine_venues(machine_key: str):
     """
     # First verify machine exists
     machine_query = "SELECT machine_name FROM machines WHERE machine_key = :machine_key"
-    machine_result = execute_query(machine_query, {'machine_key': machine_key})
+    machine_result = execute_query(machine_query, {"machine_key": machine_key})
     if not machine_result:
         raise HTTPException(status_code=404, detail=f"Machine '{machine_key}' not found")
 
@@ -557,17 +572,17 @@ def get_machine_venues(machine_key: str):
         GROUP BY v.venue_key, v.venue_name
         ORDER BY v.venue_name
     """
-    venues = execute_query(query, {'machine_key': machine_key})
+    venues = execute_query(query, {"machine_key": machine_key})
 
     return venues
 
 
 @router.get(
     "/{machine_key}/teams",
-    response_model=List[dict],
+    response_model=list[dict],
     responses={404: {"model": ErrorResponse}},
     summary="Get teams that have played on a machine",
-    description="Get list of teams with score counts for a specific machine"
+    description="Get list of teams with score counts for a specific machine",
 )
 def get_machine_teams(machine_key: str):
     """
@@ -577,7 +592,7 @@ def get_machine_teams(machine_key: str):
     """
     # First verify machine exists
     machine_query = "SELECT machine_name FROM machines WHERE machine_key = :machine_key"
-    machine_result = execute_query(machine_query, {'machine_key': machine_key})
+    machine_result = execute_query(machine_query, {"machine_key": machine_key})
     if not machine_result:
         raise HTTPException(status_code=404, detail=f"Machine '{machine_key}' not found")
 
@@ -592,6 +607,6 @@ def get_machine_teams(machine_key: str):
         GROUP BY t.team_key, t.team_name
         ORDER BY t.team_name
     """
-    teams = execute_query(query, {'machine_key': machine_key})
+    teams = execute_query(query, {"machine_key": machine_key})
 
     return teams

@@ -4,23 +4,23 @@ Live match data endpoints
 Fetches current match scores from mondaynightpinball.com and enriches
 them with historical score percentiles from the MNP Analyzer database.
 """
+
 import asyncio
 import logging
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 
 from api.dependencies import execute_query
 from api.models.schemas import (
-    LiveMatchSummary,
-    LiveMatchDetail,
-    LiveWeekResponse,
-    LiveRound,
     LiveGame,
-    LiveScore,
+    LiveMatchDetail,
+    LiveMatchSummary,
     LiveRosterPlayer,
+    LiveRound,
+    LiveScore,
+    LiveWeekResponse,
 )
 
 router = APIRouter(prefix="/live", tags=["live"])
@@ -30,8 +30,8 @@ MNP_MAIN_BASE = "https://mondaynightpinball.com"
 
 # In-memory caches with TTL
 # Structure: {key: {"data": ..., "expires": datetime}}
-_match_cache: Dict[str, dict] = {}
-_week_cache: Dict[str, dict] = {}
+_match_cache: dict[str, dict] = {}
+_week_cache: dict[str, dict] = {}
 
 ACTIVE_TTL = timedelta(seconds=30)
 COMPLETE_TTL = timedelta(minutes=10)
@@ -48,7 +48,7 @@ def _get_current_week(season: int) -> int:
     return results[0]["week"] if results else 1
 
 
-def _get_week_matches_from_db(season: int, week: int) -> List[dict]:
+def _get_week_matches_from_db(season: int, week: int) -> list[dict]:
     """Fetch all match rows for a given week, joining team names."""
     return execute_query(
         """
@@ -67,19 +67,39 @@ def _get_week_matches_from_db(season: int, week: int) -> List[dict]:
     )
 
 
-async def _fetch_match_json(match_key: str) -> Optional[dict]:
+def _to_main_site_key(match_key: str) -> str:
+    """Convert a DB match key to the main-site format.
+
+    DB may store:   mnp-23-05-adb-ttt  (zero-padded week, lowercase teams)
+    Main site uses: mnp-23-5-ADB-TTT   (no padding, uppercase teams)
+    """
+    parts = match_key.split("-")
+    if len(parts) >= 5:
+        season = parts[1]
+        week = str(int(parts[2]))  # strip zero-padding
+        away = parts[3].upper()
+        home = parts[4].upper()
+        return f"mnp-{season}-{week}-{away}-{home}"
+    return match_key
+
+
+async def _fetch_match_json(match_key: str) -> dict | None:
     """
     Fetch a match's JSON from mondaynightpinball.com.
     Returns None on any error (404, timeout, network failure).
     """
-    url = f"{MNP_MAIN_BASE}/matches/{match_key}.json"
+    site_key = _to_main_site_key(match_key)
+    url = f"{MNP_MAIN_BASE}/matches/{site_key}.json"
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
             response = await client.get(url)
             if response.status_code == 404:
                 return None
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            if not data:
+                return None
+            return data
     except Exception as e:
         logger.warning(f"Failed to fetch match {match_key} from main site: {e}")
         return None
@@ -101,7 +121,7 @@ def _compute_totals(raw: dict) -> tuple[int, int]:
     return away, home
 
 
-def _date_str(db_match: dict) -> Optional[str]:
+def _date_str(db_match: dict) -> str | None:
     val = db_match.get("date")
     if val is None:
         return None
@@ -112,6 +132,7 @@ def _date_str(db_match: dict) -> Optional[str]:
 # Handicap / bonus point calculation
 # Ported from model/matches.js in mondaynightpinball.com
 # ---------------------------------------------------------------------------
+
 
 def _ipr_for_player(player: dict) -> float:
     """Return a player's effective IPR, minimum 1. Mirrors JS iprForPlayer()."""
@@ -124,7 +145,7 @@ def _ipr_for_player(player: dict) -> float:
     return 1.0
 
 
-def _get_calculated_team_ipr(lineup: List[dict]) -> float:
+def _get_calculated_team_ipr(lineup: list[dict]) -> float:
     """
     Calculate the composite team IPR used for handicap.
     Mirrors Team.getCalculatedTeamIPR() in model/matches.js.
@@ -145,7 +166,7 @@ def _get_calculated_team_ipr(lineup: List[dict]) -> float:
     return team_ipr
 
 
-def _calculate_bonus(lineup: List[dict]) -> dict:
+def _calculate_bonus(lineup: list[dict]) -> dict:
     """
     Calculate participation bonus and handicap points for a team lineup.
     Mirrors Team.getBonus() in model/matches.js.
@@ -185,12 +206,16 @@ def _calculate_bonus(lineup: List[dict]) -> dict:
     # after the < 30 guard, but kept for parity)
     if player_rounds < 15:
         handicap = (50 - team_ipr) / 2
-    if num_players == 10:
-        if player_rounds < 22 and played0 == 0:
-            handicap = (50 - team_ipr) / 2
-        elif player_rounds < 30 and played0 == 0 and played1 == 0:
-            handicap = (50 - team_ipr) / 2
-        elif player_rounds == 30 and played3 == 10:
+    if num_players == 10:  # noqa: SIM102
+        if (
+            player_rounds < 22
+            and played0 == 0
+            or player_rounds < 30
+            and played0 == 0
+            and played1 == 0
+            or player_rounds == 30
+            and played3 == 10
+        ):
             handicap = (50 - team_ipr) / 2
     if handicap == 0:
         team_ipr_partial = (player_rounds_ipr * 10) / player_rounds
@@ -209,7 +234,7 @@ def _calculate_bonus(lineup: List[dict]) -> dict:
     return bonus
 
 
-def _build_summary(db_match: dict, raw: Optional[dict]) -> LiveMatchSummary:
+def _build_summary(db_match: dict, raw: dict | None) -> LiveMatchSummary:
     """Build a LiveMatchSummary from a DB row and optional live JSON."""
     if raw is None:
         state = "UNAVAILABLE"
@@ -251,7 +276,7 @@ def _build_summary(db_match: dict, raw: Optional[dict]) -> LiveMatchSummary:
     )
 
 
-def _get_machine_names(machine_keys: List[str]) -> Dict[str, str]:
+def _get_machine_names(machine_keys: list[str]) -> dict[str, str]:
     """Batch-fetch machine display names from the DB."""
     if not machine_keys:
         return {}
@@ -264,7 +289,7 @@ def _get_machine_names(machine_keys: List[str]) -> Dict[str, str]:
     return {r["machine_key"]: r["machine_name"] for r in results}
 
 
-def _get_percentile_thresholds(machine_keys: List[str]) -> Dict[str, List[tuple]]:
+def _get_percentile_thresholds(machine_keys: list[str]) -> dict[str, list[tuple]]:
     """
     Batch-fetch pre-calculated percentile thresholds for a set of machines.
 
@@ -284,14 +309,14 @@ def _get_percentile_thresholds(machine_keys: List[str]) -> Dict[str, List[tuple]
         """,
         params,
     )
-    data: Dict[str, List[tuple]] = {}
+    data: dict[str, list[tuple]] = {}
     for r in results:
         key = r["machine_key"]
         data.setdefault(key, []).append((r["score_threshold"], r["percentile"]))
     return data
 
 
-def _score_percentile(score: int, thresholds: List[tuple]) -> int:
+def _score_percentile(score: int, thresholds: list[tuple]) -> int:
     """
     Given a score and a list of (score_threshold, percentile) sorted ascending
     by score_threshold, return the highest percentile the score achieves.
@@ -305,9 +330,9 @@ def _score_percentile(score: int, thresholds: List[tuple]) -> int:
     return result
 
 
-def _build_lineup_lookup(raw: dict) -> Dict[str, dict]:
+def _build_lineup_lookup(raw: dict) -> dict[str, dict]:
     """Build a mapping of player_key → lineup entry from both teams."""
-    lookup: Dict[str, dict] = {}
+    lookup: dict[str, dict] = {}
     for side in ("away", "home"):
         for p in raw.get(side, {}).get("lineup", []):
             key = p.get("key")
@@ -319,8 +344,8 @@ def _build_lineup_lookup(raw: dict) -> Dict[str, dict]:
 def _build_roster(
     raw: dict,
     side: str,
-    player_points: Dict[str, float],
-) -> List[LiveRosterPlayer]:
+    player_points: dict[str, float],
+) -> list[LiveRosterPlayer]:
     """Build a LiveRosterPlayer list for one team from raw match JSON."""
     team_data = raw.get(side, {})
     lineup = team_data.get("lineup", [])
@@ -335,29 +360,31 @@ def _build_roster(
         if not isinstance(ipr_val, (int, float)) or ipr_val != ipr_val:
             ipr_val = None
 
-        roster.append(LiveRosterPlayer(
-            key=key,
-            name=p.get("name", key),
-            ipr=float(ipr_val) if ipr_val is not None else None,
-            is_sub=bool(p.get("sub", False)),
-            is_captain=key in captain_keys,
-            num_played=int(p.get("num_played", 0) or 0),
-            total_points=player_points.get(key, 0.0),
-        ))
+        roster.append(
+            LiveRosterPlayer(
+                key=key,
+                name=p.get("name", key),
+                ipr=float(ipr_val) if ipr_val is not None else None,
+                is_sub=bool(p.get("sub", False)),
+                is_captain=key in captain_keys,
+                num_played=int(p.get("num_played", 0) or 0),
+                total_points=player_points.get(key, 0.0),
+            )
+        )
     return roster
 
 
 def _build_detail(
     db_match: dict,
     raw: dict,
-    machine_names: Dict[str, str],
-    percentile_data: Dict[str, List[tuple]],
+    machine_names: dict[str, str],
+    percentile_data: dict[str, list[tuple]],
 ) -> LiveMatchDetail:
     """Build a LiveMatchDetail with enriched per-score percentiles."""
     lineup_lookup = _build_lineup_lookup(raw)
 
     # Track per-player point totals across all games
-    player_points: Dict[str, float] = {}
+    player_points: dict[str, float] = {}
 
     rounds = []
     for rd in raw.get("rounds", []):
@@ -382,15 +409,19 @@ def _build_detail(
 
                 # Accumulate player points
                 if player_key and raw_points is not None:
-                    player_points[player_key] = player_points.get(player_key, 0.0) + float(raw_points)
+                    player_points[player_key] = player_points.get(player_key, 0.0) + float(
+                        raw_points
+                    )
 
-                scores.append(LiveScore(
-                    score=raw_score,
-                    points=raw_points,
-                    percentile=pct,
-                    player_key=player_key,
-                    player_name=player_name,
-                ))
+                scores.append(
+                    LiveScore(
+                        score=raw_score,
+                        points=raw_points,
+                        percentile=pct,
+                        player_key=player_key,
+                        player_name=player_name,
+                    )
+                )
 
             games.append(
                 LiveGame(
@@ -445,7 +476,7 @@ def _build_detail(
 )
 async def get_live_week(
     season: int = Query(23, description="Season number"),
-    week: Optional[int] = Query(None, description="Week number (defaults to most recent played week)"),
+    week: int | None = Query(None, description="Week number (defaults to most recent played week)"),
     refresh: bool = Query(False, description="Bypass the 60-second cache"),
 ):
     if week is None:
@@ -467,14 +498,9 @@ async def get_live_week(
         )
 
     # Fetch all matches from the main site in parallel
-    raw_results = await asyncio.gather(
-        *[_fetch_match_json(m["match_key"]) for m in db_matches]
-    )
+    raw_results = await asyncio.gather(*[_fetch_match_json(m["match_key"]) for m in db_matches])
 
-    summaries = [
-        _build_summary(db_match, raw)
-        for db_match, raw in zip(db_matches, raw_results)
-    ]
+    summaries = [_build_summary(db_match, raw) for db_match, raw in zip(db_matches, raw_results)]
 
     result = LiveWeekResponse(season=season, week=week, matches=summaries)
     _week_cache[cache_key] = {"data": result, "expires": now + WEEK_TTL}
@@ -527,10 +553,16 @@ async def get_live_match(
 
     raw = await _fetch_match_json(match_key)
     if raw is None:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Could not fetch match data from mondaynightpinball.com for '{match_key}'",
+        # Return minimal detail with UNAVAILABLE state instead of 502
+        summary = _build_summary(db_match, None)
+        detail = LiveMatchDetail(
+            **summary.model_dump(),
+            rounds=[],
+            away_lineup=[],
+            home_lineup=[],
         )
+        _match_cache[match_key] = {"data": detail, "expires": now + ACTIVE_TTL}
+        return detail
 
     # Collect unique machine keys for batch lookups
     machine_keys = list(

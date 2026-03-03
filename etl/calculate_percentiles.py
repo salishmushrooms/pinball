@@ -4,39 +4,39 @@ Calculate score percentiles for each machine and populate score_percentiles tabl
 
 This script:
 1. Fetches all scores for each machine
-2. Calculates percentile thresholds (10th, 25th, 50th, 75th, 90th, 95th, 99th)
+2. Calculates percentile thresholds (90th, 95th, 99th)
 3. Calculates mean and standard deviation
 4. Populates score_percentiles table
 
 Usage:
-    python etl/calculate_percentiles.py --season 22
-    python etl/calculate_percentiles.py --season 22 --venue-specific
-    python etl/calculate_percentiles.py --season 22 --verbose
+    python etl/calculate_percentiles.py --season 23
+    python etl/calculate_percentiles.py --season 23 --venue-specific
+    python etl/calculate_percentiles.py --season 23 --verbose
+
+Users will be most interested in viewing how current season scores stack up to historical aggregations, and less likely to care about percentile ranking for past seasons
 """
 
 import argparse
 import logging
 import sys
 from collections import defaultdict
+
 import numpy as np
 from sqlalchemy import text
 
-from etl.config import config
 from etl.database import db
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 logger = logging.getLogger(__name__)
 
 # Percentiles to calculate
-PERCENTILES = [10, 25, 50, 75, 90, 95, 99]
+PERCENTILES = [50, 90, 95, 99]
 
 
 def fetch_scores_by_machine(season: int, venue_key=None):
@@ -60,9 +60,9 @@ def fetch_scores_by_machine(season: int, venue_key=None):
 
     if venue_key:
         query += " AND venue_key = :venue_key"
-        params = {'season': season, 'venue_key': venue_key}
+        params = {"season": season, "venue_key": venue_key}
     else:
-        params = {'season': season}
+        params = {"season": season}
 
     query += " ORDER BY machine_key, score"
 
@@ -76,7 +76,6 @@ def fetch_scores_by_machine(season: int, venue_key=None):
 
     for row in rows:
         machine_key = row[0]
-        venue = row[1]
         score = row[2]
 
         if venue_key:
@@ -115,9 +114,9 @@ def calculate_percentiles_for_scores(scores):
         percentile_values[p] = int(threshold)
 
     # Also calculate mean and stddev for outlier detection
-    percentile_values['mean'] = int(np.mean(scores_array))
-    percentile_values['stddev'] = int(np.std(scores_array))
-    percentile_values['sample_size'] = len(scores)
+    percentile_values["mean"] = int(np.mean(scores_array))
+    percentile_values["stddev"] = int(np.std(scores_array))
+    percentile_values["sample_size"] = len(scores)
 
     return percentile_values
 
@@ -130,14 +129,14 @@ def clear_existing_percentiles(season: int, venue_key=None):
             DELETE FROM score_percentiles
             WHERE season = :season AND venue_key = :venue_key
         """
-        params = {'season': season, 'venue_key': venue_key}
+        params = {"season": season, "venue_key": venue_key}
         logger.info(f"Clearing existing percentiles for season {season}, venue {venue_key}")
     else:
         query = """
             DELETE FROM score_percentiles
             WHERE season = :season AND venue_key = '_ALL_'
         """
-        params = {'season': season}
+        params = {"season": season}
         logger.info(f"Clearing existing percentiles for season {season} (all venues)")
 
     with db.engine.begin() as conn:
@@ -151,16 +150,18 @@ def insert_percentiles(machine_key, venue_key, season, percentile_data):
 
     for percentile in PERCENTILES:
         threshold = percentile_data[percentile]
-        sample_size = percentile_data['sample_size']
+        sample_size = percentile_data["sample_size"]
 
-        records.append({
-            'machine_key': machine_key,
-            'venue_key': venue_key,
-            'season': season,
-            'percentile': percentile,
-            'score_threshold': threshold,
-            'sample_size': sample_size
-        })
+        records.append(
+            {
+                "machine_key": machine_key,
+                "venue_key": venue_key,
+                "season": season,
+                "percentile": percentile,
+                "score_threshold": threshold,
+                "sample_size": sample_size,
+            }
+        )
 
     # Insert all percentiles for this machine
     query = """
@@ -187,10 +188,10 @@ def calculate_and_store_percentiles(season: int, venue_specific: bool = False):
         venue_specific: If True, calculate percentiles per venue; if False, global per machine
     """
 
-    logger.info(f"=" * 60)
+    logger.info("=" * 60)
     logger.info(f"Calculating Score Percentiles for Season {season}")
     logger.info(f"Mode: {'Venue-Specific' if venue_specific else 'Global (All Venues)'}")
-    logger.info(f"=" * 60)
+    logger.info("=" * 60)
 
     # Step 1: Clear existing percentiles
     clear_existing_percentiles(season)
@@ -219,7 +220,7 @@ def calculate_and_store_percentiles(season: int, venue_specific: bool = False):
 
         if percentile_data:
             # Store with venue_key = '_ALL_' for global percentiles
-            insert_percentiles(machine_key, '_ALL_', season, percentile_data)
+            insert_percentiles(machine_key, "_ALL_", season, percentile_data)
             machines_processed += 1
 
             # Log some stats for interesting machines
@@ -233,12 +234,12 @@ def calculate_and_store_percentiles(season: int, venue_specific: bool = False):
                 )
 
     logger.info("")
-    logger.info(f"=" * 60)
-    logger.info(f"✓ Percentiles calculated successfully!")
+    logger.info("=" * 60)
+    logger.info("✓ Percentiles calculated successfully!")
     logger.info(f"  Machines processed: {machines_processed}")
     logger.info(f"  Machines skipped: {machines_skipped} (insufficient data)")
     logger.info(f"  Percentile records created: {machines_processed * len(PERCENTILES)}")
-    logger.info(f"=" * 60)
+    logger.info("=" * 60)
 
     return True
 
@@ -261,7 +262,7 @@ def verify_percentiles(season: int):
     """
 
     with db.engine.connect() as conn:
-        result = conn.execute(text(query), {'season': season})
+        result = conn.execute(text(query), {"season": season})
         row = result.fetchone()
 
     if row:
@@ -286,7 +287,7 @@ def verify_percentiles(season: int):
     """
 
     with db.engine.connect() as conn:
-        result = conn.execute(text(query), {'season': season})
+        result = conn.execute(text(query), {"season": season})
         rows = result.fetchall()
 
     current_machine = None
@@ -302,11 +303,14 @@ def verify_percentiles(season: int):
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(description='Calculate score percentiles')
-    parser.add_argument('--season', type=int, required=True, help='Season number (e.g., 22)')
-    parser.add_argument('--venue-specific', action='store_true',
-                       help='Calculate percentiles per venue (future feature)')
-    parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
+    parser = argparse.ArgumentParser(description="Calculate score percentiles")
+    parser.add_argument("--season", type=int, required=True, help="Season number (e.g., 22)")
+    parser.add_argument(
+        "--venue-specific",
+        action="store_true",
+        help="Calculate percentiles per venue (future feature)",
+    )
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
 
@@ -341,5 +345,5 @@ def main():
         db.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

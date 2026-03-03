@@ -6,27 +6,28 @@ Provides endpoints for:
 - Linking/unlinking player profiles
 - Fetching Matchplay stats for linked players
 """
-from typing import Optional
-from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import text
+
 import logging
 from datetime import datetime
 
+from fastapi import APIRouter, HTTPException, Query
+from sqlalchemy import text
+
+from api.dependencies import execute_query
 from api.models.schemas import (
-    MatchplayLookupResult,
-    MatchplayMatch,
-    MatchplayUser,
-    MatchplayPlayerMapping,
+    ErrorResponse,
+    MatchplayIFPA,
     MatchplayLinkRequest,
     MatchplayLinkResponse,
+    MatchplayLookupResult,
+    MatchplayMatch,
+    MatchplayPlayerMapping,
     MatchplayPlayerStats,
     MatchplayRating,
-    MatchplayIFPA,
-    ErrorResponse
+    MatchplayUser,
 )
 from api.services.matchplay_client import MatchplayClient, MatchplayClientError
 from api.services.player_matcher import PlayerMatcher
-from api.dependencies import execute_query
 from etl.database import db
 
 logger = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ def get_db_connection():
 @router.get(
     "/status",
     summary="Check Matchplay integration status",
-    description="Check if Matchplay API is configured and accessible"
+    description="Check if Matchplay API is configured and accessible",
 )
 async def get_matchplay_status():
     """
@@ -54,8 +55,9 @@ async def get_matchplay_status():
 
     status = {
         "configured": client.is_configured(),
-        "message": "Matchplay API token is configured" if client.is_configured()
-                   else "MATCHPLAY_API_TOKEN environment variable not set"
+        "message": "Matchplay API token is configured"
+        if client.is_configured()
+        else "MATCHPLAY_API_TOKEN environment variable not set",
     }
 
     # If configured, try a simple API call to verify connectivity
@@ -78,7 +80,7 @@ async def get_matchplay_status():
     response_model=MatchplayLookupResult,
     responses={404: {"model": ErrorResponse}},
     summary="Look up MNP player on Matchplay",
-    description="Search Matchplay.events for profiles matching an MNP player's name"
+    description="Search Matchplay.events for profiles matching an MNP player's name",
 )
 async def lookup_player_on_matchplay(player_key: str):
     """
@@ -96,33 +98,33 @@ async def lookup_player_on_matchplay(player_key: str):
         FROM matchplay_player_mappings
         WHERE mnp_player_key = :player_key
     """
-    existing = execute_query(existing_query, {'player_key': player_key})
+    existing = execute_query(existing_query, {"player_key": player_key})
 
     if existing:
         mapping_data = existing[0]
         return MatchplayLookupResult(
-            mnp_player={"key": player_key, "name": mapping_data.get('matchplay_name', '')},
+            mnp_player={"key": player_key, "name": mapping_data.get("matchplay_name", "")},
             matches=[],
             status="already_linked",
-            mapping=MatchplayPlayerMapping(**mapping_data)
+            mapping=MatchplayPlayerMapping(**mapping_data),
         )
 
     # Get MNP player
     player_query = "SELECT player_key, name FROM players WHERE player_key = :player_key"
-    players = execute_query(player_query, {'player_key': player_key})
+    players = execute_query(player_query, {"player_key": player_key})
 
     if not players:
         raise HTTPException(status_code=404, detail=f"Player '{player_key}' not found")
 
     player = players[0]
-    mnp_name = player['name']
+    mnp_name = player["name"]
 
     # Check if Matchplay client is configured
     client = MatchplayClient()
     if not client.is_configured():
         raise HTTPException(
             status_code=503,
-            detail="Matchplay integration not configured. Set MATCHPLAY_API_TOKEN environment variable."
+            detail="Matchplay integration not configured. Set MATCHPLAY_API_TOKEN environment variable.",
         )
 
     # Search Matchplay
@@ -136,18 +138,20 @@ async def lookup_player_on_matchplay(player_key: str):
     # Convert to response format
     match_results = []
     for match in matches:
-        user_data = match['user']
-        match_results.append(MatchplayMatch(
-            user=MatchplayUser(
-                userId=user_data.get('userId') or user_data.get('id'),
-                name=user_data.get('name', ''),
-                ifpaId=user_data.get('ifpaId'),
-                location=user_data.get('location'),
-                avatar=user_data.get('avatar')
-            ),
-            confidence=match['confidence'],
-            auto_link_eligible=match['auto_link_eligible']
-        ))
+        user_data = match["user"]
+        match_results.append(
+            MatchplayMatch(
+                user=MatchplayUser(
+                    userId=user_data.get("userId") or user_data.get("id"),
+                    name=user_data.get("name", ""),
+                    ifpaId=user_data.get("ifpaId"),
+                    location=user_data.get("location"),
+                    avatar=user_data.get("avatar"),
+                ),
+                confidence=match["confidence"],
+                auto_link_eligible=match["auto_link_eligible"],
+            )
+        )
 
     status = "found" if match_results else "not_found"
 
@@ -155,19 +159,16 @@ async def lookup_player_on_matchplay(player_key: str):
         mnp_player={"key": player_key, "name": mnp_name},
         matches=match_results,
         status=status,
-        mapping=None
+        mapping=None,
     )
 
 
 @router.post(
     "/player/{player_key}/link",
     response_model=MatchplayLinkResponse,
-    responses={
-        404: {"model": ErrorResponse},
-        409: {"model": ErrorResponse}
-    },
+    responses={404: {"model": ErrorResponse}, 409: {"model": ErrorResponse}},
     summary="Link MNP player to Matchplay profile",
-    description="Create a link between an MNP player and a Matchplay.events user"
+    description="Create a link between an MNP player and a Matchplay.events user",
 )
 async def link_player_to_matchplay(player_key: str, request: MatchplayLinkRequest):
     """
@@ -178,13 +179,13 @@ async def link_player_to_matchplay(player_key: str, request: MatchplayLinkReques
     """
     # Verify MNP player exists
     player_query = "SELECT player_key, name FROM players WHERE player_key = :player_key"
-    players = execute_query(player_query, {'player_key': player_key})
+    players = execute_query(player_query, {"player_key": player_key})
 
     if not players:
         raise HTTPException(status_code=404, detail=f"Player '{player_key}' not found")
 
     player = players[0]
-    mnp_name = player['name']
+    mnp_name = player["name"]
 
     # Check if already linked
     existing_query = """
@@ -192,26 +193,30 @@ async def link_player_to_matchplay(player_key: str, request: MatchplayLinkReques
         FROM matchplay_player_mappings
         WHERE mnp_player_key = :player_key OR matchplay_user_id = :matchplay_user_id
     """
-    existing = execute_query(existing_query, {
-        'player_key': player_key,
-        'matchplay_user_id': request.matchplay_user_id
-    })
+    existing = execute_query(
+        existing_query, {"player_key": player_key, "matchplay_user_id": request.matchplay_user_id}
+    )
 
     if existing:
         row = existing[0]
         # Check if this is the EXACT same link being requested (idempotent case)
-        if row['mnp_player_key'] == player_key and row['matchplay_user_id'] == request.matchplay_user_id:
+        if (
+            row["mnp_player_key"] == player_key
+            and row["matchplay_user_id"] == request.matchplay_user_id
+        ):
             # Return success - link already exists with same mapping
-            logger.info(f"Link already exists for MNP player '{player_key}' to Matchplay user {request.matchplay_user_id}")
+            logger.info(
+                f"Link already exists for MNP player '{player_key}' to Matchplay user {request.matchplay_user_id}"
+            )
             mapping = MatchplayPlayerMapping(
-                id=row['id'],
-                mnp_player_key=row['mnp_player_key'],
-                matchplay_user_id=row['matchplay_user_id'],
-                matchplay_name=row['matchplay_name'],
-                ifpa_id=row['ifpa_id'],
-                match_method=row['match_method'],
-                created_at=row['created_at'],
-                last_synced=row['last_synced']
+                id=row["id"],
+                mnp_player_key=row["mnp_player_key"],
+                matchplay_user_id=row["matchplay_user_id"],
+                matchplay_name=row["matchplay_name"],
+                ifpa_id=row["ifpa_id"],
+                match_method=row["match_method"],
+                created_at=row["created_at"],
+                last_synced=row["last_synced"],
             )
             return MatchplayLinkResponse(status="already_linked", mapping=mapping)
         else:
@@ -219,16 +224,13 @@ async def link_player_to_matchplay(player_key: str, request: MatchplayLinkReques
             # or matchplay user is linked to different player
             raise HTTPException(
                 status_code=409,
-                detail="Player or Matchplay user is already linked to a different account"
+                detail="Player or Matchplay user is already linked to a different account",
             )
 
     # Fetch Matchplay user info to store name
     client = MatchplayClient()
     if not client.is_configured():
-        raise HTTPException(
-            status_code=503,
-            detail="Matchplay integration not configured"
-        )
+        raise HTTPException(status_code=503, detail="Matchplay integration not configured")
 
     try:
         # Try to get user profile for name
@@ -238,21 +240,24 @@ async def link_player_to_matchplay(player_key: str, request: MatchplayLinkReques
 
         try:
             user_data = await client.get_user_profile(request.matchplay_user_id)
-            matchplay_name = user_data.get('name')
-            ifpa_id = user_data.get('ifpaId')
+            matchplay_name = user_data.get("name")
+            ifpa_id = user_data.get("ifpaId")
         except Exception:
             # If direct profile fetch fails, try searching
             search_results = await client.search_users(mnp_name)
             for result in search_results:
-                if result.get('userId') == request.matchplay_user_id or result.get('id') == request.matchplay_user_id:
-                    matchplay_name = result.get('name')
-                    ifpa_id = result.get('ifpaId')
+                if (
+                    result.get("userId") == request.matchplay_user_id
+                    or result.get("id") == request.matchplay_user_id
+                ):
+                    matchplay_name = result.get("name")
+                    ifpa_id = result.get("ifpaId")
                     break
 
         # Determine if this was an exact match (for match_method)
-        match_method = 'manual'
+        match_method = "manual"
         if matchplay_name and matchplay_name.lower().strip() == mnp_name.lower().strip():
-            match_method = 'auto'
+            match_method = "auto"
 
         # Insert mapping
         insert_query = """
@@ -264,14 +269,17 @@ async def link_player_to_matchplay(player_key: str, request: MatchplayLinkReques
         """
 
         with get_db_connection() as conn:
-            result = conn.execute(text(insert_query), {
-                'mnp_player_key': player_key,
-                'matchplay_user_id': request.matchplay_user_id,
-                'matchplay_name': matchplay_name or mnp_name,
-                'ifpa_id': ifpa_id,
-                'match_method': match_method,
-                'created_at': datetime.utcnow()
-            })
+            result = conn.execute(
+                text(insert_query),
+                {
+                    "mnp_player_key": player_key,
+                    "matchplay_user_id": request.matchplay_user_id,
+                    "matchplay_name": matchplay_name or mnp_name,
+                    "ifpa_id": ifpa_id,
+                    "match_method": match_method,
+                    "created_at": datetime.utcnow(),
+                },
+            )
             conn.commit()
             row = result.fetchone()
 
@@ -284,12 +292,14 @@ async def link_player_to_matchplay(player_key: str, request: MatchplayLinkReques
                     ifpa_id=row[4],
                     match_method=row[5],
                     created_at=row[6],
-                    last_synced=row[7]
+                    last_synced=row[7],
                 )
             else:
                 raise HTTPException(status_code=500, detail="Failed to create mapping")
 
-        logger.info(f"Linked MNP player '{player_key}' to Matchplay user {request.matchplay_user_id}")
+        logger.info(
+            f"Linked MNP player '{player_key}' to Matchplay user {request.matchplay_user_id}"
+        )
 
         return MatchplayLinkResponse(status="linked", mapping=mapping)
 
@@ -302,7 +312,7 @@ async def link_player_to_matchplay(player_key: str, request: MatchplayLinkReques
     "/player/{player_key}/link",
     responses={404: {"model": ErrorResponse}},
     summary="Unlink MNP player from Matchplay profile",
-    description="Remove the link between an MNP player and Matchplay.events"
+    description="Remove the link between an MNP player and Matchplay.events",
 )
 async def unlink_player_from_matchplay(player_key: str):
     """
@@ -318,11 +328,14 @@ async def unlink_player_from_matchplay(player_key: str):
     # check existence and delete in one operation (prevents race conditions)
     with get_db_connection() as conn:
         # First, try to delete and get the matchplay_user_id in one atomic operation
-        result = conn.execute(text("""
+        result = conn.execute(
+            text("""
             DELETE FROM matchplay_player_mappings
             WHERE mnp_player_key = :player_key
             RETURNING matchplay_user_id
-        """), {'player_key': player_key})
+        """),
+            {"player_key": player_key},
+        )
 
         deleted_row = result.fetchone()
 
@@ -331,24 +344,34 @@ async def unlink_player_from_matchplay(player_key: str):
 
             # Delete related cached data (cascade should handle this, but be explicit)
             # These may already be gone due to ON DELETE CASCADE, which is fine
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 DELETE FROM matchplay_player_machine_stats
                 WHERE matchplay_user_id = :matchplay_user_id
-            """), {'matchplay_user_id': matchplay_user_id})
+            """),
+                {"matchplay_user_id": matchplay_user_id},
+            )
 
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 DELETE FROM matchplay_ratings
                 WHERE matchplay_user_id = :matchplay_user_id
-            """), {'matchplay_user_id': matchplay_user_id})
+            """),
+                {"matchplay_user_id": matchplay_user_id},
+            )
 
             conn.commit()
-            logger.info(f"Unlinked MNP player '{player_key}' from Matchplay user {matchplay_user_id}")
+            logger.info(
+                f"Unlinked MNP player '{player_key}' from Matchplay user {matchplay_user_id}"
+            )
             return {"status": "unlinked", "player_key": player_key}
         else:
             # No link existed - this is fine, return success (idempotent)
             # This handles race conditions where two unlink requests arrive simultaneously
             conn.rollback()
-            logger.info(f"Unlink called for MNP player '{player_key}' but no link existed (already unlinked)")
+            logger.info(
+                f"Unlink called for MNP player '{player_key}' but no link existed (already unlinked)"
+            )
             return {"status": "already_unlinked", "player_key": player_key}
 
 
@@ -357,7 +380,7 @@ async def unlink_player_from_matchplay(player_key: str):
     response_model=MatchplayPlayerStats,
     responses={404: {"model": ErrorResponse}},
     summary="Get Matchplay stats for linked player",
-    description="Get cached rating and IFPA data for a linked player"
+    description="Get cached rating and IFPA data for a linked player",
 )
 async def get_player_matchplay_stats(player_key: str):
     """
@@ -399,62 +422,64 @@ async def get_player_matchplay_stats(player_key: str):
         LEFT JOIN matchplay_ratings r ON m.matchplay_user_id = r.matchplay_user_id
         WHERE m.mnp_player_key = :player_key
     """
-    results = execute_query(query, {'player_key': player_key})
+    results = execute_query(query, {"player_key": player_key})
 
     if not results:
         raise HTTPException(
             status_code=404,
-            detail=f"Player '{player_key}' not linked to Matchplay. Use /lookup first."
+            detail=f"Player '{player_key}' not linked to Matchplay. Use /lookup first.",
         )
 
     data = results[0]
-    matchplay_user_id = data['matchplay_user_id']
-    matchplay_name = data['matchplay_name']
+    matchplay_user_id = data["matchplay_user_id"]
+    matchplay_name = data["matchplay_name"]
 
     # Build rating object if we have rating data
     rating = None
-    if data.get('rating_value') is not None:
+    if data.get("rating_value") is not None:
         rating = MatchplayRating(
-            rating=float(data['rating_value']) if data['rating_value'] else None,
-            rd=float(data['rating_rd']) if data['rating_rd'] else None,
-            game_count=data.get('game_count'),
-            win_count=data.get('win_count'),
-            loss_count=data.get('loss_count'),
-            efficiency_percent=float(data['efficiency_percent']) if data['efficiency_percent'] else None,
-            lower_bound=float(data['lower_bound']) if data['lower_bound'] else None,
-            fetched_at=data.get('fetched_at')
+            rating=float(data["rating_value"]) if data["rating_value"] else None,
+            rd=float(data["rating_rd"]) if data["rating_rd"] else None,
+            game_count=data.get("game_count"),
+            win_count=data.get("win_count"),
+            loss_count=data.get("loss_count"),
+            efficiency_percent=float(data["efficiency_percent"])
+            if data["efficiency_percent"]
+            else None,
+            lower_bound=float(data["lower_bound"]) if data["lower_bound"] else None,
+            fetched_at=data.get("fetched_at"),
         )
 
     # Build IFPA object if we have IFPA data
     ifpa = None
-    if data.get('ifpa_id') is not None or data.get('ifpa_rank') is not None:
+    if data.get("ifpa_id") is not None or data.get("ifpa_rank") is not None:
         ifpa = MatchplayIFPA(
-            ifpa_id=data.get('ifpa_id'),
-            rank=data.get('ifpa_rank'),
-            rating=float(data['ifpa_rating']) if data['ifpa_rating'] else None,
-            womens_rank=data.get('ifpa_womens_rank')
+            ifpa_id=data.get("ifpa_id"),
+            rank=data.get("ifpa_rank"),
+            rating=float(data["ifpa_rating"]) if data["ifpa_rating"] else None,
+            womens_rank=data.get("ifpa_womens_rank"),
         )
 
     return MatchplayPlayerStats(
         matchplay_user_id=matchplay_user_id,
         matchplay_name=matchplay_name or "",
-        location=data.get('location'),
-        avatar=data.get('avatar'),
+        location=data.get("location"),
+        avatar=data.get("avatar"),
         rating=rating,
         ifpa=ifpa,
-        tournament_count=data.get('tournament_count'),
+        tournament_count=data.get("tournament_count"),
         machine_stats=[],  # Machine stats not available due to API limitations
-        profile_url=f"https://app.matchplay.events/users/{matchplay_user_id}"
+        profile_url=f"https://app.matchplay.events/users/{matchplay_user_id}",
     )
 
 
 @router.get(
     "/search/tournaments",
     summary="Search Matchplay tournaments",
-    description="Search for tournaments on Matchplay.events by name"
+    description="Search for tournaments on Matchplay.events by name",
 )
 async def search_matchplay_tournaments(
-    query: str = Query(..., min_length=2, description="Search query")
+    query: str = Query(..., min_length=2, description="Search query"),
 ):
     """
     Search for tournaments on Matchplay.events.
@@ -463,18 +488,11 @@ async def search_matchplay_tournaments(
     """
     client = MatchplayClient()
     if not client.is_configured():
-        raise HTTPException(
-            status_code=503,
-            detail="Matchplay integration not configured"
-        )
+        raise HTTPException(status_code=503, detail="Matchplay integration not configured")
 
     try:
         results = await client.search_tournaments(query)
-        return {
-            "query": query,
-            "results": results,
-            "count": len(results)
-        }
+        return {"query": query, "results": results, "count": len(results)}
     except MatchplayClientError as e:
         raise HTTPException(status_code=503, detail=f"Matchplay API error: {str(e)}")
 
@@ -482,11 +500,13 @@ async def search_matchplay_tournaments(
 @router.get(
     "/players/ratings",
     summary="Get Matchplay ratings for multiple players",
-    description="Batch lookup of Matchplay ratings for linked players (efficient for rosters). Returns cached ratings by default."
+    description="Batch lookup of Matchplay ratings for linked players (efficient for rosters). Returns cached ratings by default.",
 )
 async def get_players_matchplay_ratings(
     player_keys: str = Query(..., description="Comma-separated list of player keys"),
-    refresh: bool = Query(False, description="Force refresh ratings from Matchplay API (rate-limited)")
+    refresh: bool = Query(
+        False, description="Force refresh ratings from Matchplay API (rate-limited)"
+    ),
 ):
     """
     Get Matchplay ratings for multiple linked players at once.
@@ -500,14 +520,14 @@ async def get_players_matchplay_ratings(
     Example: `/matchplay/players/ratings?player_keys=abc123,def456,ghi789`
     Example: `/matchplay/players/ratings?player_keys=abc123&refresh=true`
     """
-    keys = [k.strip() for k in player_keys.split(',') if k.strip()]
+    keys = [k.strip() for k in player_keys.split(",") if k.strip()]
 
     if not keys:
         return {"ratings": {}, "cached": True, "last_updated": None}
 
     # Batch lookup all linked players with their cached ratings
-    placeholders = ', '.join([f':key_{i}' for i in range(len(keys))])
-    params = {f'key_{i}': k for i, k in enumerate(keys)}
+    placeholders = ", ".join([f":key_{i}" for i in range(len(keys))])
+    params = {f"key_{i}": k for i, k in enumerate(keys)}
 
     # Join with matchplay_ratings to get cached rating data
     mapping_query = f"""
@@ -533,12 +553,12 @@ async def get_players_matchplay_ratings(
     oldest_fetch = None
 
     for mapping in mappings:
-        player_key = mapping['mnp_player_key']
-        matchplay_user_id = mapping['matchplay_user_id']
-        matchplay_name = mapping['matchplay_name']
-        cached_rating = mapping.get('rating_value')
-        cached_rd = mapping.get('rating_rd')
-        rating_fetched_at = mapping.get('rating_fetched_at')
+        player_key = mapping["mnp_player_key"]
+        matchplay_user_id = mapping["matchplay_user_id"]
+        matchplay_name = mapping["matchplay_name"]
+        cached_rating = mapping.get("rating_value")
+        cached_rd = mapping.get("rating_rd")
+        rating_fetched_at = mapping.get("rating_fetched_at")
 
         # Track oldest fetch time for cache staleness indication
         if rating_fetched_at and (oldest_fetch is None or rating_fetched_at < oldest_fetch):
@@ -549,7 +569,7 @@ async def get_players_matchplay_ratings(
             "matchplay_name": matchplay_name,
             "rating": float(cached_rating) if cached_rating is not None else None,
             "rd": float(cached_rd) if cached_rd is not None else None,
-            "profile_url": f"https://app.matchplay.events/users/{matchplay_user_id}"
+            "profile_url": f"https://app.matchplay.events/users/{matchplay_user_id}",
         }
 
     # If refresh requested and API is configured, fetch fresh ratings
@@ -557,8 +577,8 @@ async def get_players_matchplay_ratings(
         logger.info(f"Refreshing Matchplay ratings for {len(mappings)} players")
 
         for mapping in mappings:
-            player_key = mapping['mnp_player_key']
-            matchplay_user_id = mapping['matchplay_user_id']
+            player_key = mapping["mnp_player_key"]
+            matchplay_user_id = mapping["matchplay_user_id"]
 
             # Check rate limit before each call
             if client.rate_limit_remaining is not None and client.rate_limit_remaining <= 2:
@@ -568,36 +588,34 @@ async def get_players_matchplay_ratings(
             try:
                 # Fetch full profile with IFPA and tournament count data
                 profile = await client.get_user_profile(
-                    matchplay_user_id,
-                    include_ifpa=True,
-                    include_counts=True
+                    matchplay_user_id, include_ifpa=True, include_counts=True
                 )
                 if profile:
                     # Extract user info
-                    user_info = profile.get('user', {})
-                    location = user_info.get('location')
-                    avatar = user_info.get('avatar')
+                    user_info = profile.get("user", {})
+                    location = user_info.get("location")
+                    avatar = user_info.get("avatar")
 
                     # Extract rating data
-                    rating_data = profile.get('rating', {})
-                    new_rating = rating_data.get('rating')
-                    new_rd = rating_data.get('rd')
-                    game_count = rating_data.get('gameCount')
-                    win_count = rating_data.get('winCount')
-                    loss_count = rating_data.get('lossCount')
-                    efficiency_percent = rating_data.get('efficiencyPercent')
-                    lower_bound = rating_data.get('lowerBound')
+                    rating_data = profile.get("rating", {})
+                    new_rating = rating_data.get("rating")
+                    new_rd = rating_data.get("rd")
+                    game_count = rating_data.get("gameCount")
+                    win_count = rating_data.get("winCount")
+                    loss_count = rating_data.get("lossCount")
+                    efficiency_percent = rating_data.get("efficiencyPercent")
+                    lower_bound = rating_data.get("lowerBound")
 
                     # Extract IFPA data
-                    ifpa_data = profile.get('ifpa', {})
-                    ifpa_id = ifpa_data.get('ifpaId') if ifpa_data else None
-                    ifpa_rank = ifpa_data.get('rank') if ifpa_data else None
-                    ifpa_rating = ifpa_data.get('rating') if ifpa_data else None
-                    ifpa_womens_rank = ifpa_data.get('womensRank') if ifpa_data else None
+                    ifpa_data = profile.get("ifpa", {})
+                    ifpa_id = ifpa_data.get("ifpaId") if ifpa_data else None
+                    ifpa_rank = ifpa_data.get("rank") if ifpa_data else None
+                    ifpa_rating = ifpa_data.get("rating") if ifpa_data else None
+                    ifpa_womens_rank = ifpa_data.get("womensRank") if ifpa_data else None
 
                     # Extract tournament count
-                    counts = profile.get('userCounts', {})
-                    tournament_count = counts.get('tournamentPlayCount')
+                    counts = profile.get("userCounts", {})
+                    tournament_count = counts.get("tournamentPlayCount")
 
                     # Update the response
                     ratings[player_key]["rating"] = new_rating
@@ -609,13 +627,17 @@ async def get_players_matchplay_ratings(
                         now = datetime.utcnow()
 
                         # Delete existing rating for this user
-                        conn.execute(text("""
+                        conn.execute(
+                            text("""
                             DELETE FROM matchplay_ratings
                             WHERE matchplay_user_id = :matchplay_user_id
-                        """), {'matchplay_user_id': matchplay_user_id})
+                        """),
+                            {"matchplay_user_id": matchplay_user_id},
+                        )
 
                         # Insert new rating with all available data
-                        conn.execute(text("""
+                        conn.execute(
+                            text("""
                             INSERT INTO matchplay_ratings
                                 (matchplay_user_id, rating_value, rating_rd, game_count, win_count,
                                  loss_count, efficiency_percent, lower_bound, ifpa_id, ifpa_rank,
@@ -624,34 +646,36 @@ async def get_players_matchplay_ratings(
                                 (:matchplay_user_id, :rating_value, :rating_rd, :game_count, :win_count,
                                  :loss_count, :efficiency_percent, :lower_bound, :ifpa_id, :ifpa_rank,
                                  :ifpa_rating, :ifpa_womens_rank, :tournament_count, :location, :avatar, :fetched_at)
-                        """), {
-                            'matchplay_user_id': matchplay_user_id,
-                            'rating_value': new_rating,
-                            'rating_rd': new_rd,
-                            'game_count': game_count,
-                            'win_count': win_count,
-                            'loss_count': loss_count,
-                            'efficiency_percent': efficiency_percent,
-                            'lower_bound': lower_bound,
-                            'ifpa_id': ifpa_id,
-                            'ifpa_rank': ifpa_rank,
-                            'ifpa_rating': ifpa_rating,
-                            'ifpa_womens_rank': ifpa_womens_rank,
-                            'tournament_count': tournament_count,
-                            'location': location,
-                            'avatar': avatar,
-                            'fetched_at': now
-                        })
+                        """),
+                            {
+                                "matchplay_user_id": matchplay_user_id,
+                                "rating_value": new_rating,
+                                "rating_rd": new_rd,
+                                "game_count": game_count,
+                                "win_count": win_count,
+                                "loss_count": loss_count,
+                                "efficiency_percent": efficiency_percent,
+                                "lower_bound": lower_bound,
+                                "ifpa_id": ifpa_id,
+                                "ifpa_rank": ifpa_rank,
+                                "ifpa_rating": ifpa_rating,
+                                "ifpa_womens_rank": ifpa_womens_rank,
+                                "tournament_count": tournament_count,
+                                "location": location,
+                                "avatar": avatar,
+                                "fetched_at": now,
+                            },
+                        )
 
                         # Update last_synced on mapping
-                        conn.execute(text("""
+                        conn.execute(
+                            text("""
                             UPDATE matchplay_player_mappings
                             SET last_synced = :last_synced
                             WHERE matchplay_user_id = :matchplay_user_id
-                        """), {
-                            'matchplay_user_id': matchplay_user_id,
-                            'last_synced': now
-                        })
+                        """),
+                            {"matchplay_user_id": matchplay_user_id, "last_synced": now},
+                        )
                         conn.commit()
 
             except Exception as e:
@@ -662,14 +686,14 @@ async def get_players_matchplay_ratings(
     return {
         "ratings": ratings,
         "cached": not refresh,
-        "last_updated": oldest_fetch.isoformat() if oldest_fetch else None
+        "last_updated": oldest_fetch.isoformat() if oldest_fetch else None,
     }
 
 
 @router.get(
     "/investigate/mnp-tournaments",
     summary="Investigate MNP data in Matchplay",
-    description="Search for Monday Night Pinball tournaments to check for data duplication"
+    description="Search for Monday Night Pinball tournaments to check for data duplication",
 )
 async def investigate_mnp_tournaments():
     """
@@ -688,17 +712,9 @@ async def investigate_mnp_tournaments():
     """
     client = MatchplayClient()
     if not client.is_configured():
-        raise HTTPException(
-            status_code=503,
-            detail="Matchplay integration not configured"
-        )
+        raise HTTPException(status_code=503, detail="Matchplay integration not configured")
 
-    search_terms = [
-        "Monday Night Pinball",
-        "MNP",
-        "MNP Seattle",
-        "Monday Night"
-    ]
+    search_terms = ["Monday Night Pinball", "MNP", "MNP Seattle", "Monday Night"]
 
     results = {}
     total_found = 0
@@ -708,7 +724,7 @@ async def investigate_mnp_tournaments():
             tournaments = await client.search_tournaments(term)
             results[term] = {
                 "count": len(tournaments),
-                "tournaments": tournaments[:10]  # Limit to first 10 for brevity
+                "tournaments": tournaments[:10],  # Limit to first 10 for brevity
             }
             total_found += len(tournaments)
 
@@ -721,16 +737,13 @@ async def investigate_mnp_tournaments():
                 "MNP tournaments found in Matchplay. Machine statistics may include "
                 "MNP match data, which could cause duplication with our local MNP database. "
                 "Consider filtering out MNP tournaments when aggregating Matchplay stats."
-                if has_mnp_data else
-                "No MNP tournaments found in Matchplay. Machine statistics represent "
+                if has_mnp_data
+                else "No MNP tournaments found in Matchplay. Machine statistics represent "
                 "external tournament play only - no data duplication concerns."
-            )
+            ),
         }
 
-        return {
-            "analysis": analysis,
-            "search_results": results
-        }
+        return {"analysis": analysis, "search_results": results}
 
     except MatchplayClientError as e:
         raise HTTPException(status_code=503, detail=f"Matchplay API error: {str(e)}")
@@ -739,11 +752,13 @@ async def investigate_mnp_tournaments():
 @router.get(
     "/search/users",
     summary="Search Matchplay users",
-    description="Open search for Matchplay users by name. Useful for finding players when automatic matching fails."
+    description="Open search for Matchplay users by name. Useful for finding players when automatic matching fails.",
 )
 async def search_matchplay_users(
     query: str = Query(..., min_length=2, description="Search query (name)"),
-    location_filter: Optional[str] = Query(None, description="Filter results by location substring (e.g., 'Washington', 'WA')")
+    location_filter: str | None = Query(
+        None, description="Filter results by location substring (e.g., 'Washington', 'WA')"
+    ),
 ):
     """
     Search Matchplay.events for users by name.
@@ -760,7 +775,7 @@ async def search_matchplay_users(
     if not client.is_configured():
         raise HTTPException(
             status_code=503,
-            detail="Matchplay integration not configured. Set MATCHPLAY_API_TOKEN environment variable."
+            detail="Matchplay integration not configured. Set MATCHPLAY_API_TOKEN environment variable.",
         )
 
     try:
@@ -771,16 +786,16 @@ async def search_matchplay_users(
         results = []
         for user_data in users:
             user = MatchplayUser(
-                userId=user_data.get('userId') or user_data.get('id'),
-                name=user_data.get('name', ''),
-                ifpaId=user_data.get('ifpaId'),
-                location=user_data.get('location'),
-                avatar=user_data.get('avatar')
+                userId=user_data.get("userId") or user_data.get("id"),
+                name=user_data.get("name", ""),
+                ifpaId=user_data.get("ifpaId"),
+                location=user_data.get("location"),
+                avatar=user_data.get("avatar"),
             )
 
             # Apply location filter if specified
             if location_filter:
-                user_location = user.location or ''
+                user_location = user.location or ""
                 if location_filter.lower() not in user_location.lower():
                     continue
 
@@ -790,7 +805,7 @@ async def search_matchplay_users(
             "query": query,
             "location_filter": location_filter,
             "total_results": len(results),
-            "users": results
+            "users": results,
         }
 
     except MatchplayClientError as e:

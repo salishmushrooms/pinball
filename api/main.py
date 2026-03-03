@@ -4,19 +4,32 @@ MNP Analyzer API
 FastAPI application for Monday Night Pinball data analysis.
 Provides REST endpoints for accessing player stats, machine data, and score percentiles.
 """
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
+
 import logging
 import os
+from contextlib import asynccontextmanager
 
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from starlette.middleware.base import BaseHTTPMiddleware
 
-from api.routers import players, machines, venues, teams, matchups, seasons, predictions, matchplay, scores, live_matches
+from api.routers import (
+    analysis,
+    live_matches,
+    machines,
+    matchplay,
+    matchups,
+    players,
+    predictions,
+    scores,
+    seasons,
+    teams,
+    venues,
+)
 from etl.database import db
 
 
@@ -38,10 +51,10 @@ async def lifespan(app: FastAPI):
     db.close()
     logger.info("Database connections closed")
 
+
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -56,6 +69,7 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
     Add Cache-Control headers to API responses.
     Data changes once per week, so we can cache aggressively.
     """
+
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
 
@@ -64,7 +78,9 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
             # Cache for 1 week (604800 seconds)
             # Use stale-while-revalidate to serve stale content while fetching fresh data
             # Skip /live endpoints — those serve real-time data and must not be cached
-            response.headers["Cache-Control"] = "public, max-age=604800, stale-while-revalidate=86400"
+            response.headers["Cache-Control"] = (
+                "public, max-age=604800, stale-while-revalidate=86400"
+            )
             # Add ETag support hint
             response.headers["Vary"] = "Accept-Encoding"
 
@@ -102,14 +118,8 @@ app = FastAPI(
     - Player machine stats show average percentile (0-100) for standardized comparison
     """,
     version="1.0.0",
-    contact={
-        "name": "MNP Analyzer",
-        "url": "https://github.com/yourusername/mnp-analyzer"
-    },
-    license_info={
-        "name": "MIT",
-        "url": "https://opensource.org/licenses/MIT"
-    }
+    contact={"name": "MNP Analyzer", "url": "https://github.com/yourusername/mnp-analyzer"},
+    license_info={"name": "MIT", "url": "https://opensource.org/licenses/MIT"},
 )
 
 # Configure rate limiting
@@ -134,6 +144,7 @@ app.add_middleware(
 app.add_middleware(CacheControlMiddleware)
 
 # Include routers
+app.include_router(analysis.router)
 app.include_router(players.router)
 app.include_router(machines.router)
 app.include_router(venues.router)
@@ -152,8 +163,9 @@ def read_root(request: Request):
     """
     API root endpoint - provides basic information and available endpoints
     """
-    from etl.database import db
     from sqlalchemy import text
+
+    from etl.database import db
 
     # Query actual database statistics
     data_summary = {
@@ -163,7 +175,7 @@ def read_root(request: Request):
         "venues": 0,
         "teams": 0,
         "matches": 0,
-        "total_scores": "0"
+        "total_scores": "0",
     }
 
     try:
@@ -210,9 +222,9 @@ def read_root(request: Request):
             "venues": "/venues",
             "teams": "/teams",
             "matchups": "/matchups",
-            "matchplay": "/matchplay"
+            "matchplay": "/matchplay",
         },
-        "data_summary": data_summary
+        "data_summary": data_summary,
     }
 
 
@@ -224,27 +236,23 @@ def get_seasons(request: Request):
 
     Returns a list of season numbers sorted in ascending order.
     """
-    from etl.database import db
     from sqlalchemy import text
+
+    from etl.database import db
 
     try:
         if not db.engine:
             db.connect()
         with db.engine.connect() as conn:
-            result = conn.execute(text(
-                "SELECT DISTINCT season FROM matches ORDER BY season ASC"
-            ))
+            result = conn.execute(text("SELECT DISTINCT season FROM matches ORDER BY season ASC"))
             seasons = [row[0] for row in result]
 
-        return {
-            "seasons": seasons,
-            "count": len(seasons)
-        }
+        return {"seasons": seasons, "count": len(seasons)}
     except Exception as e:
         logger.error(f"Failed to fetch seasons: {e}")
         return {
             "seasons": [20, 21, 22, 23],  # Fallback to known seasons
-            "count": 4
+            "count": 4,
         }
 
 
@@ -254,8 +262,9 @@ def health_check(request: Request):
     """
     Health check endpoint for monitoring
     """
-    from etl.database import db
     from sqlalchemy import text
+
+    from etl.database import db
 
     try:
         if not db.engine:
@@ -270,7 +279,7 @@ def health_check(request: Request):
     return {
         "status": "healthy" if db_status == "healthy" else "degraded",
         "database": db_status,
-        "api_version": "1.0.0"
+        "api_version": "1.0.0",
     }
 
 
@@ -284,17 +293,18 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={
             "detail": "An unexpected error occurred. Please try again later.",
-            "error_code": "INTERNAL_SERVER_ERROR"
-        }
+            "error_code": "INTERNAL_SERVER_ERROR",
+        },
     )
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "api.main:app",
         host="0.0.0.0",
         port=8000,
         reload=True,  # Enable auto-reload during development
-        log_level="info"
+        log_level="info",
     )

@@ -29,10 +29,8 @@ from etl.database import db
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 logger = logging.getLogger(__name__)
@@ -65,8 +63,8 @@ def run_etl_script(script_name: str, args: list = None) -> bool:
         result = subprocess.run(
             cmd,
             cwd=config.PROJECT_ROOT,
-            env={**subprocess.os.environ, 'PYTHONPATH': str(config.PROJECT_ROOT)},
-            capture_output=False  # Let output flow through
+            env={**subprocess.os.environ, "PYTHONPATH": str(config.PROJECT_ROOT)},
+            capture_output=False,  # Let output flow through
         )
         return result.returncode == 0
     except Exception as e:
@@ -79,8 +77,8 @@ def calculate_end_of_season_aggregations(season: int) -> bool:
     logger.info(f"Calculating end-of-season aggregations for season {season}...")
 
     scripts = [
-        ('calculate_percentiles.py', ['--season', str(season)]),
-        ('calculate_player_stats.py', ['--season', str(season)]),
+        ("calculate_percentiles.py", ["--season", str(season)]),
+        ("calculate_player_stats.py", ["--season", str(season)]),
     ]
 
     for script_name, args in scripts:
@@ -108,18 +106,20 @@ def verify_data(seasons: list) -> None:
                 # Count percentile records
                 result = conn.execute(
                     text("SELECT COUNT(*) FROM score_percentiles WHERE season = :season"),
-                    {'season': str(season)}
+                    {"season": str(season)},
                 )
                 percentile_count = result.scalar()
 
                 # Count player machine stats
                 result = conn.execute(
                     text("SELECT COUNT(*) FROM player_machine_stats WHERE season = :season"),
-                    {'season': str(season)}
+                    {"season": str(season)},
                 )
                 player_stats_count = result.scalar()
 
-                logger.info(f"Season {season}: {percentile_count} percentile records, {player_stats_count} player stats records")
+                logger.info(
+                    f"Season {season}: {percentile_count} percentile records, {player_stats_count} player stats records"
+                )
 
         db.close()
 
@@ -130,7 +130,7 @@ def verify_data(seasons: list) -> None:
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description='Calculate end-of-season aggregations (percentiles and player stats)',
+        description="Calculate end-of-season aggregations (percentiles and player stats)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -142,20 +142,16 @@ Examples:
 
   # Verbose output
   python etl/calculate_end_of_season.py --season 23 --verbose
-        """
+        """,
     )
     parser.add_argument(
-        '--season',
+        "--season",
         type=int,
-        nargs='+',
+        nargs="+",
         required=True,
-        help='Season number(s) to calculate final aggregations for'
+        help="Season number(s) to calculate final aggregations for",
     )
-    parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Enable verbose logging'
-    )
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
 
@@ -173,9 +169,9 @@ Examples:
     # Calculate end-of-season aggregations
     for season in seasons:
         logger.info("")
-        logger.info(f"{'='*60}")
+        logger.info(f"{'=' * 60}")
         logger.info(f"Processing Season {season}")
-        logger.info(f"{'='*60}")
+        logger.info(f"{'=' * 60}")
 
         if not calculate_end_of_season_aggregations(season):
             logger.error(f"Failed to calculate aggregations for season {season}")
@@ -193,5 +189,5 @@ Examples:
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

@@ -11,20 +11,17 @@ Usage:
 import argparse
 import logging
 import sys
-from pathlib import Path
 
 from etl.config import config
 from etl.database import db
-from etl.parsers.ipr_parser import IPRParser
 from etl.loaders.db_loader import DatabaseLoader
+from etl.parsers.ipr_parser import IPRParser
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 logger = logging.getLogger(__name__)
@@ -67,7 +64,7 @@ def update_ipr():
         logger.info("IPR Update Complete!")
         logger.info("=" * 60)
         logger.info("")
-        logger.info(f"Summary:")
+        logger.info("Summary:")
         logger.info(f"  Total players in IPR.csv: {len(ipr_updates)}")
         logger.info(f"  Players updated in database: {updated_count}")
         logger.info(f"  Players not found: {len(ipr_updates) - updated_count}")
@@ -78,20 +75,15 @@ def update_ipr():
     except Exception as e:
         logger.error(f"Failed to update IPR: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(
-        description='Update player IPR values from IPR.csv'
-    )
-    parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Enable verbose logging'
-    )
+    parser = argparse.ArgumentParser(description="Update player IPR values from IPR.csv")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
 
@@ -114,5 +106,5 @@ def main():
     sys.exit(0 if success else 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

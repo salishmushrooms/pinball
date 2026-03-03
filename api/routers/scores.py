@@ -1,19 +1,20 @@
 """
 Scores API endpoints - Browse and filter score data
 """
-from typing import Optional, List
-import logging
-from fastapi import APIRouter, Query, HTTPException
 
-from api.models.schemas import (
-    ScoreItem,
-    MachineScoreStats,
-    MachineScoreGroup,
-    ScoreBrowseResponse,
-    MachineScoresResponse,
-    ErrorResponse,
-)
+import logging
+
+from fastapi import APIRouter, HTTPException, Query
+
 from api.dependencies import execute_query
+from api.models.schemas import (
+    ErrorResponse,
+    MachineScoreGroup,
+    MachineScoresResponse,
+    MachineScoreStats,
+    ScoreBrowseResponse,
+    ScoreItem,
+)
 
 router = APIRouter(prefix="/scores", tags=["scores"])
 logger = logging.getLogger(__name__)
@@ -23,15 +24,20 @@ logger = logging.getLogger(__name__)
     "/browse",
     response_model=ScoreBrowseResponse,
     summary="Browse scores with filtering",
-    description="Get scores grouped by machine with aggregate stats. Always groups by machine since scores cannot be compared across machines."
+    description="Get scores grouped by machine with aggregate stats. Always groups by machine since scores cannot be compared across machines.",
 )
 def browse_scores(
-    seasons: List[int] = Query(..., description="Season(s) to include (required)"),
-    teams: Optional[List[str]] = Query(None, description="Filter by team key(s)"),
-    venue_key: Optional[str] = Query(None, description="Filter by venue"),
-    machine_keys: Optional[List[str]] = Query(None, description="Filter by machine key(s)"),
-    include_all_venues: bool = Query(False, description="When venue_key is set, include scores from all venues for those machines"),
-    scores_per_machine: int = Query(20, ge=1, le=100, description="Number of scores to return per machine group"),
+    seasons: list[int] = Query(..., description="Season(s) to include (required)"),
+    teams: list[str] | None = Query(None, description="Filter by team key(s)"),
+    venue_key: str | None = Query(None, description="Filter by venue"),
+    machine_keys: list[str] | None = Query(None, description="Filter by machine key(s)"),
+    include_all_venues: bool = Query(
+        False,
+        description="When venue_key is set, include scores from all venues for those machines",
+    ),
+    scores_per_machine: int = Query(
+        20, ge=1, le=100, description="Number of scores to return per machine group"
+    ),
 ):
     """
     Browse scores with filtering, grouped by machine.
@@ -208,14 +214,16 @@ def browse_scores(
     response_model=MachineScoresResponse,
     responses={404: {"model": ErrorResponse}},
     summary="Load more scores for a specific machine",
-    description="Paginate through scores for a specific machine with the same filters applied"
+    description="Paginate through scores for a specific machine with the same filters applied",
 )
 def browse_machine_scores(
     machine_key: str,
-    seasons: List[int] = Query(..., description="Season(s) to include (required)"),
-    teams: Optional[List[str]] = Query(None, description="Filter by team key(s)"),
-    venue_key: Optional[str] = Query(None, description="Filter by venue"),
-    include_all_venues: bool = Query(False, description="When venue_key is set, include scores from all venues"),
+    seasons: list[int] = Query(..., description="Season(s) to include (required)"),
+    teams: list[str] | None = Query(None, description="Filter by team key(s)"),
+    venue_key: str | None = Query(None, description="Filter by venue"),
+    include_all_venues: bool = Query(
+        False, description="When venue_key is set, include scores from all venues"
+    ),
     limit: int = Query(50, ge=1, le=100, description="Number of scores to return"),
     offset: int = Query(0, ge=0, description="Number of scores to skip"),
 ):

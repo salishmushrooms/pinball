@@ -441,7 +441,7 @@ function MatchupsPageContent() {
                   <Card.Header>
                     <Card.Title>Expected Scores (Team Average)</Card.Title>
                     <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                      Based on all team members' performance at this venue
+                      Based on all team members&apos; performance at this venue
                     </p>
                   </Card.Header>
                   <Card.Content>
@@ -510,7 +510,7 @@ function MatchupsPageContent() {
                   <Card.Header>
                     <Card.Title>Expected Scores (Team Average)</Card.Title>
                     <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                      Based on all team members' performance at this venue
+                      Based on all team members&apos; performance at this venue
                     </p>
                   </Card.Header>
                   <Card.Content>

@@ -16,79 +16,70 @@ Usage:
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
 VARIATIONS_FILE = Path(__file__).parent.parent / "machine_variations.json"
 
 # New machines to add (machine_key -> full entry)
 NEW_MACHINES = {
-    "4Aces": {
-        "name": "4 Aces",
-        "variations": ["4 aces", "4aces", "four aces"]
-    },
-    "Alien": {
-        "name": "Alien",
-        "manufacturer": "Data East",
-        "year": 1980,
-        "variations": ["alien"]
-    },
+    "4Aces": {"name": "4 Aces", "variations": ["4 aces", "4aces", "four aces"]},
+    "Alien": {"name": "Alien", "manufacturer": "Data East", "year": 1980, "variations": ["alien"]},
     "BarryOs": {
         "name": "Barry O's BBQ Challenge",
-        "variations": ["barry o's bbq challenge", "barry os bbq challenge", "barryos", "barry o's"]
+        "variations": ["barry o's bbq challenge", "barry os bbq challenge", "barryos", "barry o's"],
     },
     "BigGame": {
         "name": "Big Game",
         "manufacturer": "Stern",
         "year": 1980,
-        "variations": ["big game", "biggame"]
+        "variations": ["big game", "biggame"],
     },
     "BuckRogers": {
         "name": "Buck Rogers",
         "manufacturer": "Gottlieb",
         "year": 1980,
-        "variations": ["buck rogers", "buckrogers", "BR"]
+        "variations": ["buck rogers", "buckrogers", "BR"],
     },
     "DrDude": {
         "name": "Dr. Dude",
         "manufacturer": "Bally",
         "year": 1990,
-        "variations": ["dr dude", "drdude", "dr. dude", "DRD", "drd", "Dr Dude"]
+        "variations": ["dr dude", "drdude", "dr. dude", "DRD", "drd", "Dr Dude"],
     },
     "EightBallBeyond": {
         "name": "Eight Ball Beyond",
         "manufacturer": "Multimorphic",
         "year": 2024,
-        "variations": ["eight ball beyond", "eightballbeyond", "8 ball beyond", "EBB"]
+        "variations": ["eight ball beyond", "eightballbeyond", "8 ball beyond", "EBB"],
     },
     "MysteryC": {
         "name": "Mystery Castle",
-        "variations": ["mystery castle", "mysterycastle", "Mystery Castle"]
+        "variations": ["mystery castle", "mysterycastle", "Mystery Castle"],
     },
     "Sorcerer": {
         "name": "Sorcerer",
         "manufacturer": "Williams",
         "year": 1985,
-        "variations": ["sorcerer", "Sorcerer - Williams", "sorcerer - williams"]
+        "variations": ["sorcerer", "Sorcerer - Williams", "sorcerer - williams"],
     },
     "SpringBreak": {
         "name": "Spring Break",
         "manufacturer": "Gottlieb",
         "year": 1987,
-        "variations": ["spring break", "springbreak"]
+        "variations": ["spring break", "springbreak"],
     },
     "TimeMachine": {
         "name": "Time Machine",
         "manufacturer": "Data East",
         "year": 1988,
-        "variations": ["time machine", "timemachine"]
+        "variations": ["time machine", "timemachine"],
     },
     "TCM": {
         "name": "Texas Chainsaw Massacre",
         "manufacturer": "Spooky",
         "year": 2022,
-        "variations": ["tcm", "texas chainsaw massacre", "texaschainsawmassacre"]
-    }
+        "variations": ["tcm", "texas chainsaw massacre", "texaschainsawmassacre"],
+    },
 }
 
 # Variations to add to existing entries (existing_key -> list of new variations)
@@ -97,27 +88,27 @@ ADD_VARIATIONS = {
     "Scooby-Doo": ["Scooby Doo", "scooby doo", "SD", "sd"],
     "007": [
         "James Bond '007",  # Smart quote version
-        "James Bond 007",   # No quote version
+        "James Bond 007",  # No quote version
         "james bond '007",
-        "james bond 007"
-    ]
+        "james bond 007",
+    ],
 }
 
 
 def load_variations():
     """Load the current machine_variations.json"""
-    with open(VARIATIONS_FILE, 'r') as f:
+    with open(VARIATIONS_FILE) as f:
         return json.load(f)
 
 
 def save_variations(data):
     """Save the updated machine_variations.json"""
-    with open(VARIATIONS_FILE, 'w') as f:
+    with open(VARIATIONS_FILE, "w") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
-        f.write('\n')  # Add trailing newline
+        f.write("\n")  # Add trailing newline
 
 
-def add_missing_machines(dry_run=False):
+def add_missing_machines(dry_run=False):  # noqa: C901
     """Add missing machines and variations to the file"""
 
     print("=" * 60)
@@ -149,14 +140,14 @@ def add_missing_machines(dry_run=False):
             print(f"  WARN: {existing_key} not found in file!")
             continue
 
-        current_variations = set(data[existing_key].get('variations', []))
+        current_variations = set(data[existing_key].get("variations", []))
         added = []
 
         for var in new_variations:
             if var.lower() not in [v.lower() for v in current_variations]:
                 added.append(var)
                 if not dry_run:
-                    data[existing_key]['variations'].append(var)
+                    data[existing_key]["variations"].append(var)
 
         if added:
             print(f"  {existing_key}: +{len(added)} variations")
@@ -186,17 +177,15 @@ def add_missing_machines(dry_run=False):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Add missing machine entries to machine_variations.json'
+        description="Add missing machine entries to machine_variations.json"
     )
     parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Preview changes without applying them'
+        "--dry-run", action="store_true", help="Preview changes without applying them"
     )
 
     args = parser.parse_args()
     add_missing_machines(dry_run=args.dry_run)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

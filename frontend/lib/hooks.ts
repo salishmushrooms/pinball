@@ -206,6 +206,7 @@ export const filterConfigs = {
  * const seasonChips = getSeasonChips(filters.seasons.value, availableSeasons.length);
  * ```
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function useURLFilters<T extends Record<string, FilterConfig<any>>>(
   configs: T
 ): {
@@ -218,8 +219,10 @@ export function useURLFilters<T extends Record<string, FilterConfig<any>>>(
   const router = useRouter();
   const pathname = usePathname();
 
-  // Initialize state from URL for each filter
+  // Initialize state from URL for each filter — values are heterogeneous per filter type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [filterStates, setFilterStates] = useState<Record<string, any>>(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const initial: Record<string, any> = {};
     for (const [key, config] of Object.entries(configs)) {
       // Check for legacy 'season' param for seasons filter
@@ -276,6 +279,7 @@ export function useURLFilters<T extends Record<string, FilterConfig<any>>>(
 
     filters[key] = {
       value,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setValue: (newValue: any) => {
         setFilterStates(prev => ({ ...prev, [key as string]: newValue }));
       },
@@ -311,6 +315,7 @@ export function useURLFilters<T extends Record<string, FilterConfig<any>>>(
 
   // Clear all filters to defaults
   const clearAllFilters = useCallback(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const defaults: Record<string, any> = {};
     for (const [key, config] of Object.entries(configs)) {
       defaults[key] = config.defaultValue;

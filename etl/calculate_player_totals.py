@@ -13,6 +13,7 @@ Usage:
 import argparse
 import logging
 import sys
+
 from sqlalchemy import text
 
 from etl.database import db
@@ -20,10 +21,8 @@ from etl.database import db
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 logger = logging.getLogger(__name__)
@@ -77,10 +76,7 @@ def update_player_totals(game_counts):
 
     with db.engine.begin() as conn:
         for i, (player_key, total_games) in enumerate(game_counts):
-            conn.execute(text(query), {
-                'player_key': player_key,
-                'total_games': total_games
-            })
+            conn.execute(text(query), {"player_key": player_key, "total_games": total_games})
             updated += 1
 
             if (i + 1) % batch_size == 0:
@@ -172,8 +168,8 @@ def verify_player_totals():
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(description='Calculate player total games played')
-    parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
+    parser = argparse.ArgumentParser(description="Calculate player total games played")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
 
@@ -204,5 +200,5 @@ def main():
         db.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

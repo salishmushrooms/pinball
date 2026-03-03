@@ -491,7 +491,7 @@ export default function VenueDetailPage() {
                   <>
                     {currentOnly && (
                       <p className="text-sm mt-2">
-                        Try selecting "All Machines" to see machines
+                        Try selecting &quot;All Machines&quot; to see machines
                         that have been played at this venue in the past.
                       </p>
                     )}

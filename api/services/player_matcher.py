@@ -5,9 +5,10 @@ Matching strategy:
 - 100% exact name match (case-insensitive) -> auto-link eligible
 - Any other match -> requires manual confirmation
 """
-from difflib import SequenceMatcher
-from typing import List, Dict, Any, Optional
+
 import logging
+from difflib import SequenceMatcher
+from typing import Any
 
 from api.services.matchplay_client import MatchplayClient
 
@@ -19,7 +20,7 @@ class PlayerMatcher:
     Matches MNP players to Matchplay.events profiles by name.
     """
 
-    def __init__(self, client: Optional[MatchplayClient] = None):
+    def __init__(self, client: MatchplayClient | None = None):
         """
         Initialize the player matcher.
 
@@ -44,9 +45,7 @@ class PlayerMatcher:
             Similarity ratio between 0.0 and 1.0
         """
         return SequenceMatcher(
-            None,
-            self._normalize_name(name1),
-            self._normalize_name(name2)
+            None, self._normalize_name(name1), self._normalize_name(name2)
         ).ratio()
 
     def _is_exact_match(self, mnp_name: str, matchplay_name: str) -> bool:
@@ -63,10 +62,8 @@ class PlayerMatcher:
         return self._normalize_name(mnp_name) == self._normalize_name(matchplay_name)
 
     async def find_matches(
-        self,
-        mnp_name: str,
-        min_similarity: float = 0.5
-    ) -> List[Dict[str, Any]]:
+        self, mnp_name: str, min_similarity: float = 0.5
+    ) -> list[dict[str, Any]]:
         """
         Search Matchplay for players matching the MNP name.
 
@@ -108,11 +105,13 @@ class PlayerMatcher:
 
             # Only include if above minimum threshold
             if confidence >= min_similarity:
-                matches.append({
-                    "user": user,
-                    "confidence": round(confidence, 4),
-                    "auto_link_eligible": is_exact
-                })
+                matches.append(
+                    {
+                        "user": user,
+                        "confidence": round(confidence, 4),
+                        "auto_link_eligible": is_exact,
+                    }
+                )
 
         # Sort by confidence (highest first)
         matches.sort(key=lambda x: x["confidence"], reverse=True)
@@ -124,7 +123,7 @@ class PlayerMatcher:
 
         return matches
 
-    async def find_best_match(self, mnp_name: str) -> Optional[Dict[str, Any]]:
+    async def find_best_match(self, mnp_name: str) -> dict[str, Any] | None:
         """
         Find the single best match for an MNP player.
 
@@ -138,10 +137,8 @@ class PlayerMatcher:
         return matches[0] if matches else None
 
     async def batch_find_matches(
-        self,
-        mnp_names: List[str],
-        auto_link_only: bool = False
-    ) -> Dict[str, List[Dict[str, Any]]]:
+        self, mnp_names: list[str], auto_link_only: bool = False
+    ) -> dict[str, list[dict[str, Any]]]:
         """
         Find matches for multiple MNP players.
 

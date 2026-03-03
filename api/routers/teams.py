@@ -1,29 +1,28 @@
 """
 Teams API endpoints
 """
-from typing import Optional, List, Dict, Union
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import text
-from collections import defaultdict
-import numpy as np
 
+from collections import defaultdict
+
+import numpy as np
+from fastapi import APIRouter, HTTPException, Query
+
+from api.dependencies import execute_query
 from api.models.schemas import (
+    ErrorResponse,
     TeamBase,
-    TeamList,
     TeamDetail,
+    TeamList,
     TeamMachineStats,
     TeamMachineStatsList,
     TeamPlayer,
     TeamPlayerList,
-    ErrorResponse
 )
-from api.dependencies import execute_query
-from etl.database import db
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 
 
-def get_team_keys_with_aliases(team_key: str) -> List[str]:
+def get_team_keys_with_aliases(team_key: str) -> list[str]:
     """
     Get all team keys that should be included when querying for a team.
     This includes the team itself and any aliases (historical team keys).
@@ -43,10 +42,10 @@ def get_team_keys_with_aliases(team_key: str) -> List[str]:
     alias_query = """
         SELECT alias_key FROM team_aliases WHERE team_key = :team_key
     """
-    aliases = execute_query(alias_query, {'team_key': team_key})
+    aliases = execute_query(alias_query, {"team_key": team_key})
 
     for alias in aliases:
-        team_keys.append(alias['alias_key'])
+        team_keys.append(alias["alias_key"])
 
     return team_keys
 
@@ -55,12 +54,12 @@ def get_team_keys_with_aliases(team_key: str) -> List[str]:
     "",
     response_model=TeamList,
     summary="List all teams",
-    description="Get a list of all teams with optional filtering"
+    description="Get a list of all teams with optional filtering",
 )
 def list_teams(
-    season: Optional[int] = Query(None, description="Filter by season"),
+    season: int | None = Query(None, description="Filter by season"),
     limit: int = Query(100, ge=1, le=500, description="Number of results to return"),
-    offset: int = Query(0, ge=0, description="Number of results to skip")
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
 ):
     """
     List all teams with optional filtering and pagination.
@@ -75,7 +74,7 @@ def list_teams(
 
     if season is not None:
         where_clauses.append("t.season = :season")
-        params['season'] = season
+        params["season"] = season
 
     where_clause = " AND ".join(where_clauses) if where_clauses else "TRUE"
 
@@ -113,18 +112,15 @@ def list_teams(
         ORDER BY t.team_name, t.season DESC
         LIMIT :limit OFFSET :offset
     """
-    params['limit'] = limit
-    params['offset'] = offset
+    params["limit"] = limit
+    params["offset"] = offset
     teams = execute_query(query, params)
 
     # Get total count based on actual results
     total = len(teams)
 
     return TeamList(
-        teams=[TeamBase(**team) for team in teams],
-        total=total,
-        limit=limit,
-        offset=offset
+        teams=[TeamBase(**team) for team in teams], total=total, limit=limit, offset=offset
     )
 
 
@@ -133,12 +129,9 @@ def list_teams(
     response_model=TeamDetail,
     responses={404: {"model": ErrorResponse}},
     summary="Get team details",
-    description="Get detailed information about a specific team"
+    description="Get detailed information about a specific team",
 )
-def get_team(
-    team_key: str,
-    season: Optional[int] = Query(None, description="Filter by season")
-):
+def get_team(team_key: str, season: int | None = Query(None, description="Filter by season")):
     """
     Get detailed information about a specific team.
 
@@ -146,11 +139,11 @@ def get_team(
     """
     # Build WHERE clause
     where_clauses = ["t.team_key = :team_key"]
-    params = {'team_key': team_key}
+    params = {"team_key": team_key}
 
     if season is not None:
         where_clauses.append("t.season = :season")
-        params['season'] = season
+        params["season"] = season
 
     where_clause = " AND ".join(where_clauses)
 
@@ -173,15 +166,15 @@ def get_team(
     return TeamDetail(**teams[0])
 
 
-def calculate_team_win_percentage(
+def calculate_team_win_percentage(  # noqa: C901
     team_key: str,
-    all_team_keys: List[str],
-    seasons: Optional[List[int]] = None,
-    venue_key: Optional[str] = None,
-    rounds: Optional[List[int]] = None,
+    all_team_keys: list[str],
+    seasons: list[int] | None = None,
+    venue_key: str | None = None,
+    rounds: list[int] | None = None,
     exclude_subs: bool = True,
-    machine_filter_keys: Optional[List[str]] = None
-) -> Dict[str, float]:
+    machine_filter_keys: list[str] | None = None,
+) -> dict[str, float]:
     """
     Calculate win percentage for a team on each machine using optimized batch query.
 
@@ -203,40 +196,46 @@ def calculate_team_win_percentage(
     params = {}
     if len(all_team_keys) == 1:
         where_clauses = ["team_scores.team_key = :team_key"]
-        params['team_key'] = team_key
+        params["team_key"] = team_key
     else:
-        team_key_placeholders = ', '.join([f':team_key_{i}' for i in range(len(all_team_keys))])
+        team_key_placeholders = ", ".join([f":team_key_{i}" for i in range(len(all_team_keys))])
         where_clauses = [f"team_scores.team_key IN ({team_key_placeholders})"]
         for i, tk in enumerate(all_team_keys):
-            params[f'team_key_{i}'] = tk
+            params[f"team_key_{i}"] = tk
 
     if seasons is not None and len(seasons) > 0:
-        season_placeholders = ', '.join([f':season_{i}' for i in range(len(seasons))])
+        season_placeholders = ", ".join([f":season_{i}" for i in range(len(seasons))])
         where_clauses.append(f"team_scores.season IN ({season_placeholders})")
         for i, season in enumerate(seasons):
-            params[f'season_{i}'] = season
+            params[f"season_{i}"] = season
 
     # Machine filter (for include_all_venues mode)
     if machine_filter_keys:
-        machine_placeholders = ', '.join([f':wp_machine_{i}' for i in range(len(machine_filter_keys))])
+        machine_placeholders = ", ".join(
+            [f":wp_machine_{i}" for i in range(len(machine_filter_keys))]
+        )
         where_clauses.append(f"team_scores.machine_key IN ({machine_placeholders})")
         for i, mk in enumerate(machine_filter_keys):
-            params[f'wp_machine_{i}'] = mk
+            params[f"wp_machine_{i}"] = mk
 
     # Venue filter (only if not using machine filter mode)
     if venue_key is not None and not machine_filter_keys:
         where_clauses.append("team_scores.venue_key = :venue_key")
-        params['venue_key'] = venue_key
+        params["venue_key"] = venue_key
 
     if rounds is not None and len(rounds) > 0:
-        placeholders = ', '.join([f':round_{i}' for i in range(len(rounds))])
+        placeholders = ", ".join([f":round_{i}" for i in range(len(rounds))])
         where_clauses.append(f"team_scores.round_number IN ({placeholders})")
         for i, r in enumerate(rounds):
-            params[f'round_{i}'] = r
+            params[f"round_{i}"] = r
 
     if exclude_subs:
-        where_clauses.append("(team_scores.is_substitute IS NULL OR team_scores.is_substitute = false)")
-        where_clauses.append("(opp_scores.is_substitute IS NULL OR opp_scores.is_substitute = false)")
+        where_clauses.append(
+            "(team_scores.is_substitute IS NULL OR team_scores.is_substitute = false)"
+        )
+        where_clauses.append(
+            "(opp_scores.is_substitute IS NULL OR opp_scores.is_substitute = false)"
+        )
 
     where_clause = " AND ".join(where_clauses)
 
@@ -261,9 +260,9 @@ def calculate_team_win_percentage(
     # Calculate win percentages
     win_percentages = {}
     for row in results:
-        machine_key = row['machine_key']
-        total = row['total_comparisons']
-        wins = row['wins']
+        machine_key = row["machine_key"]
+        total = row["total_comparisons"]
+        wins = row["wins"]
 
         if total > 0:
             win_percentages[machine_key] = (wins / total) * 100.0
@@ -278,20 +277,28 @@ def calculate_team_win_percentage(
     response_model=TeamMachineStatsList,
     responses={404: {"model": ErrorResponse}},
     summary="Get team machine statistics",
-    description="Get performance statistics for a team across all machines they've played"
+    description="Get performance statistics for a team across all machines they've played",
 )
-def get_team_machine_stats(
+def get_team_machine_stats(  # noqa: C901
     team_key: str,
-    seasons: Union[List[int], None] = Query(None, description="Filter by season(s) - can pass multiple"),
-    venue_key: Optional[str] = Query(None, description="Filter by venue"),
-    rounds: Optional[str] = Query(None, description="Filter by rounds (comma-separated, e.g., '1,2,3,4')"),
+    seasons: list[int] | None = Query(None, description="Filter by season(s) - can pass multiple"),
+    venue_key: str | None = Query(None, description="Filter by venue"),
+    rounds: str | None = Query(
+        None, description="Filter by rounds (comma-separated, e.g., '1,2,3,4')"
+    ),
     exclude_subs: bool = Query(True, description="Exclude substitute players (default: true)"),
-    include_all_venues: bool = Query(False, description="When venue_key is set, include scores from all venues for those machines"),
+    include_all_venues: bool = Query(
+        False,
+        description="When venue_key is set, include scores from all venues for those machines",
+    ),
     min_games: int = Query(1, ge=1, description="Minimum games played on machine"),
-    sort_by: str = Query("games_played", description="Sort field: games_played, avg_score, best_score, win_percentage"),
+    sort_by: str = Query(
+        "games_played",
+        description="Sort field: games_played, avg_score, best_score, win_percentage",
+    ),
     sort_order: str = Query("desc", description="Sort order: asc or desc"),
     limit: int = Query(100, ge=1, le=500, description="Number of results to return"),
-    offset: int = Query(0, ge=0, description="Number of results to skip")
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
 ):
     """
     Get performance statistics for a team across different machines.
@@ -307,9 +314,18 @@ def get_team_machine_stats(
     - `/teams/SKP/machines?venue_key=T4B&include_all_venues=true` - All scores on T4B machines, any venue
     """
     # Validate sort parameters
-    valid_sort_fields = ["games_played", "avg_score", "best_score", "win_percentage", "median_score", "machine_name"]
+    valid_sort_fields = [
+        "games_played",
+        "avg_score",
+        "best_score",
+        "win_percentage",
+        "median_score",
+        "machine_name",
+    ]
     if sort_by not in valid_sort_fields:
-        raise HTTPException(status_code=400, detail=f"Invalid sort_by field. Must be one of: {valid_sort_fields}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid sort_by field. Must be one of: {valid_sort_fields}"
+        )
 
     if sort_order.lower() not in ["asc", "desc"]:
         raise HTTPException(status_code=400, detail="Invalid sort_order. Must be 'asc' or 'desc'")
@@ -318,16 +334,18 @@ def get_team_machine_stats(
     rounds_list = None
     if rounds:
         try:
-            rounds_list = [int(r.strip()) for r in rounds.split(',')]
+            rounds_list = [int(r.strip()) for r in rounds.split(",")]
             if not all(1 <= r <= 4 for r in rounds_list):
                 raise ValueError()
         except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid rounds parameter. Must be comma-separated integers 1-4")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid rounds parameter. Must be comma-separated integers 1-4",
+            )
 
     # First verify team exists
     team_check = execute_query(
-        "SELECT 1 FROM teams WHERE team_key = :team_key LIMIT 1",
-        {'team_key': team_key}
+        "SELECT 1 FROM teams WHERE team_key = :team_key LIMIT 1", {"team_key": team_key}
     )
     if not team_check:
         raise HTTPException(status_code=404, detail=f"Team '{team_key}' not found")
@@ -344,8 +362,8 @@ def get_team_machine_stats(
             WHERE venue_key = :venue_key
             AND season = (SELECT MAX(season) FROM venue_machines WHERE venue_key = :venue_key)
         """
-        venue_machines = execute_query(machine_query, {'venue_key': venue_key})
-        machine_filter_keys = [row['machine_key'] for row in venue_machines]
+        venue_machines = execute_query(machine_query, {"venue_key": venue_key})
+        machine_filter_keys = [row["machine_key"] for row in venue_machines]
 
         # If no machines found at venue, return empty result
         if not machine_filter_keys:
@@ -355,36 +373,36 @@ def get_team_machine_stats(
     params = {}
     if len(all_team_keys) == 1:
         where_clauses = ["s.team_key = :team_key"]
-        params['team_key'] = team_key
+        params["team_key"] = team_key
     else:
-        team_key_placeholders = ', '.join([f':team_key_{i}' for i in range(len(all_team_keys))])
+        team_key_placeholders = ", ".join([f":team_key_{i}" for i in range(len(all_team_keys))])
         where_clauses = [f"s.team_key IN ({team_key_placeholders})"]
         for i, tk in enumerate(all_team_keys):
-            params[f'team_key_{i}'] = tk
+            params[f"team_key_{i}"] = tk
 
     if seasons is not None and len(seasons) > 0:
-        season_placeholders = ', '.join([f':season_{i}' for i in range(len(seasons))])
+        season_placeholders = ", ".join([f":season_{i}" for i in range(len(seasons))])
         where_clauses.append(f"s.season IN ({season_placeholders})")
         for i, season in enumerate(seasons):
-            params[f'season_{i}'] = season
+            params[f"season_{i}"] = season
 
     # Machine filter (from include_all_venues mode)
     if machine_filter_keys:
-        machine_placeholders = ', '.join([f':machine_{i}' for i in range(len(machine_filter_keys))])
+        machine_placeholders = ", ".join([f":machine_{i}" for i in range(len(machine_filter_keys))])
         where_clauses.append(f"s.machine_key IN ({machine_placeholders})")
         for i, mk in enumerate(machine_filter_keys):
-            params[f'machine_{i}'] = mk
+            params[f"machine_{i}"] = mk
 
     # Venue filter (only if not using include_all_venues mode)
     if venue_key is not None and not include_all_venues:
         where_clauses.append("s.venue_key = :venue_key")
-        params['venue_key'] = venue_key
+        params["venue_key"] = venue_key
 
     if rounds_list is not None and len(rounds_list) > 0:
-        placeholders = ', '.join([f':round_{i}' for i in range(len(rounds_list))])
+        placeholders = ", ".join([f":round_{i}" for i in range(len(rounds_list))])
         where_clauses.append(f"s.round_number IN ({placeholders})")
         for i, r in enumerate(rounds_list):
-            params[f'round_{i}'] = r
+            params[f"round_{i}"] = r
 
     if exclude_subs:
         where_clauses.append("(s.is_substitute IS NULL OR s.is_substitute = false)")
@@ -411,29 +429,31 @@ def get_team_machine_stats(
     scores = execute_query(query, params)
 
     # Group scores by machine
-    machine_scores = defaultdict(lambda: {'scores': [], 'rounds': set()})
+    machine_scores = defaultdict(lambda: {"scores": [], "rounds": set()})
     machine_info = {}
 
     for score in scores:
-        mk = score['machine_key']
-        machine_scores[mk]['scores'].append(score['score'])
-        machine_scores[mk]['rounds'].add(score['round_number'])
+        mk = score["machine_key"]
+        machine_scores[mk]["scores"].append(score["score"])
+        machine_scores[mk]["rounds"].add(score["round_number"])
         if mk not in machine_info:
             machine_info[mk] = {
-                'machine_key': mk,
-                'machine_name': score['machine_name'],
-                'team_name': score['team_name'],
-                'season': score['season'],
-                'venue_key': venue_key if venue_key else score['venue_key']
+                "machine_key": mk,
+                "machine_name": score["machine_name"],
+                "team_name": score["team_name"],
+                "season": score["season"],
+                "venue_key": venue_key if venue_key else score["venue_key"],
             }
 
     # Calculate win percentages for this team
-    win_percentages = calculate_team_win_percentage(team_key, all_team_keys, seasons, venue_key, rounds_list, exclude_subs, machine_filter_keys)
+    win_percentages = calculate_team_win_percentage(
+        team_key, all_team_keys, seasons, venue_key, rounds_list, exclude_subs, machine_filter_keys
+    )
 
     # Calculate stats for each machine
     all_stats = []
     for machine_key, data in machine_scores.items():
-        score_list = data['scores']
+        score_list = data["scores"]
         if len(score_list) < min_games:
             continue
 
@@ -441,53 +461,56 @@ def get_team_machine_stats(
         scores_array = np.array(score_list)
 
         stat = {
-            'team_key': team_key,
-            'team_name': info['team_name'],
-            'machine_key': machine_key,
-            'machine_name': info['machine_name'],
-            'venue_key': info['venue_key'],
-            'season': info['season'],
-            'games_played': len(score_list),
-            'total_score': int(np.sum(scores_array)),
-            'median_score': int(np.median(scores_array)),
-            'avg_score': int(np.mean(scores_array)),
-            'best_score': int(np.max(scores_array)),
-            'worst_score': int(np.min(scores_array)),
-            'median_percentile': None,  # Would need percentile data
-            'avg_percentile': None,
-            'win_percentage': win_percentages.get(machine_key),
-            'rounds_played': sorted(list(data['rounds']))
+            "team_key": team_key,
+            "team_name": info["team_name"],
+            "machine_key": machine_key,
+            "machine_name": info["machine_name"],
+            "venue_key": info["venue_key"],
+            "season": info["season"],
+            "games_played": len(score_list),
+            "total_score": int(np.sum(scores_array)),
+            "median_score": int(np.median(scores_array)),
+            "avg_score": int(np.mean(scores_array)),
+            "best_score": int(np.max(scores_array)),
+            "worst_score": int(np.min(scores_array)),
+            "median_percentile": None,  # Would need percentile data
+            "avg_percentile": None,
+            "win_percentage": win_percentages.get(machine_key),
+            "rounds_played": sorted(list(data["rounds"])),
         }
         all_stats.append(stat)
 
     # Sort results
-    if sort_by == 'machine_name':
+    if sort_by == "machine_name":
         # Sort alphabetically by machine name
         all_stats.sort(
-            key=lambda x: x['machine_name'].lower() if x['machine_name'] else '',
-            reverse=(sort_order.lower() == 'desc')
+            key=lambda x: x["machine_name"].lower() if x["machine_name"] else "",
+            reverse=(sort_order.lower() == "desc"),
         )
-    elif sort_by == 'win_percentage':
+    elif sort_by == "win_percentage":
         # Handle None values by putting them at the end
         all_stats.sort(
-            key=lambda x: (x['win_percentage'] is None, x['win_percentage'] if x['win_percentage'] is not None else 0),
-            reverse=(sort_order.lower() == 'desc')
+            key=lambda x: (
+                x["win_percentage"] is None,
+                x["win_percentage"] if x["win_percentage"] is not None else 0,
+            ),
+            reverse=(sort_order.lower() == "desc"),
         )
     else:
         all_stats.sort(
             key=lambda x: (x[sort_by] is None, x[sort_by] if x[sort_by] is not None else 0),
-            reverse=(sort_order.lower() == 'desc')
+            reverse=(sort_order.lower() == "desc"),
         )
 
     # Apply pagination
     total = len(all_stats)
-    paginated_stats = all_stats[offset:offset + limit]
+    paginated_stats = all_stats[offset : offset + limit]
 
     return TeamMachineStatsList(
         stats=[TeamMachineStats(**stat) for stat in paginated_stats],
         total=total,
         limit=limit,
-        offset=offset
+        offset=offset,
     )
 
 
@@ -496,12 +519,14 @@ def get_team_machine_stats(
     response_model=TeamPlayerList,
     responses={404: {"model": ErrorResponse}},
     summary="Get team roster with statistics",
-    description="Get all players who have played for a team with their statistics"
+    description="Get all players who have played for a team with their statistics",
 )
-def get_team_players(
+def get_team_players(  # noqa: C901
     team_key: str,
-    seasons: Optional[str] = Query(None, description="Filter by seasons (comma-separated, e.g., '21,22')"),
-    venue_key: Optional[str] = Query(None, description="Filter by venue for statistics"),
+    seasons: str | None = Query(
+        None, description="Filter by seasons (comma-separated, e.g., '21,22')"
+    ),
+    venue_key: str | None = Query(None, description="Filter by venue for statistics"),
     exclude_subs: bool = Query(True, description="Exclude substitute players (default: true)"),
 ):
     """
@@ -515,8 +540,7 @@ def get_team_players(
     """
     # First verify team exists
     team_check = execute_query(
-        "SELECT 1 FROM teams WHERE team_key = :team_key LIMIT 1",
-        {'team_key': team_key}
+        "SELECT 1 FROM teams WHERE team_key = :team_key LIMIT 1", {"team_key": team_key}
     )
     if not team_check:
         raise HTTPException(status_code=404, detail=f"Team '{team_key}' not found")
@@ -528,34 +552,36 @@ def get_team_players(
     seasons_list = None
     if seasons:
         try:
-            seasons_list = [int(s.strip()) for s in seasons.split(',') if s.strip()]
+            seasons_list = [int(s.strip()) for s in seasons.split(",") if s.strip()]
         except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid seasons format. Use comma-separated integers.")
+            raise HTTPException(
+                status_code=400, detail="Invalid seasons format. Use comma-separated integers."
+            )
 
     # Build WHERE clause for player selection - include all aliased team keys
     params = {}
     if len(all_team_keys) == 1:
         team_filter = "s.team_key = :team_key"
-        params['team_key'] = team_key
+        params["team_key"] = team_key
     else:
-        team_key_placeholders = ', '.join([f':team_key_{i}' for i in range(len(all_team_keys))])
+        team_key_placeholders = ", ".join([f":team_key_{i}" for i in range(len(all_team_keys))])
         team_filter = f"s.team_key IN ({team_key_placeholders})"
         for i, tk in enumerate(all_team_keys):
-            params[f'team_key_{i}'] = tk
+            params[f"team_key_{i}"] = tk
 
     # Build season filter clause
     season_filter = ""
     if seasons_list:
         if len(seasons_list) == 1:
             season_filter = "AND s.season = :season"
-            params['season'] = seasons_list[0]
+            params["season"] = seasons_list[0]
         else:
             season_filter = f"AND s.season IN ({','.join(str(s) for s in seasons_list)})"
 
     venue_filter = ""
     if venue_key is not None:
         venue_filter = "AND s.venue_key = :venue_key"
-        params['venue_key'] = venue_key
+        params["venue_key"] = venue_key
 
     subs_filter = ""
     if exclude_subs:
@@ -584,7 +610,7 @@ def get_team_players(
     if len(all_team_keys) == 1:
         win_team_filter = "ts.team_key = :team_key"
     else:
-        team_key_placeholders = ', '.join([f':team_key_{i}' for i in range(len(all_team_keys))])
+        team_key_placeholders = ", ".join([f":team_key_{i}" for i in range(len(all_team_keys))])
         win_team_filter = f"ts.team_key IN ({team_key_placeholders})"
 
     win_where_parts = [win_team_filter]
@@ -617,7 +643,12 @@ def get_team_players(
     """
 
     win_stats = execute_query(win_stats_query, params)
-    win_pct_map = {row['player_key']: (row['wins'] / row['total_comparisons'] * 100.0) if row['total_comparisons'] > 0 else None for row in win_stats}
+    win_pct_map = {
+        row["player_key"]: (row["wins"] / row["total_comparisons"] * 100.0)
+        if row["total_comparisons"] > 0
+        else None
+        for row in win_stats
+    }
 
     # Get most played machine per player using optimized query
     machine_stats_query = f"""
@@ -639,39 +670,40 @@ def get_team_players(
     machine_stats = execute_query(machine_stats_query, params)
     most_played_map = {}
     for row in machine_stats:
-        if row['rn'] == 1 or row['player_key'] not in most_played_map:  # Get first (most played)
-            most_played_map[row['player_key']] = {
-                'machine_key': row['machine_key'],
-                'machine_name': row['machine_name'],
-                'games': row['games_played']
+        if row["rn"] == 1 or row["player_key"] not in most_played_map:  # Get first (most played)
+            most_played_map[row["player_key"]] = {
+                "machine_key": row["machine_key"],
+                "machine_name": row["machine_name"],
+                "games": row["games_played"],
             }
 
     # Build player list
     players = []
     for player_stat in player_stats:
-        player_key = player_stat['player_key']
+        player_key = player_stat["player_key"]
         most_played = most_played_map.get(player_key, {})
 
         # Parse seasons (STRING_AGG returns comma-separated string)
-        seasons_str = player_stat.get('seasons', '')
-        seasons_played = sorted([int(s) for s in seasons_str.split(',') if s]) if seasons_str else []
+        seasons_str = player_stat.get("seasons", "")
+        seasons_played = (
+            sorted([int(s) for s in seasons_str.split(",") if s]) if seasons_str else []
+        )
 
-        players.append({
-            'player_key': player_key,
-            'player_name': player_stat['player_name'],
-            'current_ipr': player_stat['current_ipr'],
-            'games_played': player_stat['games_played'],
-            'win_percentage': win_pct_map.get(player_key),
-            'most_played_machine_key': most_played.get('machine_key'),
-            'most_played_machine_name': most_played.get('machine_name'),
-            'most_played_machine_games': most_played.get('games', 0),
-            'seasons_played': seasons_played
-        })
+        players.append(
+            {
+                "player_key": player_key,
+                "player_name": player_stat["player_name"],
+                "current_ipr": player_stat["current_ipr"],
+                "games_played": player_stat["games_played"],
+                "win_percentage": win_pct_map.get(player_key),
+                "most_played_machine_key": most_played.get("machine_key"),
+                "most_played_machine_name": most_played.get("machine_name"),
+                "most_played_machine_games": most_played.get("games", 0),
+                "seasons_played": seasons_played,
+            }
+        )
 
     # Sort by games played descending
-    players.sort(key=lambda x: x['games_played'], reverse=True)
+    players.sort(key=lambda x: x["games_played"], reverse=True)
 
-    return TeamPlayerList(
-        players=[TeamPlayer(**player) for player in players],
-        total=len(players)
-    )
+    return TeamPlayerList(players=[TeamPlayer(**player) for player in players], total=len(players))

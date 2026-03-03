@@ -83,4 +83,3 @@ cd frontend && npm install && npm run dev
 ## Railway
 railway login --browserless
 railway connect "Postgres--OkR"
-

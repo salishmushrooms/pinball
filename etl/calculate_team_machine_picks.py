@@ -22,6 +22,7 @@ import logging
 import math
 import sys
 from collections import defaultdict
+
 from sqlalchemy import text
 
 from etl.database import db
@@ -29,10 +30,8 @@ from etl.database import db
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 logger = logging.getLogger(__name__)
@@ -72,7 +71,7 @@ def fetch_games_with_scores(season: int):
     """
 
     with db.engine.connect() as conn:
-        result = conn.execute(text(query), {'season': season})
+        result = conn.execute(text(query), {"season": season})
         rows = result.fetchall()
 
     logger.info(f"Fetched {len(rows)} score records")
@@ -104,9 +103,9 @@ def get_round_type(round_number: int):
     Rounds 2 & 3 are singles (2 players)
     """
     if round_number in [1, 4]:
-        return 'doubles'
+        return "doubles"
     else:
-        return 'singles'
+        return "singles"
 
 
 def calculate_wilson_lower(successes: int, total: int, z: float = 1.96) -> float:
@@ -163,7 +162,7 @@ def calculate_opportunities(season: int) -> dict:
         WHERE season = :season AND state = 'complete' AND machines IS NOT NULL
     """
     with db.engine.connect() as conn:
-        result = conn.execute(text(check_query), {'season': season})
+        result = conn.execute(text(check_query), {"season": season})
         matches_with_machines = result.fetchone()[0]
 
     if matches_with_machines > 0:
@@ -291,7 +290,7 @@ def calculate_opportunities(season: int) -> dict:
         """
 
     with db.engine.connect() as conn:
-        result = conn.execute(text(query), {'season': season})
+        result = conn.execute(text(query), {"season": season})
         rows = result.fetchall()
 
     opportunities = {}
@@ -320,29 +319,25 @@ def aggregate_team_picks(scores, season: int):
     # Group scores by (match_key, round_number, machine_key, team_key)
     # Each round has MULTIPLE games on different machines, so we need machine_key in the key
     # Structure: {(match, round, machine, team): {'scores': [], 'is_home': bool, ...}}
-    game_results = defaultdict(lambda: {'scores': [], 'is_home': None})
+    game_results = defaultdict(lambda: {"scores": [], "is_home": None})
 
     for row in scores:
         match_key, round_num, machine_key, home_team, away_team, team_key, is_home, score = row
 
         # Include machine_key in the grouping to track each game separately
         key = (match_key, round_num, machine_key, team_key)
-        game_results[key]['scores'].append(score)
-        game_results[key]['machine'] = machine_key
-        game_results[key]['is_home'] = is_home
-        game_results[key]['home_team'] = home_team
-        game_results[key]['away_team'] = away_team
-        game_results[key]['round_num'] = round_num
+        game_results[key]["scores"].append(score)
+        game_results[key]["machine"] = machine_key
+        game_results[key]["is_home"] = is_home
+        game_results[key]["home_team"] = home_team
+        game_results[key]["away_team"] = away_team
+        game_results[key]["round_num"] = round_num
 
     # Now aggregate by (team, machine, is_home, round_type)
     # Structure: {(team, machine, is_home, round_type): stats}
-    pick_stats = defaultdict(lambda: {
-        'times_picked': 0,
-        'wins': 0,
-        'total_points': 0,
-        'total_score': 0,
-        'game_count': 0
-    })
+    pick_stats = defaultdict(
+        lambda: {"times_picked": 0, "wins": 0, "total_points": 0, "total_score": 0, "game_count": 0}
+    )
 
     # Process each game result
     # Each game is uniquely identified by (match_key, round_number, machine_key)
@@ -356,20 +351,20 @@ def aggregate_team_picks(scores, season: int):
         if game_key in processed_games:
             continue
 
-        home_team = data['home_team']
-        away_team = data['away_team']
-        machine = data['machine']
+        home_team = data["home_team"]
+        away_team = data["away_team"]
+        machine = data["machine"]
         round_type = get_round_type(round_num)
 
         # Determine who picked this machine
         picking_team, picker_is_home = determine_picking_team(round_num, home_team, away_team)
 
         # Get scores for both teams in this game (now keyed by machine too)
-        home_data = game_results.get((match_key, round_num, machine_key, home_team), {'scores': []})
-        away_data = game_results.get((match_key, round_num, machine_key, away_team), {'scores': []})
+        home_data = game_results.get((match_key, round_num, machine_key, home_team), {"scores": []})
+        away_data = game_results.get((match_key, round_num, machine_key, away_team), {"scores": []})
 
-        home_total = sum(home_data['scores'])
-        away_total = sum(away_data['scores'])
+        home_total = sum(home_data["scores"])
+        away_total = sum(away_data["scores"])
 
         # Calculate points for the picking team
         # In MNP, points are awarded based on head-to-head comparisons
@@ -390,11 +385,13 @@ def aggregate_team_picks(scores, season: int):
 
         # Update stats for the picking team
         stats_key = (picking_team, machine, picker_is_home, round_type)
-        pick_stats[stats_key]['times_picked'] += 1
-        pick_stats[stats_key]['wins'] += won
-        pick_stats[stats_key]['total_points'] += points
-        pick_stats[stats_key]['total_score'] += picker_total
-        pick_stats[stats_key]['game_count'] += len(home_data['scores']) if picker_is_home else len(away_data['scores'])
+        pick_stats[stats_key]["times_picked"] += 1
+        pick_stats[stats_key]["wins"] += won
+        pick_stats[stats_key]["total_points"] += points
+        pick_stats[stats_key]["total_score"] += picker_total
+        pick_stats[stats_key]["game_count"] += (
+            len(home_data["scores"]) if picker_is_home else len(away_data["scores"])
+        )
 
         processed_games.add(game_key)
 
@@ -413,7 +410,7 @@ def clear_existing_picks(season: int):
     """
 
     with db.engine.begin() as conn:
-        conn.execute(text(query), {'season': season})
+        conn.execute(text(query), {"season": season})
 
 
 def insert_team_picks(pick_stats: dict, opportunities: dict, season: int):
@@ -454,14 +451,16 @@ def insert_team_picks(pick_stats: dict, opportunities: dict, season: int):
     with db.engine.begin() as conn:
         for (team_key, machine_key, is_home, round_type), stats in pick_stats.items():
             # Calculate average score
-            avg_score = int(stats['total_score'] / stats['game_count']) if stats['game_count'] > 0 else 0
+            avg_score = (
+                int(stats["total_score"] / stats["game_count"]) if stats["game_count"] > 0 else 0
+            )
 
             # Get opportunities for this combination
             opp_key = (team_key, machine_key, is_home, round_type)
             total_opportunities = opportunities.get(opp_key, 0)
 
             # Warn if picks exceed opportunities (indicates venue_machines data gap)
-            if stats['times_picked'] > total_opportunities:
+            if stats["times_picked"] > total_opportunities:
                 logger.warning(
                     f"Data inconsistency: {team_key} picked {machine_key} {stats['times_picked']}x "
                     f"but only {total_opportunities} opportunities recorded. "
@@ -469,20 +468,20 @@ def insert_team_picks(pick_stats: dict, opportunities: dict, season: int):
                 )
 
             # Calculate Wilson score lower bound
-            wilson_lower = calculate_wilson_lower(stats['times_picked'], total_opportunities)
+            wilson_lower = calculate_wilson_lower(stats["times_picked"], total_opportunities)
 
             record = {
-                'team_key': team_key,
-                'machine_key': machine_key,
-                'season': season,
-                'is_home': is_home,
-                'round_type': round_type,
-                'times_picked': stats['times_picked'],
-                'wins': stats['wins'],
-                'total_points': stats['total_points'],
-                'avg_score': avg_score,
-                'total_opportunities': total_opportunities,
-                'wilson_lower': round(wilson_lower, 4)
+                "team_key": team_key,
+                "machine_key": machine_key,
+                "season": season,
+                "is_home": is_home,
+                "round_type": round_type,
+                "times_picked": stats["times_picked"],
+                "wins": stats["wins"],
+                "total_points": stats["total_points"],
+                "avg_score": avg_score,
+                "total_opportunities": total_opportunities,
+                "wilson_lower": round(wilson_lower, 4),
             }
 
             conn.execute(text(query), record)
@@ -548,7 +547,7 @@ def verify_team_picks(season: int):
     """
 
     with db.engine.connect() as conn:
-        result = conn.execute(text(query), {'season': season})
+        result = conn.execute(text(query), {"season": season})
         row = result.fetchone()
 
     if row:
@@ -559,7 +558,7 @@ def verify_team_picks(season: int):
         logger.info(f"  Total wins: {row[4]}")
         logger.info(f"  Total opportunities: {row[5]}")
         if row[3] and row[3] > 0:
-            logger.info(f"  Win rate: {row[4]/row[3]*100:.1f}%")
+            logger.info(f"  Win rate: {row[4] / row[3] * 100:.1f}%")
 
     # Show top machine picks by Wilson score (confidence-weighted)
     logger.info("")
@@ -581,7 +580,7 @@ def verify_team_picks(season: int):
     """
 
     with db.engine.connect() as conn:
-        result = conn.execute(text(query), {'season': season})
+        result = conn.execute(text(query), {"season": season})
         rows = result.fetchall()
 
     for row in rows:
@@ -591,9 +590,9 @@ def verify_team_picks(season: int):
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(description='Calculate team machine pick statistics')
-    parser.add_argument('--season', type=int, required=True, help='Season number (e.g., 22)')
-    parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
+    parser = argparse.ArgumentParser(description="Calculate team machine pick statistics")
+    parser.add_argument("--season", type=int, required=True, help="Season number (e.g., 22)")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
 
@@ -624,5 +623,5 @@ def main():
         db.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

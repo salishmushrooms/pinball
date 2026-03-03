@@ -32,7 +32,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from etl.config import config
 from etl.database import Database
 
-logging.basicConfig(level=logging.INFO, format='%(message)s')
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -47,7 +47,7 @@ def load_canonical_venues() -> dict:
     with open(venues_path) as f:
         venues_data = json.load(f)
 
-    return {key: info.get('name', '') for key, info in venues_data.items()}
+    return {key: info.get("name", "") for key, info in venues_data.items()}
 
 
 def sync_venue_names(dry_run: bool = False):
@@ -85,7 +85,7 @@ def sync_venue_names(dry_run: bool = False):
             logger.info(f"Found {len(updates)} venue(s) to update:")
             logger.info("-" * 60)
             for venue_key, old_name, new_name in updates:
-                logger.info(f"  {venue_key}: \"{old_name}\" -> \"{new_name}\"")
+                logger.info(f'  {venue_key}: "{old_name}" -> "{new_name}"')
             logger.info("")
 
             if dry_run:
@@ -96,7 +96,7 @@ def sync_venue_names(dry_run: bool = False):
             for venue_key, old_name, new_name in updates:
                 conn.execute(
                     text("UPDATE venues SET venue_name = :name WHERE venue_key = :key"),
-                    {"name": new_name, "key": venue_key}
+                    {"name": new_name, "key": venue_key},
                 )
             conn.commit()
 
@@ -107,24 +107,20 @@ def sync_venue_names(dry_run: bool = False):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Sync venue names from venues.json to database"
-    )
+    parser = argparse.ArgumentParser(description="Sync venue names from venues.json to database")
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show what would change without making updates"
+        "--dry-run", action="store_true", help="Show what would change without making updates"
     )
     parser.add_argument(
         "--production",
         action="store_true",
-        help="Run against production database (uses DATABASE_PUBLIC_URL from .env)"
+        help="Run against production database (uses DATABASE_PUBLIC_URL from .env)",
     )
     args = parser.parse_args()
 
     # Override database URL for production
     if args.production:
-        prod_url = os.getenv('DATABASE_PUBLIC_URL')
+        prod_url = os.getenv("DATABASE_PUBLIC_URL")
         if not prod_url:
             logger.error("DATABASE_PUBLIC_URL not found in environment/.env")
             sys.exit(1)

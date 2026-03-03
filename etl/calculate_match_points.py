@@ -20,7 +20,7 @@ import argparse
 import json
 import logging
 import sys
-from pathlib import Path
+
 from sqlalchemy import text
 
 from etl.config import config
@@ -29,10 +29,8 @@ from etl.database import db
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 logger = logging.getLogger(__name__)
@@ -57,7 +55,7 @@ def load_match_files(season: int):
     matches = []
     for match_file in matches_path.glob("*.json"):
         try:
-            with open(match_file, 'r') as f:
+            with open(match_file) as f:
                 match_data = json.load(f)
                 matches.append(match_data)
         except Exception as e:
@@ -77,25 +75,25 @@ def calculate_match_points(match_data: dict):
     Returns:
         tuple: (match_key, home_points, away_points) or None if incomplete
     """
-    match_key = match_data.get('key')
-    state = match_data.get('state', '')
+    match_key = match_data.get("key")
+    state = match_data.get("state", "")
 
     # Only process complete matches
-    if state != 'complete':
+    if state != "complete":
         return None
 
     home_points = 0.0
     away_points = 0.0
 
-    rounds = match_data.get('rounds', [])
+    rounds = match_data.get("rounds", [])
 
     for round_data in rounds:
-        games = round_data.get('games', [])
+        games = round_data.get("games", [])
 
         for game in games:
             # Sum up points from each game
-            game_home = game.get('home_points', 0) or 0
-            game_away = game.get('away_points', 0) or 0
+            game_home = game.get("home_points", 0) or 0
+            game_away = game.get("away_points", 0) or 0
 
             home_points += float(game_home)
             away_points += float(game_away)
@@ -124,11 +122,10 @@ def update_match_points(match_points: list):
 
     with db.engine.begin() as conn:
         for match_key, home_points, away_points in match_points:
-            result = conn.execute(text(query), {
-                'match_key': match_key,
-                'home_points': home_points,
-                'away_points': away_points
-            })
+            result = conn.execute(
+                text(query),
+                {"match_key": match_key, "home_points": home_points, "away_points": away_points},
+            )
             if result.rowcount > 0:
                 updated += 1
 
@@ -201,7 +198,7 @@ def verify_match_points(season: int):
     """
 
     with db.engine.connect() as conn:
-        result = conn.execute(text(query), {'season': season})
+        result = conn.execute(text(query), {"season": season})
         row = result.fetchone()
 
     if row:
@@ -235,7 +232,7 @@ def verify_match_points(season: int):
     """
 
     with db.engine.connect() as conn:
-        result = conn.execute(text(query), {'season': season})
+        result = conn.execute(text(query), {"season": season})
         rows = result.fetchall()
 
     for row in rows:
@@ -245,9 +242,9 @@ def verify_match_points(season: int):
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(description='Calculate match point totals')
-    parser.add_argument('--season', type=int, required=True, help='Season number (e.g., 22)')
-    parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
+    parser = argparse.ArgumentParser(description="Calculate match point totals")
+    parser.add_argument("--season", type=int, required=True, help="Season number (e.g., 22)")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
 
@@ -278,5 +275,5 @@ def main():
         db.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

@@ -35,24 +35,22 @@ The backup is stored as JSON for readability and portability.
 
 import argparse
 import json
-import os
 import sys
 from datetime import datetime
-from pathlib import Path
 from decimal import Decimal
+from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from etl.config import get_db_connection
 
-
 # Tables to backup in order (respecting foreign key dependencies)
 MATCHPLAY_TABLES = [
     "matchplay_player_mappings",  # Core user links - CRITICAL
-    "matchplay_ratings",           # Cached data - can be re-fetched
+    "matchplay_ratings",  # Cached data - can be re-fetched
     "matchplay_player_machine_stats",  # Cached data - can be re-fetched
-    "matchplay_arena_mappings",    # Machine name mappings
+    "matchplay_arena_mappings",  # Machine name mappings
 ]
 
 # Default backup directory
@@ -78,7 +76,7 @@ def get_table_data(cursor, table_name: str) -> list[dict]:
         for i, col in enumerate(columns):
             value = row[i]
             # Convert datetime to ISO string for JSON serialization
-            if hasattr(value, 'isoformat'):
+            if hasattr(value, "isoformat"):
                 value = value.isoformat()
             row_dict[col] = value
         result.append(row_dict)
@@ -101,7 +99,7 @@ def backup_matchplay_links(output_path: Path = None) -> tuple[bool, str]:
             "backup_version": "1.0",
             "created_at": datetime.now().isoformat(),
             "description": "MNP Matchplay account links backup",
-            "tables": {}
+            "tables": {},
         }
 
         total_records = 0
@@ -109,13 +107,16 @@ def backup_matchplay_links(output_path: Path = None) -> tuple[bool, str]:
 
         for table_name in MATCHPLAY_TABLES:
             # Check if table exists
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables
                     WHERE table_schema = 'public'
                     AND table_name = %s
                 )
-            """, (table_name,))
+            """,
+                (table_name,),
+            )
 
             if not cursor.fetchone()[0]:
                 print(f"  Warning: Table {table_name} does not exist, skipping")
@@ -140,10 +141,13 @@ def backup_matchplay_links(output_path: Path = None) -> tuple[bool, str]:
             output_path = BACKUP_DIR / f"matchplay_links_{timestamp}.json"
 
         # Write backup file
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(backup_data, f, indent=2, default=decimal_serializer)
 
-        return True, f"Backup saved to {output_path} ({critical_records} account links, {total_records} total records)"
+        return (
+            True,
+            f"Backup saved to {output_path} ({critical_records} account links, {total_records} total records)",
+        )
 
     except Exception as e:
         return False, f"Backup failed: {e}"
@@ -167,7 +171,7 @@ def restore_matchplay_links(input_path: Path, dry_run: bool = False) -> tuple[bo
         return False, f"Backup file not found: {input_path}"
 
     # Load backup data
-    with open(input_path, 'r') as f:
+    with open(input_path) as f:
         backup_data = json.load(f)
 
     # Validate backup format
@@ -202,13 +206,16 @@ def restore_matchplay_links(input_path: Path, dry_run: bool = False) -> tuple[bo
                 continue
 
             # Check if table exists
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables
                     WHERE table_schema = 'public'
                     AND table_name = %s
                 )
-            """, (table_name,))
+            """,
+                (table_name,),
+            )
 
             if not cursor.fetchone()[0]:
                 print(f"  Warning: Table {table_name} does not exist, skipping")
@@ -219,8 +226,8 @@ def restore_matchplay_links(input_path: Path, dry_run: bool = False) -> tuple[bo
 
             # Build INSERT statement with ON CONFLICT DO NOTHING
             # This makes restore idempotent - won't fail if data already exists
-            placeholders = ', '.join(['%s'] * len(columns))
-            column_names = ', '.join(columns)
+            placeholders = ", ".join(["%s"] * len(columns))
+            column_names = ", ".join(columns)
 
             insert_sql = f"""
                 INSERT INTO {table_name} ({column_names})
@@ -242,7 +249,10 @@ def restore_matchplay_links(input_path: Path, dry_run: bool = False) -> tuple[bo
         critical_restored = restored_counts.get("matchplay_player_mappings", 0)
         total_restored = sum(restored_counts.values())
 
-        return True, f"Restore complete: {critical_restored} account links, {total_restored} total records"
+        return (
+            True,
+            f"Restore complete: {critical_restored} account links, {total_restored} total records",
+        )
 
     except Exception as e:
         conn.rollback()
@@ -267,13 +277,16 @@ def verify_matchplay_links() -> tuple[bool, str, dict]:
 
         for table_name in MATCHPLAY_TABLES:
             # Check if table exists
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables
                     WHERE table_schema = 'public'
                     AND table_name = %s
                 )
-            """, (table_name,))
+            """,
+                (table_name,),
+            )
 
             if not cursor.fetchone()[0]:
                 counts[table_name] = None  # Table doesn't exist
@@ -310,7 +323,7 @@ def verify_backup_file(input_path: Path) -> tuple[bool, str, dict]:
         return False, f"Backup file not found: {input_path}", {}
 
     try:
-        with open(input_path, 'r') as f:
+        with open(input_path) as f:
             backup_data = json.load(f)
 
         # Check required fields
@@ -322,7 +335,7 @@ def verify_backup_file(input_path: Path) -> tuple[bool, str, dict]:
         info = {
             "backup_version": backup_data.get("backup_version"),
             "created_at": backup_data.get("created_at"),
-            "tables": {}
+            "tables": {},
         }
 
         for table_name in MATCHPLAY_TABLES:
@@ -350,18 +363,22 @@ def list_backups() -> list[dict]:
     backups = []
     for backup_file in sorted(BACKUP_DIR.glob("matchplay_links_*.json"), reverse=True):
         is_valid, message, info = verify_backup_file(backup_file)
-        backups.append({
-            "path": backup_file,
-            "filename": backup_file.name,
-            "is_valid": is_valid,
-            "created_at": info.get("created_at") if is_valid else None,
-            "account_links": info.get("tables", {}).get("matchplay_player_mappings", 0) if is_valid else 0
-        })
+        backups.append(
+            {
+                "path": backup_file,
+                "filename": backup_file.name,
+                "is_valid": is_valid,
+                "created_at": info.get("created_at") if is_valid else None,
+                "account_links": info.get("tables", {}).get("matchplay_player_mappings", 0)
+                if is_valid
+                else 0,
+            }
+        )
 
     return backups
 
 
-def main():
+def main():  # noqa: C901
     parser = argparse.ArgumentParser(
         description="Backup and restore matchplay account links",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -384,52 +401,34 @@ Examples:
 
     # Dry run restore (validate without changes)
     python etl/backup_matchplay_links.py --restore --input backup.json --dry-run
-"""
+""",
     )
 
     # Action arguments (mutually exclusive)
     action_group = parser.add_mutually_exclusive_group(required=True)
     action_group.add_argument(
-        "--backup",
-        action="store_true",
-        help="Backup matchplay links to a JSON file"
+        "--backup", action="store_true", help="Backup matchplay links to a JSON file"
     )
     action_group.add_argument(
-        "--restore",
-        action="store_true",
-        help="Restore matchplay links from a backup file"
+        "--restore", action="store_true", help="Restore matchplay links from a backup file"
     )
     action_group.add_argument(
-        "--verify",
-        action="store_true",
-        help="Verify matchplay links exist in the database"
+        "--verify", action="store_true", help="Verify matchplay links exist in the database"
     )
     action_group.add_argument(
-        "--verify-backup",
-        action="store_true",
-        help="Verify a backup file is valid"
+        "--verify-backup", action="store_true", help="Verify a backup file is valid"
     )
-    action_group.add_argument(
-        "--list",
-        action="store_true",
-        help="List available backup files"
-    )
+    action_group.add_argument("--list", action="store_true", help="List available backup files")
 
     # Additional arguments
-    parser.add_argument(
-        "--input",
-        type=Path,
-        help="Input backup file for restore or verify-backup"
-    )
+    parser.add_argument("--input", type=Path, help="Input backup file for restore or verify-backup")
     parser.add_argument(
         "--output",
         type=Path,
-        help="Output file for backup (default: backups/matchplay_links_TIMESTAMP.json)"
+        help="Output file for backup (default: backups/matchplay_links_TIMESTAMP.json)",
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="For restore: validate without making changes"
+        "--dry-run", action="store_true", help="For restore: validate without making changes"
     )
 
     args = parser.parse_args()
@@ -521,7 +520,11 @@ Examples:
             for backup in backups:
                 status = "VALID" if backup["is_valid"] else "INVALID"
                 links = backup["account_links"]
-                created = backup.get("created_at", "unknown")[:19] if backup.get("created_at") else "unknown"
+                created = (
+                    backup.get("created_at", "unknown")[:19]
+                    if backup.get("created_at")
+                    else "unknown"
+                )
                 print(f"  {backup['filename']}")
                 print(f"    Status: {status}, Links: {links}, Created: {created}")
                 print()

@@ -17,15 +17,15 @@ import json
 import logging
 import sys
 from pathlib import Path
+
 from sqlalchemy import text
 
 from etl.database import db
-from etl.parsers.match_parser import MatchParser
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 def get_data_archive_path() -> Path:
     """Get the path to the mnp-data-archive submodule."""
-    return Path(__file__).parent.parent / 'mnp-data-archive'
+    return Path(__file__).parent.parent / "mnp-data-archive"
 
 
 def get_matches_needing_machines(season: int = None) -> list:
@@ -44,7 +44,7 @@ def get_matches_needing_machines(season: int = None) -> list:
         List of match_keys that need machines data populated
     """
     season_filter = "AND season = :season" if season else ""
-    params = {'season': season} if season else {}
+    params = {"season": season} if season else {}
 
     query = f"""
         SELECT match_key, season
@@ -74,20 +74,20 @@ def load_match_json(match_key: str, season: int, data_archive: Path) -> dict | N
         Match data dict or None if not found
     """
     # Match files are in season-XX/matches/
-    matches_dir = data_archive / f'season-{season}' / 'matches'
+    matches_dir = data_archive / f"season-{season}" / "matches"
 
     if not matches_dir.exists():
         return None
 
-    match_file = matches_dir / f'{match_key}.json'
+    match_file = matches_dir / f"{match_key}.json"
 
     if not match_file.exists():
         return None
 
     try:
-        with open(match_file, 'r') as f:
+        with open(match_file) as f:
             return json.load(f)
-    except (json.JSONDecodeError, IOError) as e:
+    except (OSError, json.JSONDecodeError) as e:
         logger.warning(f"Error loading {match_file}: {e}")
         return None
 
@@ -102,8 +102,8 @@ def extract_machines_from_match(match_data: dict) -> list | None:
     Returns:
         List of machine keys or None if not present
     """
-    venue = match_data.get('venue', {})
-    machines = venue.get('machines', [])
+    venue = match_data.get("venue", {})
+    machines = venue.get("machines", [])
 
     if not machines:
         return None
@@ -158,10 +158,7 @@ def backfill_match_machines(season: int = None, dry_run: bool = False) -> int:
             no_machines += 1
             continue
 
-        updates.append({
-            'match_key': match_key,
-            'machines': json.dumps(machines)
-        })
+        updates.append({"match_key": match_key, "machines": json.dumps(machines)})
 
     logger.info(f"  - {len(updates)} matches have machines data to update")
     logger.info(f"  - {not_found} match files not found in archive")
@@ -174,7 +171,7 @@ def backfill_match_machines(season: int = None, dry_run: bool = False) -> int:
     # Group by season for reporting
     if len(updates) <= 20:
         for u in updates:
-            machines = json.loads(u['machines'])
+            machines = json.loads(u["machines"])
             logger.info(f"    {u['match_key']}: {len(machines)} machines")
 
     if dry_run:
@@ -210,7 +207,7 @@ def verify_machines_data(season: int = None):
     logger.info("Verifying machines data coverage...")
 
     season_filter = "WHERE season = :season" if season else ""
-    params = {'season': season} if season else {}
+    params = {"season": season} if season else {}
 
     query = f"""
         SELECT
@@ -235,11 +232,14 @@ def verify_machines_data(season: int = None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Backfill matches.machines from JSON files')
-    parser.add_argument('--season', type=int, help='Specific season to backfill (default: all)')
-    parser.add_argument('--dry-run', action='store_true', help='Only show what would be done')
-    parser.add_argument('--recalculate', action='store_true',
-                        help='Also recalculate team_machine_picks after backfill')
+    parser = argparse.ArgumentParser(description="Backfill matches.machines from JSON files")
+    parser.add_argument("--season", type=int, help="Specific season to backfill (default: all)")
+    parser.add_argument("--dry-run", action="store_true", help="Only show what would be done")
+    parser.add_argument(
+        "--recalculate",
+        action="store_true",
+        help="Also recalculate team_machine_picks after backfill",
+    )
 
     args = parser.parse_args()
 
@@ -280,5 +280,5 @@ def main():
         db.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

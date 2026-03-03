@@ -15,10 +15,10 @@ Usage:
 """
 
 import argparse
+import json
 import logging
 import sys
-import json
-from typing import List, Dict, Optional
+
 from sqlalchemy import text
 
 from etl.database import db
@@ -26,16 +26,14 @@ from etl.database import db
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 logger = logging.getLogger(__name__)
 
 
-def get_next_incomplete_week(season: int) -> Optional[int]:
+def get_next_incomplete_week(season: int) -> int | None:
     """
     Find the first week with scheduled (incomplete) matches.
     Returns None if all matches are complete.
@@ -47,13 +45,13 @@ def get_next_incomplete_week(season: int) -> Optional[int]:
         AND state = 'scheduled'
     """
     with db.engine.connect() as conn:
-        result = conn.execute(text(query), {'season': season})
+        result = conn.execute(text(query), {"season": season})
         row = result.fetchone()
 
     return row[0] if row and row[0] is not None else None
 
 
-def get_all_upcoming_weeks(season: int) -> List[int]:
+def get_all_upcoming_weeks(season: int) -> list[int]:
     """
     Get all weeks with scheduled matches.
     Returns list of week numbers.
@@ -66,13 +64,13 @@ def get_all_upcoming_weeks(season: int) -> List[int]:
         ORDER BY week
     """
     with db.engine.connect() as conn:
-        result = conn.execute(text(query), {'season': season})
+        result = conn.execute(text(query), {"season": season})
         rows = result.fetchall()
 
     return [row[0] for row in rows]
 
 
-def get_scheduled_matches(season: int, week: int) -> List[Dict]:
+def get_scheduled_matches(season: int, week: int) -> list[dict]:
     """
     Get all scheduled matches for a specific week.
     Returns match details needed for analysis.
@@ -92,11 +90,11 @@ def get_scheduled_matches(season: int, week: int) -> List[Dict]:
         ORDER BY m.match_key
     """
     with db.engine.connect() as conn:
-        result = conn.execute(text(query), {'season': season, 'week': week})
+        result = conn.execute(text(query), {"season": season, "week": week})
         return [dict(row._mapping) for row in result.fetchall()]
 
 
-def calculate_matchup_analysis(match: Dict, seasons: List[int]) -> Optional[Dict]:
+def calculate_matchup_analysis(match: dict, seasons: list[int]) -> dict | None:
     """
     Calculate complete matchup analysis for a match.
     Uses the shared service module.
@@ -109,20 +107,15 @@ def calculate_matchup_analysis(match: Dict, seasons: List[int]) -> Optional[Dict
         return None
 
     return calculate_full_matchup_analysis(
-        home_team=match['home_team_key'],
-        away_team=match['away_team_key'],
-        venue=match['venue_key'],
-        seasons=seasons
+        home_team=match["home_team_key"],
+        away_team=match["away_team_key"],
+        venue=match["venue_key"],
+        seasons=seasons,
     )
 
 
 def store_matchup_analysis(
-    match_key: str,
-    season: int,
-    week: int,
-    match: Dict,
-    analysis: Dict,
-    seasons: List[int]
+    match_key: str, season: int, week: int, match: dict, analysis: dict, seasons: list[int]
 ):
     """Store pre-calculated matchup in database."""
     query = """
@@ -146,16 +139,19 @@ def store_matchup_analysis(
     """
 
     with db.engine.begin() as conn:
-        conn.execute(text(query), {
-            'match_key': match_key,
-            'season': season,
-            'week': week,
-            'home_team_key': match['home_team_key'],
-            'away_team_key': match['away_team_key'],
-            'venue_key': match['venue_key'],
-            'seasons_analyzed': seasons,
-            'analysis_data': json.dumps(analysis),
-        })
+        conn.execute(
+            text(query),
+            {
+                "match_key": match_key,
+                "season": season,
+                "week": week,
+                "home_team_key": match["home_team_key"],
+                "away_team_key": match["away_team_key"],
+                "venue_key": match["venue_key"],
+                "seasons_analyzed": seasons,
+                "analysis_data": json.dumps(analysis),
+            },
+        )
 
 
 def clear_completed_matchups(season: int):
@@ -170,15 +166,11 @@ def clear_completed_matchups(season: int):
         )
     """
     with db.engine.begin() as conn:
-        result = conn.execute(text(query), {'season': season})
+        result = conn.execute(text(query), {"season": season})
         return result.rowcount
 
 
-def calculate_and_store_matchups(
-    season: int,
-    week: Optional[int] = None,
-    all_upcoming: bool = False
-):
+def calculate_and_store_matchups(season: int, week: int | None = None, all_upcoming: bool = False):
     """
     Main function to pre-calculate matchup data.
     """
@@ -225,7 +217,7 @@ def calculate_and_store_matchups(
         logger.info(f"  Found {len(matches)} scheduled matches")
 
         for match in matches:
-            match_key = match['match_key']
+            match_key = match["match_key"]
             logger.info(f"  Calculating: {match_key}")
 
             try:
@@ -237,11 +229,10 @@ def calculate_and_store_matchups(
                     continue
 
                 store_matchup_analysis(
-                    match_key, season, process_week,
-                    match, analysis, seasons_to_analyze
+                    match_key, season, process_week, match, analysis, seasons_to_analyze
                 )
                 total_calculated += 1
-                logger.info(f"    Stored successfully")
+                logger.info("    Stored successfully")
 
             except Exception as e:
                 logger.error(f"    Error: {e}")
@@ -249,7 +240,7 @@ def calculate_and_store_matchups(
 
     logger.info("")
     logger.info("=" * 60)
-    logger.info(f"Pre-calculation complete!")
+    logger.info("Pre-calculation complete!")
     logger.info(f"  Matches calculated: {total_calculated}")
     logger.info(f"  Matches skipped: {total_skipped}")
     logger.info("=" * 60)
@@ -275,7 +266,7 @@ def verify_matchups(season: int):
     """
 
     with db.engine.connect() as conn:
-        result = conn.execute(text(query), {'season': season})
+        result = conn.execute(text(query), {"season": season})
         row = result.fetchone()
 
     if row:
@@ -304,7 +295,7 @@ def verify_matchups(season: int):
     """
 
     with db.engine.connect() as conn:
-        result = conn.execute(text(query), {'season': season})
+        result = conn.execute(text(query), {"season": season})
         rows = result.fetchall()
 
     for row in rows:
@@ -314,12 +305,14 @@ def verify_matchups(season: int):
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(description='Pre-calculate matchup analysis')
-    parser.add_argument('--season', type=int, required=True, help='Season number (e.g., 24)')
-    parser.add_argument('--week', type=int, help='Specific week to calculate (default: next incomplete)')
-    parser.add_argument('--all-upcoming', action='store_true', help='Calculate all upcoming weeks')
-    parser.add_argument('--cleanup', action='store_true', help='Remove completed match data')
-    parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
+    parser = argparse.ArgumentParser(description="Pre-calculate matchup analysis")
+    parser.add_argument("--season", type=int, required=True, help="Season number (e.g., 24)")
+    parser.add_argument(
+        "--week", type=int, help="Specific week to calculate (default: next incomplete)"
+    )
+    parser.add_argument("--all-upcoming", action="store_true", help="Calculate all upcoming weeks")
+    parser.add_argument("--cleanup", action="store_true", help="Remove completed match data")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
 
@@ -337,9 +330,7 @@ def main():
 
         # Calculate matchups
         success = calculate_and_store_matchups(
-            args.season,
-            week=args.week,
-            all_upcoming=args.all_upcoming
+            args.season, week=args.week, all_upcoming=args.all_upcoming
         )
 
         if not success:
@@ -359,5 +350,5 @@ def main():
         db.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

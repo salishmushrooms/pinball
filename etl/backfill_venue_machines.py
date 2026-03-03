@@ -17,14 +17,15 @@ Usage:
 import argparse
 import logging
 import sys
+
 from sqlalchemy import text
 
 from etl.database import db
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 logger = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ def get_machines_from_scores(season: int = None):
     logger.info("Extracting venue-machine combinations from scores data...")
 
     season_filter = "AND s.season = :season" if season else ""
-    params = {'season': season} if season else {}
+    params = {"season": season} if season else {}
 
     # Only include scores from complete matches for consistency
     query = f"""
@@ -67,7 +68,7 @@ def get_machines_from_scores(season: int = None):
 def get_existing_venue_machines(season: int = None):
     """Get existing venue_machines entries."""
     season_filter = "WHERE season = :season" if season else ""
-    params = {'season': season} if season else {}
+    params = {"season": season} if season else {}
 
     query = f"""
         SELECT venue_key, machine_key, season
@@ -106,12 +107,9 @@ def backfill_venue_machines(season: int = None, dry_run: bool = False):
     for row in scores_machines:
         venue_key, machine_key, s = row
         if (venue_key, machine_key, s) not in existing:
-            missing.append({
-                'venue_key': venue_key,
-                'machine_key': machine_key,
-                'season': s,
-                'active': True
-            })
+            missing.append(
+                {"venue_key": venue_key, "machine_key": machine_key, "season": s, "active": True}
+            )
 
     logger.info(f"Found {len(missing)} missing venue_machines entries")
 
@@ -122,7 +120,7 @@ def backfill_venue_machines(season: int = None, dry_run: bool = False):
     # Group by season for reporting
     by_season = {}
     for entry in missing:
-        s = entry['season']
+        s = entry["season"]
         if s not in by_season:
             by_season[s] = []
         by_season[s].append(entry)
@@ -152,20 +150,23 @@ def backfill_venue_machines(season: int = None, dry_run: bool = False):
     with db.engine.begin() as conn:
         for entry in missing:
             # First ensure machine exists
-            machine_check = conn.execute(text("""
+            machine_check = conn.execute(
+                text("""
                 SELECT machine_key FROM machines WHERE machine_key = :machine_key
-            """), {'machine_key': entry['machine_key']})
+            """),
+                {"machine_key": entry["machine_key"]},
+            )
 
             if machine_check.fetchone() is None:
                 logger.warning(f"Auto-creating missing machine: {entry['machine_key']}")
-                conn.execute(text("""
+                conn.execute(
+                    text("""
                     INSERT INTO machines (machine_key, machine_name)
                     VALUES (:machine_key, :machine_name)
                     ON CONFLICT (machine_key) DO NOTHING
-                """), {
-                    'machine_key': entry['machine_key'],
-                    'machine_name': entry['machine_key']
-                })
+                """),
+                    {"machine_key": entry["machine_key"], "machine_name": entry["machine_key"]},
+                )
 
             conn.execute(text(insert_query), entry)
 
@@ -181,7 +182,7 @@ def verify_data_consistency(season: int = None):
     logger.info("Verifying data consistency...")
 
     season_filter = "WHERE tmp.season = :season" if season else ""
-    params = {'season': season} if season else {}
+    params = {"season": season} if season else {}
 
     query = f"""
         SELECT COUNT(*) as count
@@ -204,11 +205,14 @@ def verify_data_consistency(season: int = None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Backfill venue_machines from scores data')
-    parser.add_argument('--season', type=int, help='Specific season to backfill (default: all)')
-    parser.add_argument('--dry-run', action='store_true', help='Only show what would be done')
-    parser.add_argument('--recalculate', action='store_true',
-                        help='Also recalculate team_machine_picks after backfill')
+    parser = argparse.ArgumentParser(description="Backfill venue_machines from scores data")
+    parser.add_argument("--season", type=int, help="Specific season to backfill (default: all)")
+    parser.add_argument("--dry-run", action="store_true", help="Only show what would be done")
+    parser.add_argument(
+        "--recalculate",
+        action="store_true",
+        help="Also recalculate team_machine_picks after backfill",
+    )
 
     args = parser.parse_args()
 
@@ -249,5 +253,5 @@ def main():
         db.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

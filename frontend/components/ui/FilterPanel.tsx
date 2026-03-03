@@ -18,6 +18,25 @@ interface FilterPanelProps {
   activeFilters?: FilterChipData[];
 }
 
+function FilterIcon() {
+  return (
+    <svg
+      className="w-5 h-5"
+      style={{ color: 'var(--filter-icon, #3b82f6)' }}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+      />
+    </svg>
+  );
+}
+
 /**
  * Reusable FilterPanel component for standardized filter UI across pages.
  *
@@ -60,24 +79,6 @@ export function FilterPanel({
 
   // Calculate filter count from activeFilters if provided, otherwise use activeFilterCount
   const effectiveFilterCount = activeFilters.length > 0 ? activeFilters.length : activeFilterCount;
-
-  // Filter icon SVG component
-  const FilterIcon = () => (
-    <svg
-      className="w-5 h-5"
-      style={{ color: 'var(--filter-icon, #3b82f6)' }}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-      />
-    </svg>
-  );
 
   if (!collapsible) {
     // Non-collapsible mode: styled container

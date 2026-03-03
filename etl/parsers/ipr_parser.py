@@ -4,10 +4,9 @@ Extracts player IPR (Individual Player Rating) data from the canonical IPR CSV f
 """
 
 import csv
-import logging
 import hashlib
+import logging
 from pathlib import Path
-from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +30,9 @@ class IPRParser:
         This matches the player_key generation in match files.
         """
         normalized = self.normalize_player_name(name)
-        return hashlib.sha1(normalized.encode('utf-8')).hexdigest()
+        return hashlib.sha1(normalized.encode("utf-8")).hexdigest()
 
-    def load_ipr_csv(self, file_path: Path) -> Dict[str, int]:
+    def load_ipr_csv(self, file_path: Path) -> dict[str, int]:
         """
         Load IPR data from CSV file.
 
@@ -51,24 +50,28 @@ class IPRParser:
             return ipr_data
 
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding="utf-8") as f:
                 reader = csv.DictReader(f)
 
                 for row in reader:
-                    ipr = int(row['IPR'])
-                    name = self.normalize_player_name(row['Name'])
+                    ipr = int(row["IPR"])
+                    name = self.normalize_player_name(row["Name"])
 
                     # Validate IPR is in range 1-6
                     if ipr < 1 or ipr > 6:
                         errors.append(f"{name}: {ipr}")
-                        logger.warning(f"Skipping invalid IPR value for {name}: {ipr} (must be 1-6)")
+                        logger.warning(
+                            f"Skipping invalid IPR value for {name}: {ipr} (must be 1-6)"
+                        )
                         continue  # Skip this player - don't update their IPR
 
                     ipr_data[name] = ipr
 
             logger.info(f"Loaded IPR data for {len(ipr_data)} players from {file_path}")
             if errors:
-                logger.warning(f"Skipped {len(errors)} players with invalid IPR values (must be 1-6):")
+                logger.warning(
+                    f"Skipped {len(errors)} players with invalid IPR values (must be 1-6):"
+                )
                 for error in errors[:10]:  # Show first 10
                     logger.warning(f"  - {error}")
                 if len(errors) > 10:
@@ -80,7 +83,7 @@ class IPRParser:
 
         return ipr_data
 
-    def extract_ipr_updates(self, file_path: Path) -> List[Dict]:
+    def extract_ipr_updates(self, file_path: Path) -> list[dict]:
         """
         Extract IPR data as a list of player updates.
 
@@ -94,10 +97,7 @@ class IPRParser:
 
         updates = []
         for name, ipr in ipr_data.items():
-            updates.append({
-                'player_name': name,
-                'current_ipr': ipr
-            })
+            updates.append({"player_name": name, "current_ipr": ipr})
 
         return updates
 

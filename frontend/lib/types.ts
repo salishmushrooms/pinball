@@ -1,5 +1,99 @@
 // API Response Types
 
+// ============================================================================
+// Weekly Analysis Types
+// ============================================================================
+
+export interface MatchSummary {
+  total_matches: number;
+  home_wins: number;
+  away_wins: number;
+  ties: number;
+  home_win_pct: number;
+  away_win_pct: number;
+}
+
+export interface MatchResult {
+  match_key: string;
+  home_team_key: string;
+  home_team_name: string;
+  away_team_key: string;
+  away_team_name: string;
+  home_team_points: number;
+  away_team_points: number;
+  home_avg_ipr: number | null;
+  away_avg_ipr: number | null;
+  ipr_gap: number | null;
+  winner: 'home' | 'away' | 'tie';
+  venue_key: string;
+  upset_team_key?: string;
+  upset_team_name?: string;
+  is_underdog?: boolean;
+}
+
+export interface ComebackResult {
+  match_key: string;
+  home_team_key: string;
+  away_team_key: string;
+  comeback_team_key: string;
+  comeback_team_name: string;
+  other_team_key: string;
+  other_team_name: string;
+  deficit_after_r3: number;
+  comeback_r4_points: number;
+  other_r4_points: number;
+  final_score_comeback: number;
+  final_score_other: number;
+  venue_key: string;
+}
+
+export interface ScoreOutlier {
+  match_key: string;
+  player_key: string;
+  player_name: string;
+  team_key: string;
+  team_name: string;
+  machine_key: string;
+  machine_name: string;
+  score: number;
+  round_number: number;
+  player_position: number;
+  p95_threshold: number | null;
+  p99_threshold: number | null;
+  pctile_floor: number;
+}
+
+export interface MachinePlays {
+  machine_key: string;
+  machine_name: string;
+  games_played: number;
+  matches_played: number;
+}
+
+export interface GroupStanding {
+  division: string;
+  team_key: string;
+  team_name: string;
+  matches_played: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  total_points_earned: number;
+  pops: number;
+}
+
+export interface WeeklyRecap {
+  season: number;
+  week: number;
+  match_summary: MatchSummary;
+  upsets: MatchResult[];
+  away_wins: MatchResult[];
+  comebacks: ComebackResult[];
+  score_outliers: ScoreOutlier[];
+  top_machines: MachinePlays[];
+  group_standings: GroupStanding[];
+}
+
 export interface ApiInfo {
   message: string;
   version: string;
@@ -580,7 +674,7 @@ export interface SeasonSchedule {
   key: string;
   teams: { [teamKey: string]: SeasonTeamData };
   weeks: SeasonWeek[];
-  groups: any;
+  groups: unknown;
 }
 
 export interface SeasonMatchesResponse {

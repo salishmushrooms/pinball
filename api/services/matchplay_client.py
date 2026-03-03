@@ -8,26 +8,31 @@ limitations. The games endpoint requires tournament IDs which makes it
 impractical to fetch all games for a player. See:
 mnp-app-docs/api/MATCHPLAY_INTEGRATION.md
 """
-import os
-import httpx
+
 import logging
-from typing import Optional, List, Dict, Any
+import os
+from typing import Any
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
 
 class MatchplayClientError(Exception):
     """Base exception for Matchplay API errors"""
+
     pass
 
 
 class MatchplayRateLimitError(MatchplayClientError):
     """Rate limit exceeded"""
+
     pass
 
 
 class MatchplayAuthError(MatchplayClientError):
     """Authentication error"""
+
     pass
 
 
@@ -40,7 +45,7 @@ class MatchplayClient:
 
     BASE_URL = "https://app.matchplay.events"
 
-    def __init__(self, token: Optional[str] = None):
+    def __init__(self, token: str | None = None):
         """
         Initialize the Matchplay client.
 
@@ -51,14 +56,11 @@ class MatchplayClient:
         if not self.token:
             logger.warning("MATCHPLAY_API_TOKEN not set - Matchplay integration will not work")
 
-        self.headers = {
-            "Authorization": f"Bearer {self.token}",
-            "Accept": "application/json"
-        }
+        self.headers = {"Authorization": f"Bearer {self.token}", "Accept": "application/json"}
 
         # Track rate limits from response headers
-        self.rate_limit_remaining: Optional[int] = None
-        self.rate_limit_total: Optional[int] = None
+        self.rate_limit_remaining: int | None = None
+        self.rate_limit_total: int | None = None
 
     def _update_rate_limits(self, response: httpx.Response) -> None:
         """Update rate limit tracking from response headers."""
@@ -67,7 +69,7 @@ class MatchplayClient:
         if "x-ratelimit-limit" in response.headers:
             self.rate_limit_total = int(response.headers["x-ratelimit-limit"])
 
-    def _handle_response(self, response: httpx.Response) -> Dict[str, Any]:
+    def _handle_response(self, response: httpx.Response) -> dict[str, Any]:
         """Handle API response, checking for errors."""
         self._update_rate_limits(response)
 
@@ -80,7 +82,7 @@ class MatchplayClient:
         response.raise_for_status()
         return response.json()
 
-    async def search_users(self, query: str) -> List[Dict[str, Any]]:
+    async def search_users(self, query: str) -> list[dict[str, Any]]:
         """
         Search for users by name.
 
@@ -97,17 +99,14 @@ class MatchplayClient:
             response = await client.get(
                 f"{self.BASE_URL}/api/search",
                 params={"query": query, "type": "users"},
-                headers=self.headers
+                headers=self.headers,
             )
             data = self._handle_response(response)
             return data.get("data", [])
 
     async def get_user_profile(
-        self,
-        user_id: int,
-        include_ifpa: bool = True,
-        include_counts: bool = True
-    ) -> Dict[str, Any]:
+        self, user_id: int, include_ifpa: bool = True, include_counts: bool = True
+    ) -> dict[str, Any]:
         """
         Get a user's full profile including rating and IFPA data.
 
@@ -136,14 +135,12 @@ class MatchplayClient:
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
-                f"{self.BASE_URL}/api/users/{user_id}",
-                params=params,
-                headers=self.headers
+                f"{self.BASE_URL}/api/users/{user_id}", params=params, headers=self.headers
             )
             # This endpoint returns data directly, not nested in "data"
             return self._handle_response(response)
 
-    async def get_rating_summary(self, user_id: int) -> Dict[str, Any]:
+    async def get_rating_summary(self, user_id: int) -> dict[str, Any]:
         """
         Get a user's rating summary.
 
@@ -164,13 +161,12 @@ class MatchplayClient:
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
-                f"{self.BASE_URL}/api/ratings/users/{user_id}/summary",
-                headers=self.headers
+                f"{self.BASE_URL}/api/ratings/users/{user_id}/summary", headers=self.headers
             )
             data = self._handle_response(response)
             return data.get("data", {})
 
-    async def get_rating_full(self, user_id: int, rating_type: str = "main") -> Dict[str, Any]:
+    async def get_rating_full(self, user_id: int, rating_type: str = "main") -> dict[str, Any]:
         """
         Get a user's full rating profile with history.
 
@@ -186,13 +182,12 @@ class MatchplayClient:
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
-                f"{self.BASE_URL}/api/ratings/{rating_type}/{user_id}",
-                headers=self.headers
+                f"{self.BASE_URL}/api/ratings/{rating_type}/{user_id}", headers=self.headers
             )
             data = self._handle_response(response)
             return data.get("data", {})
 
-    async def search_tournaments(self, query: str) -> List[Dict[str, Any]]:
+    async def search_tournaments(self, query: str) -> list[dict[str, Any]]:
         """
         Search for tournaments by name.
 
@@ -209,12 +204,12 @@ class MatchplayClient:
             response = await client.get(
                 f"{self.BASE_URL}/api/search",
                 params={"query": query, "type": "tournaments"},
-                headers=self.headers
+                headers=self.headers,
             )
             data = self._handle_response(response)
             return data.get("data", [])
 
-    async def get_tournament(self, tournament_id: int) -> Dict[str, Any]:
+    async def get_tournament(self, tournament_id: int) -> dict[str, Any]:
         """
         Get tournament details.
 
@@ -229,17 +224,14 @@ class MatchplayClient:
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
-                f"{self.BASE_URL}/api/tournaments/{tournament_id}",
-                headers=self.headers
+                f"{self.BASE_URL}/api/tournaments/{tournament_id}", headers=self.headers
             )
             data = self._handle_response(response)
             return data.get("data", {})
 
     async def get_tournament_games(
-        self,
-        tournament_id: int,
-        status: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, tournament_id: int, status: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         Get games from a tournament.
 
@@ -261,7 +253,7 @@ class MatchplayClient:
             response = await client.get(
                 f"{self.BASE_URL}/api/tournaments/{tournament_id}/games",
                 params=params,
-                headers=self.headers
+                headers=self.headers,
             )
             data = self._handle_response(response)
             return data.get("data", [])

@@ -56,9 +56,6 @@ export function getPercentileStyle(pct: number | null | undefined): { color: str
   if (pct === null || pct === undefined) return null;
   const rounded = Math.round(pct);
   if (rounded >= 90) return { color: '#f59e0b', label: `${rounded}th` };
-  if (rounded >= 75) return { color: '#a78bfa', label: `${rounded}th` };
-  if (rounded >= 50) return { color: '#60a5fa', label: `${rounded}th` };
-  if (rounded > 0)   return { color: '#6b7280', label: `${rounded}th` };
   return null;
 }
 

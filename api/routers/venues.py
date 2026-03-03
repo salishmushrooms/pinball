@@ -1,25 +1,25 @@
 """
 Venues API endpoints
 """
-from typing import Optional, List
-from datetime import datetime, timedelta
-import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import text
 
+from datetime import datetime, timedelta
+
+import httpx
+from fastapi import APIRouter, HTTPException, Query
+
+from api.dependencies import execute_query
 from api.models.schemas import (
+    ErrorResponse,
+    PinballMapMachine,
+    PinballMapVenueMachines,
     VenueBase,
     VenueDetail,
+    VenueHomeTeam,
     VenueList,
     VenueMachineStats,
     VenueWithStats,
     VenueWithStatsList,
-    VenueHomeTeam,
-    ErrorResponse,
-    PinballMapMachine,
-    PinballMapVenueMachines,
 )
-from api.dependencies import execute_query
 
 router = APIRouter(prefix="/venues", tags=["venues"])
 
@@ -30,7 +30,7 @@ PINBALLMAP_CACHE_TTL = timedelta(hours=6)  # Cache for 6 hours
 PINBALLMAP_API_BASE = "https://pinballmap.com/api/v1"
 
 
-def get_current_machines_for_venue(venue_key: str) -> List[str]:
+def get_current_machines_for_venue(venue_key: str) -> list[str]:
     """
     Get the current machine lineup for a venue from the database.
     Returns list of machine keys from the most recent season where this venue has data.
@@ -47,8 +47,8 @@ def get_current_machines_for_venue(venue_key: str) -> List[str]:
             AND vm.active = true
             ORDER BY vm.machine_key
         """
-        results = execute_query(query, {'venue_key': venue_key})
-        return [row['machine_key'] for row in results]
+        results = execute_query(query, {"venue_key": venue_key})
+        return [row["machine_key"] for row in results]
     except Exception:
         return []
 
@@ -77,7 +77,7 @@ def get_machine_counts_for_all_venues() -> dict:
             GROUP BY vm.venue_key
         """
         results = execute_query(query, {})
-        return {row['venue_key']: row['machine_count'] for row in results}
+        return {row["venue_key"]: row["machine_count"] for row in results}
     except Exception:
         return {}
 
@@ -86,12 +86,12 @@ def get_machine_counts_for_all_venues() -> dict:
     "",
     response_model=VenueList,
     summary="List all venues",
-    description="Get a paginated list of all venues with optional filtering"
+    description="Get a paginated list of all venues with optional filtering",
 )
 def list_venues(
-    search: Optional[str] = Query(None, description="Search venue names (case-insensitive)"),
+    search: str | None = Query(None, description="Search venue names (case-insensitive)"),
     limit: int = Query(100, ge=1, le=500, description="Number of results to return"),
-    offset: int = Query(0, ge=0, description="Number of results to skip")
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
 ):
     """
     List all venues with optional filtering and pagination.
@@ -106,14 +106,14 @@ def list_venues(
 
     if search:
         where_clauses.append("LOWER(v.venue_name) LIKE LOWER(:search)")
-        params['search'] = f"%{search}%"
+        params["search"] = f"%{search}%"
 
     where_clause = " AND ".join(where_clauses) if where_clauses else "TRUE"
 
     # Get total count
     count_query = f"SELECT COUNT(*) as total FROM venues v WHERE {where_clause}"
     count_result = execute_query(count_query, params)
-    total = count_result[0]['total'] if count_result else 0
+    total = count_result[0]["total"] if count_result else 0
 
     # Get paginated results
     query = f"""
@@ -123,15 +123,12 @@ def list_venues(
         ORDER BY venue_name
         LIMIT :limit OFFSET :offset
     """
-    params['limit'] = limit
-    params['offset'] = offset
+    params["limit"] = limit
+    params["offset"] = offset
     venues = execute_query(query, params)
 
     return VenueList(
-        venues=[VenueBase(**venue) for venue in venues],
-        total=total,
-        limit=limit,
-        offset=offset
+        venues=[VenueBase(**venue) for venue in venues], total=total, limit=limit, offset=offset
     )
 
 
@@ -139,15 +136,19 @@ def list_venues(
     "/with-stats",
     response_model=VenueWithStatsList,
     summary="List all venues with statistics",
-    description="Get a paginated list of all venues with machine count and home teams"
+    description="Get a paginated list of all venues with machine count and home teams",
 )
 def list_venues_with_stats(
-    season: Optional[int] = Query(None, description="Filter home teams by season (defaults to most recent)"),
-    active_only: bool = Query(True, description="Only show venues with home teams in the current season"),
-    neighborhood: Optional[str] = Query(None, description="Filter by neighborhood"),
-    search: Optional[str] = Query(None, description="Search venue names (case-insensitive)"),
+    season: int | None = Query(
+        None, description="Filter home teams by season (defaults to most recent)"
+    ),
+    active_only: bool = Query(
+        True, description="Only show venues with home teams in the current season"
+    ),
+    neighborhood: str | None = Query(None, description="Filter by neighborhood"),
+    search: str | None = Query(None, description="Search venue names (case-insensitive)"),
     limit: int = Query(100, ge=1, le=500, description="Number of results to return"),
-    offset: int = Query(0, ge=0, description="Number of results to skip")
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
 ):
     """
     List all venues with additional statistics including machine count and home teams.
@@ -162,11 +163,15 @@ def list_venues_with_stats(
     if season is None:
         season_query = "SELECT MAX(season) as max_season FROM teams"
         season_result = execute_query(season_query, {})
-        season = season_result[0]['max_season'] if season_result and season_result[0]['max_season'] else 22
+        season = (
+            season_result[0]["max_season"]
+            if season_result and season_result[0]["max_season"]
+            else 22
+        )
 
     # Build WHERE clauses
     where_clauses = []
-    params = {'season': season}
+    params = {"season": season}
 
     # Filter to only venues with home teams in the current season
     if active_only:
@@ -178,18 +183,18 @@ def list_venues_with_stats(
 
     if neighborhood:
         where_clauses.append("LOWER(v.neighborhood) = LOWER(:neighborhood)")
-        params['neighborhood'] = neighborhood
+        params["neighborhood"] = neighborhood
 
     if search:
         where_clauses.append("LOWER(v.venue_name) LIKE LOWER(:search)")
-        params['search'] = f"%{search}%"
+        params["search"] = f"%{search}%"
 
     where_clause = " AND ".join(where_clauses) if where_clauses else "TRUE"
 
     # Get total count
     count_query = f"SELECT COUNT(*) as total FROM venues v WHERE {where_clause}"
     count_result = execute_query(count_query, params)
-    total = count_result[0]['total'] if count_result else 0
+    total = count_result[0]["total"] if count_result else 0
 
     # Get paginated venues
     query = f"""
@@ -199,8 +204,8 @@ def list_venues_with_stats(
         ORDER BY venue_name
         LIMIT :limit OFFSET :offset
     """
-    params['limit'] = limit
-    params['offset'] = offset
+    params["limit"] = limit
+    params["offset"] = offset
     venues = execute_query(query, params)
 
     home_teams_query = """
@@ -208,20 +213,20 @@ def list_venues_with_stats(
         FROM teams
         WHERE season = :season
     """
-    home_teams_result = execute_query(home_teams_query, {'season': season})
+    home_teams_result = execute_query(home_teams_query, {"season": season})
 
     # Group home teams by venue
     venue_home_teams = {}
     for team in home_teams_result:
-        venue_key = team['home_venue_key']
+        venue_key = team["home_venue_key"]
         if venue_key:
             if venue_key not in venue_home_teams:
                 venue_home_teams[venue_key] = []
-            venue_home_teams[venue_key].append(VenueHomeTeam(
-                team_key=team['team_key'],
-                team_name=team['team_name'],
-                season=team['season']
-            ))
+            venue_home_teams[venue_key].append(
+                VenueHomeTeam(
+                    team_key=team["team_key"], team_name=team["team_name"], season=team["season"]
+                )
+            )
 
     # Get machine counts for ALL venues in a single batch query (eliminates N+1)
     venue_machine_counts = get_machine_counts_for_all_venues()
@@ -229,7 +234,7 @@ def list_venues_with_stats(
     # Build enriched venue list
     enriched_venues = []
     for venue in venues:
-        venue_key = venue['venue_key']
+        venue_key = venue["venue_key"]
 
         # Look up machine count from batch result (O(1) dict lookup instead of DB query)
         machine_count = venue_machine_counts.get(venue_key, 0)
@@ -237,21 +242,18 @@ def list_venues_with_stats(
         # Get home teams for this venue
         home_teams = venue_home_teams.get(venue_key, [])
 
-        enriched_venues.append(VenueWithStats(
-            venue_key=venue_key,
-            venue_name=venue['venue_name'],
-            address=venue.get('address'),
-            neighborhood=venue.get('neighborhood'),
-            machine_count=machine_count,
-            home_teams=home_teams
-        ))
+        enriched_venues.append(
+            VenueWithStats(
+                venue_key=venue_key,
+                venue_name=venue["venue_name"],
+                address=venue.get("address"),
+                neighborhood=venue.get("neighborhood"),
+                machine_count=machine_count,
+                home_teams=home_teams,
+            )
+        )
 
-    return VenueWithStatsList(
-        venues=enriched_venues,
-        total=total,
-        limit=limit,
-        offset=offset
-    )
+    return VenueWithStatsList(venues=enriched_venues, total=total, limit=limit, offset=offset)
 
 
 @router.get(
@@ -259,7 +261,7 @@ def list_venues_with_stats(
     response_model=VenueDetail,
     responses={404: {"model": ErrorResponse}},
     summary="Get venue details",
-    description="Get detailed information about a specific venue"
+    description="Get detailed information about a specific venue",
 )
 def get_venue(venue_key: str):
     """
@@ -277,7 +279,7 @@ def get_venue(venue_key: str):
         FROM venues v
         WHERE v.venue_key = :venue_key
     """
-    venues = execute_query(query, {'venue_key': venue_key})
+    venues = execute_query(query, {"venue_key": venue_key})
 
     if not venues:
         raise HTTPException(status_code=404, detail=f"Venue '{venue_key}' not found")
@@ -285,20 +287,22 @@ def get_venue(venue_key: str):
     # Get home teams for this venue (from most recent season)
     season_query = "SELECT MAX(season) as max_season FROM teams"
     season_result = execute_query(season_query, {})
-    season = season_result[0]['max_season'] if season_result and season_result[0]['max_season'] else 22
+    season = (
+        season_result[0]["max_season"] if season_result and season_result[0]["max_season"] else 22
+    )
 
     home_teams_query = """
         SELECT team_key, team_name, season
         FROM teams
         WHERE home_venue_key = :venue_key AND season = :season
     """
-    home_teams_result = execute_query(home_teams_query, {'venue_key': venue_key, 'season': season})
+    home_teams_result = execute_query(home_teams_query, {"venue_key": venue_key, "season": season})
     home_teams = [VenueHomeTeam(**team) for team in home_teams_result]
 
     return VenueDetail(**venues[0], home_teams=home_teams)
 
 
-async def _fetch_pinballmap_machines(location_id: int) -> List[PinballMapMachine]:
+async def _fetch_pinballmap_machines(location_id: int) -> list[PinballMapMachine]:
     """Fetch machine list from Pinball Map API."""
     url = f"{PINBALLMAP_API_BASE}/locations/{location_id}/machine_details.json"
     async with httpx.AsyncClient(timeout=10.0) as client:
@@ -314,11 +318,11 @@ async def _fetch_pinballmap_machines(location_id: int) -> List[PinballMapMachine
     response_model=PinballMapVenueMachines,
     responses={404: {"model": ErrorResponse}},
     summary="Get Pinball Map machine lineup",
-    description="Get current machine lineup from Pinball Map (community-maintained, cached for 6 hours)"
+    description="Get current machine lineup from Pinball Map (community-maintained, cached for 6 hours)",
 )
 async def get_venue_pinballmap_machines(
     venue_key: str,
-    refresh: bool = Query(False, description="Force refresh from Pinball Map API (bypasses cache)")
+    refresh: bool = Query(False, description="Force refresh from Pinball Map API (bypasses cache)"),
 ):
     """
     Get current machine lineup for a venue from Pinball Map.
@@ -336,18 +340,18 @@ async def get_venue_pinballmap_machines(
         FROM venues
         WHERE venue_key = :venue_key
     """
-    venues = execute_query(query, {'venue_key': venue_key})
+    venues = execute_query(query, {"venue_key": venue_key})
 
     if not venues:
         raise HTTPException(status_code=404, detail=f"Venue '{venue_key}' not found")
 
     venue = venues[0]
-    location_id = venue.get('pinballmap_location_id')
+    location_id = venue.get("pinballmap_location_id")
 
     if not location_id:
         raise HTTPException(
             status_code=404,
-            detail=f"Venue '{venue_key}' does not have a Pinball Map location configured"
+            detail=f"Venue '{venue_key}' does not have a Pinball Map location configured",
         )
 
     # Check cache (unless refresh requested)
@@ -365,23 +369,20 @@ async def get_venue_pinballmap_machines(
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 404:
             raise HTTPException(
-                status_code=404,
-                detail=f"Pinball Map location {location_id} not found"
+                status_code=404, detail=f"Pinball Map location {location_id} not found"
             )
         raise HTTPException(
-            status_code=502,
-            detail=f"Error fetching from Pinball Map: {e.response.status_code}"
+            status_code=502, detail=f"Error fetching from Pinball Map: {e.response.status_code}"
         )
     except httpx.RequestError as e:
         raise HTTPException(
-            status_code=502,
-            detail=f"Could not connect to Pinball Map API: {str(e)}"
+            status_code=502, detail=f"Could not connect to Pinball Map API: {str(e)}"
         )
 
     # Build response
     result = PinballMapVenueMachines(
-        venue_key=venue['venue_key'],
-        venue_name=venue['venue_name'],
+        venue_key=venue["venue_key"],
+        venue_name=venue["venue_name"],
         pinballmap_location_id=location_id,
         pinballmap_url=f"https://pinballmap.com/map?by_location_id={location_id}",
         machines=machines,
@@ -400,17 +401,22 @@ async def get_venue_pinballmap_machines(
 
 @router.get(
     "/{venue_key}/machines",
-    response_model=List[VenueMachineStats],
+    response_model=list[VenueMachineStats],
     responses={404: {"model": ErrorResponse}},
     summary="Get machines at a venue with score statistics",
-    description="Get all machines that have been played at this venue with score statistics"
+    description="Get all machines that have been played at this venue with score statistics",
 )
-def get_venue_machines(
+def get_venue_machines(  # noqa: C901
     venue_key: str,
-    current_only: bool = Query(False, description="Filter to only show current machines at this venue"),
-    seasons: Optional[List[int]] = Query(None, description="Filter by one or more seasons"),
-    team_key: Optional[str] = Query(None, description="Filter statistics to a specific team"),
-    scores_from: str = Query("venue", description="Score source: 'venue' (only scores at this venue) or 'all' (all scores on these machines across all venues)")
+    current_only: bool = Query(
+        False, description="Filter to only show current machines at this venue"
+    ),
+    seasons: list[int] | None = Query(None, description="Filter by one or more seasons"),
+    team_key: str | None = Query(None, description="Filter statistics to a specific team"),
+    scores_from: str = Query(
+        "venue",
+        description="Score source: 'venue' (only scores at this venue) or 'all' (all scores on these machines across all venues)",
+    ),
 ):
     """
     Get all machines that have been played at this venue with statistics.
@@ -430,11 +436,11 @@ def get_venue_machines(
     """
     # First verify venue exists
     venue_query = "SELECT venue_name FROM venues WHERE venue_key = :venue_key"
-    venue_result = execute_query(venue_query, {'venue_key': venue_key})
+    venue_result = execute_query(venue_query, {"venue_key": venue_key})
     if not venue_result:
         raise HTTPException(status_code=404, detail=f"Venue '{venue_key}' not found")
 
-    venue_name = venue_result[0]['venue_name']
+    venue_name = venue_result[0]["venue_name"]
 
     # Get current machines list (always get it for is_current flag)
     current_machines = get_current_machines_for_venue(venue_key)
@@ -452,14 +458,14 @@ def get_venue_machines(
 
     if machines_to_include:
         # Filter to specific machines
-        placeholders = ','.join([f":machine_{i}" for i in range(len(machines_to_include))])
+        placeholders = ",".join([f":machine_{i}" for i in range(len(machines_to_include))])
         where_clauses.append(f"s.machine_key IN ({placeholders})")
         for i, machine_key in enumerate(machines_to_include):
-            params[f'machine_{i}'] = machine_key
+            params[f"machine_{i}"] = machine_key
     elif scores_from == "venue":
         # If not filtering by current machines, still limit to machines played at this venue
         where_clauses.append("s.venue_key = :venue_key")
-        params['venue_key'] = venue_key
+        params["venue_key"] = venue_key
 
     # Handle scores_from parameter
     if scores_from == "venue" and not machines_to_include:
@@ -468,16 +474,16 @@ def get_venue_machines(
     elif scores_from == "venue" and machines_to_include:
         # For current machines, also filter to only scores at this venue
         where_clauses.append("s.venue_key = :venue_key")
-        params['venue_key'] = venue_key
+        params["venue_key"] = venue_key
     # else scores_from == "all": no venue filter, get all scores on these machines
 
     if seasons is not None and len(seasons) > 0:
         where_clauses.append("s.season = ANY(:seasons)")
-        params['seasons'] = seasons
+        params["seasons"] = seasons
 
     if team_key is not None:
         where_clauses.append("s.team_key = :team_key")
-        params['team_key'] = team_key
+        params["team_key"] = team_key
 
     where_clause = " AND ".join(where_clauses) if where_clauses else "TRUE"
 
@@ -505,22 +511,24 @@ def get_venue_machines(
 
     # Add venue information, is_current flag, and ensure venue_key is set
     for machine in machines:
-        if 'venue_key' not in machine or not machine['venue_key']:
-            machine['venue_key'] = venue_key
-        if 'venue_name' not in machine or not machine['venue_name']:
-            machine['venue_name'] = venue_name
+        if "venue_key" not in machine or not machine["venue_key"]:
+            machine["venue_key"] = venue_key
+        if "venue_name" not in machine or not machine["venue_name"]:
+            machine["venue_name"] = venue_name
         # Set is_current flag based on whether machine is in current_machines list
-        machine['is_current'] = machine['machine_key'] in current_machines if current_machines else False
+        machine["is_current"] = (
+            machine["machine_key"] in current_machines if current_machines else False
+        )
 
     return [VenueMachineStats(**machine) for machine in machines]
 
 
 @router.get(
     "/{venue_key}/current-machines",
-    response_model=List[str],
+    response_model=list[str],
     responses={404: {"model": ErrorResponse}},
     summary="Get current machine lineup at venue",
-    description="Get list of machine keys currently at this venue (from most recent match)"
+    description="Get list of machine keys currently at this venue (from most recent match)",
 )
 def get_venue_current_machines(venue_key: str):
     """
@@ -532,7 +540,7 @@ def get_venue_current_machines(venue_key: str):
     """
     # First verify venue exists
     venue_query = "SELECT venue_name FROM venues WHERE venue_key = :venue_key"
-    venue_result = execute_query(venue_query, {'venue_key': venue_key})
+    venue_result = execute_query(venue_query, {"venue_key": venue_key})
     if not venue_result:
         raise HTTPException(status_code=404, detail=f"Venue '{venue_key}' not found")
 
@@ -540,8 +548,7 @@ def get_venue_current_machines(venue_key: str):
 
     if not current_machines:
         raise HTTPException(
-            status_code=404,
-            detail=f"No recent match data found for venue '{venue_key}'"
+            status_code=404, detail=f"No recent match data found for venue '{venue_key}'"
         )
 
     return current_machines

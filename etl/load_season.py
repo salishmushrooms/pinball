@@ -11,33 +11,30 @@ import argparse
 import json
 import logging
 import sys
-from pathlib import Path
 
 from etl.config import config
 from etl.database import db
+from etl.loaders.db_loader import DatabaseLoader
+from etl.parsers.ipr_parser import IPRParser
 from etl.parsers.machine_parser import MachineParser
 from etl.parsers.match_parser import MatchParser
-from etl.parsers.ipr_parser import IPRParser
-from etl.loaders.db_loader import DatabaseLoader
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 logger = logging.getLogger(__name__)
 
 
-def load_season_data(season: int):
+def load_season_data(season: int):  # noqa: C901
     """Load all data for a season"""
 
-    logger.info(f"=" * 60)
+    logger.info("=" * 60)
     logger.info(f"Starting ETL for Season {season}")
-    logger.info(f"=" * 60)
+    logger.info("=" * 60)
 
     # Initialize components
     machine_parser = MachineParser(config.MACHINE_VARIATIONS_FILE)
@@ -104,26 +101,26 @@ def load_season_data(season: int):
         venues_json_path = config.DATA_PATH / "venues.json"
         venue_metadata = {}
         if venues_json_path.exists():
-            with open(venues_json_path, 'r') as f:
+            with open(venues_json_path) as f:
                 venues_data = json.load(f)
                 for venue_key, venue_info in venues_data.items():
                     venue_metadata[venue_key] = {
-                        'name': venue_info.get('name', ''),
-                        'address': venue_info.get('address', ''),
-                        'neighborhood': venue_info.get('neighborhood', '')
+                        "name": venue_info.get("name", ""),
+                        "address": venue_info.get("address", ""),
+                        "neighborhood": venue_info.get("neighborhood", ""),
                     }
             logger.info(f"  Loaded metadata for {len(venue_metadata)} venues from venues.json")
 
         for match in matches:
             venue = match_parser.extract_venue_from_match(match)
-            venue_key = venue['venue_key']
+            venue_key = venue["venue_key"]
 
             # Enrich with metadata from venues.json (including canonical name)
             if venue_key in venue_metadata:
-                if venue_metadata[venue_key].get('name'):
-                    venue['venue_name'] = venue_metadata[venue_key]['name']
-                venue['address'] = venue_metadata[venue_key].get('address')
-                venue['neighborhood'] = venue_metadata[venue_key].get('neighborhood')
+                if venue_metadata[venue_key].get("name"):
+                    venue["venue_name"] = venue_metadata[venue_key]["name"]
+                venue["address"] = venue_metadata[venue_key].get("address")
+                venue["neighborhood"] = venue_metadata[venue_key].get("neighborhood")
 
             all_venues[venue_key] = venue
 
@@ -135,7 +132,7 @@ def load_season_data(season: int):
         # Deduplicate venue machines
         unique_vm = {}
         for vm in all_venue_machines:
-            key = (vm['venue_key'], vm['machine_key'], vm['season'])
+            key = (vm["venue_key"], vm["machine_key"], vm["season"])
             unique_vm[key] = vm
 
         loader.load_venue_machines(list(unique_vm.values()))
@@ -151,19 +148,20 @@ def load_season_data(season: int):
     logger.info("Step 4: Extracting teams...")
     try:
         import csv
+
         all_teams = {}
 
         for match in matches:
             teams = match_parser.extract_teams_from_match(match)
             for team in teams:
-                key = (team['team_key'], team['season'])
+                key = (team["team_key"], team["season"])
                 all_teams[key] = team
 
         # Load team-venue mappings from teams.csv if available
         teams_csv = config.get_season_path(season) / "teams.csv"
         if teams_csv.exists():
-            logger.info(f"  Loading team-venue mappings from teams.csv...")
-            with open(teams_csv, 'r') as f:
+            logger.info("  Loading team-venue mappings from teams.csv...")
+            with open(teams_csv) as f:
                 reader = csv.reader(f)
                 for row in reader:
                     if len(row) >= 3:
@@ -172,15 +170,15 @@ def load_season_data(season: int):
                         team_name = row[2].strip()
                         key = (team_key, season)
                         if key in all_teams:
-                            all_teams[key]['home_venue_key'] = venue_key
-                            all_teams[key]['team_name'] = team_name
+                            all_teams[key]["home_venue_key"] = venue_key
+                            all_teams[key]["team_name"] = team_name
                         else:
                             # Team from CSV not in matches (possibly didn't play)
                             all_teams[key] = {
-                                'team_key': team_key,
-                                'season': season,
-                                'team_name': team_name,
-                                'home_venue_key': venue_key
+                                "team_key": team_key,
+                                "season": season,
+                                "team_name": team_name,
+                                "home_venue_key": venue_key,
                             }
 
         loader.load_teams(list(all_teams.values()))
@@ -199,15 +197,14 @@ def load_season_data(season: int):
         for match in matches:
             players = match_parser.extract_players_from_match(match)
             for player in players:
-                if player['player_key'] in all_players:
+                if player["player_key"] in all_players:
                     # Update last_seen_season
-                    existing = all_players[player['player_key']]
-                    existing['last_seen_season'] = max(
-                        existing['last_seen_season'],
-                        player['last_seen_season']
+                    existing = all_players[player["player_key"]]
+                    existing["last_seen_season"] = max(
+                        existing["last_seen_season"], player["last_seen_season"]
                     )
                 else:
-                    all_players[player['player_key']] = player
+                    all_players[player["player_key"]] = player
 
         loader.load_players(list(all_players.values()))
         logger.info(f"✓ Loaded {len(all_players)} players")
@@ -261,9 +258,7 @@ def load_season_data(season: int):
 
             # Normalize machine keys
             for game in games:
-                game['machine_key'] = machine_parser.normalize_machine_key(
-                    game['machine_key']
-                )
+                game["machine_key"] = machine_parser.normalize_machine_key(game["machine_key"])
 
             all_games.extend(games)
 
@@ -309,20 +304,11 @@ def load_season_data(season: int):
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(
-        description='Load MNP season data into database'
-    )
+    parser = argparse.ArgumentParser(description="Load MNP season data into database")
     parser.add_argument(
-        '--season',
-        type=int,
-        required=True,
-        help='Season number to load (e.g., 22)'
+        "--season", type=int, required=True, help="Season number to load (e.g., 22)"
     )
-    parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Enable verbose logging'
-    )
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
 
@@ -345,5 +331,5 @@ def main():
     sys.exit(0 if success else 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -128,7 +128,7 @@ export default function MachineDetailPage() {
 
   async function fetchScores() {
     try {
-      const params: any = { limit: 1000 };
+      const params: Record<string, unknown> = { limit: 1000 };
       if (selectedVenue !== 'all') {
         params.venue_key = selectedVenue;
       }
