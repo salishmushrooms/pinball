@@ -278,7 +278,7 @@ export default function MachineDetailPage() {
               value={formatScore(machine.max_score || 0)}
             />
           </div>
-          <p className="text-sm mt-4" style={{ color: 'var(--text-muted)' }}>* Based on data from MNP seasons 18-22</p>
+          <p className="text-sm mt-4" style={{ color: 'var(--text-muted)' }}>* Based on data from MNP seasons 20-23</p>
         </Card.Content>
       </Card>
 

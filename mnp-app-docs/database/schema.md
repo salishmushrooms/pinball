@@ -471,7 +471,7 @@ Assuming 10 seasons of data, 20 teams per season, 10 matches per team, 4 rounds 
 | team_machine_picks | 10,000 | 500 KB |
 | **Total** | | **~18 MB** |
 
-> **Note:** These are initial estimates from the planning phase. The actual production database is larger with 6 seasons (18-23) loaded, containing 943+ matches and 56,504+ scores. Check Railway dashboard for current storage usage.
+> **Note:** These are initial estimates from the planning phase. The actual production database is larger with 4 seasons (20-23) loaded, containing 943+ matches and 56,504+ scores. Check Railway dashboard for current storage usage.
 
 **Additional Note:** Indexes will approximately double storage requirements.
 

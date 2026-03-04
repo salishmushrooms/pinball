@@ -6,6 +6,7 @@ from collections import defaultdict
 
 from fastapi import APIRouter, HTTPException, Query
 
+from api.config import CURRENT_SEASON
 from api.dependencies import execute_query
 from api.models.schemas import (
     ErrorResponse,
@@ -265,7 +266,7 @@ def get_player_dashboard_stats():
     # Get latest season
     latest_season_query = "SELECT MAX(season) as latest FROM scores"
     latest_season_result = execute_query(latest_season_query)
-    latest_season = latest_season_result[0]["latest"] if latest_season_result else 22
+    latest_season = latest_season_result[0]["latest"] if latest_season_result else CURRENT_SEASON
 
     # Get IPR distribution (grouped into levels 1-6)
     # current_ipr is already stored as the IPR level (1-6), not the raw score

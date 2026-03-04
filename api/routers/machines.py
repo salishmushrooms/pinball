@@ -4,6 +4,7 @@ Machines API endpoints
 
 from fastapi import APIRouter, HTTPException, Query
 
+from api.config import CURRENT_SEASON
 from api.dependencies import execute_query
 from api.models.schemas import (
     ErrorResponse,
@@ -45,7 +46,7 @@ def get_machine_dashboard_stats():
     latest_season = (
         latest_season_result[0]["latest"]
         if latest_season_result and latest_season_result[0]["latest"] is not None
-        else 22
+        else CURRENT_SEASON
     )
 
     # Get total unique machines across all seasons

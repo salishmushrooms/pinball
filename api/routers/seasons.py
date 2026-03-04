@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query
 
+from api.config import CURRENT_SEASON
 from api.dependencies import execute_query
 
 logger = logging.getLogger(__name__)
@@ -413,7 +414,7 @@ def get_matchups_init():
         all_seasons = [row["season"] for row in seasons_result] if seasons_result else []
 
         # Find the latest season
-        latest_season = max(all_seasons) if all_seasons else 23
+        latest_season = max(all_seasons) if all_seasons else CURRENT_SEASON
 
         # Get season status (inline logic from get_season_status)
         status_query = """

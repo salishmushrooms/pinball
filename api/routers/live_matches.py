@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 
+from api.config import CURRENT_SEASON
 from api.dependencies import execute_query
 from api.models.schemas import (
     LiveGame,
@@ -475,7 +476,7 @@ def _build_detail(
     ),
 )
 async def get_live_week(
-    season: int = Query(23, description="Season number"),
+    season: int = Query(default=CURRENT_SEASON, description="Season number"),
     week: int | None = Query(None, description="Week number (defaults to most recent played week)"),
     refresh: bool = Query(False, description="Bypass the 60-second cache"),
 ):

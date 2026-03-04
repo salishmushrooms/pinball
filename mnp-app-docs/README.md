@@ -113,7 +113,7 @@ For AI assistants and comprehensive project context:
 
 **Production Database Statistics (as of last update):**
 
-- **Seasons Loaded**: 18-23 (6 complete seasons)
+- **Seasons Loaded**: 20-23 (4 complete seasons)
 - **Matches**: 943+
 - **Individual Scores**: 56,504+
 - **Players**: 938+
@@ -288,7 +288,7 @@ Common issues and solutions are documented in:
 - **Backend**: ✅ Live on Railway
 - **Frontend**: ✅ Live on Vercel
 - **Database**: ✅ PostgreSQL 15 on Railway
-- **Data**: ✅ Seasons 18-23 loaded and updated
+- **Data**: ✅ Seasons 20-23 loaded and updated
 
 ### API Endpoints
 

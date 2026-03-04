@@ -253,7 +253,7 @@ TRUNCATE TABLE player_machine_stats;
 
 1. **Always use `run_full_pipeline.py`** - Don't run individual aggregate scripts manually unless you know what you're doing. The pipeline handles clearing old data and running in the correct order.
 
-2. **Keep local and production seasons in sync** - If you load seasons 18-22 locally but production only has 20-22, exports will fail with foreign key errors.
+2. **Keep local and production seasons in sync** - If you load different seasons locally than what production has, exports will fail with foreign key errors.
 
 3. **Aggregate scripts require `--season`** - Most aggregate scripts (percentiles, player_stats, team_picks, match_points) must be run once per season with `--season N`.
 

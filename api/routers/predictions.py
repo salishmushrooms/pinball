@@ -9,6 +9,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query
 
+from api.config import DEFAULT_ANALYSIS_SEASONS
 from api.dependencies import execute_query
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,8 @@ def predict_machine_picks(
     round_num: int = Query(..., ge=1, le=4, description="Round number (1-4)"),
     venue_key: str = Query(..., description="Venue where match is being played"),
     seasons: list[int] | None = Query(
-        default=[22, 23], description="Seasons to analyze for prediction (default: [22, 23])"
+        default=None,
+        description="Seasons to analyze for prediction (default: current + previous)",
     ),
     limit: int = Query(default=10, ge=1, le=20, description="Number of predictions to return"),
     min_opportunities: int = Query(
@@ -76,7 +78,7 @@ def predict_machine_picks(
     - **team_key**: 3-letter team abbreviation (e.g., "SKP", "TRL", "ADB")
     - **round_num**: Round number (1, 2, 3, or 4)
     - **venue_key**: Venue code where match is played (e.g., "T4B", "KRA")
-    - **seasons**: List of seasons to analyze (default: [22, 23])
+    - **seasons**: List of seasons to analyze (default: current + previous)
     - **limit**: Number of top predictions to return (default: 10)
     - **min_opportunities**: Minimum opportunities required to show (default: 3)
 
@@ -88,7 +90,9 @@ def predict_machine_picks(
     """
     try:
         # Convert seasons to list of integers
-        if not isinstance(seasons, list):
+        if seasons is None:
+            seasons = DEFAULT_ANALYSIS_SEASONS
+        elif not isinstance(seasons, list):
             seasons = [seasons]
         season_list = [int(s) for s in seasons]
 

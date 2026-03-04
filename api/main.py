@@ -17,6 +17,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from api.config import AVAILABLE_SEASONS
 from api.routers import (
     analysis,
     live_matches,
@@ -109,7 +110,7 @@ app = FastAPI(
     ## Data Source
 
     Data is sourced from the Monday Night Pinball (MNP) match archives.
-    Currently includes Seasons 18-23 with 936+ players, 400+ machines, and 56,000+ scores across 943+ matches.
+    Currently includes Seasons 20-23 with 936+ players, 400+ machines, and 56,000+ scores across 943+ matches.
 
     ## Tips
 
@@ -251,8 +252,8 @@ def get_seasons(request: Request):
     except Exception as e:
         logger.error(f"Failed to fetch seasons: {e}")
         return {
-            "seasons": [20, 21, 22, 23],  # Fallback to known seasons
-            "count": 4,
+            "seasons": AVAILABLE_SEASONS,  # Fallback to known seasons
+            "count": len(AVAILABLE_SEASONS),
         }
 
 

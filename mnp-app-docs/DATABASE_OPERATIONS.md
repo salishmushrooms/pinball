@@ -240,10 +240,10 @@ python etl/calculate_player_totals.py
 ### Using the Pipeline (easier)
 ```bash
 # Load and calculate for multiple seasons at once
-python etl/run_full_pipeline.py --seasons 18 19 20 21 22
+python etl/run_full_pipeline.py --seasons 20 21 22 23
 
 # Or just recalculate aggregates (skip loading)
-python etl/run_full_pipeline.py --seasons 18 19 20 21 22 --skip-load
+python etl/run_full_pipeline.py --seasons 20 21 22 23 --skip-load
 
 # Include Matchplay.events data refresh (requires MATCHPLAY_API_TOKEN)
 python etl/run_full_pipeline.py --seasons 22 --refresh-matchplay

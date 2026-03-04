@@ -4,6 +4,7 @@ Matchup API endpoints for analyzing team vs team matchups
 
 from fastapi import APIRouter, HTTPException, Query
 
+from api.config import CURRENT_SEASON
 from api.dependencies import execute_query
 from api.models.schemas import ErrorResponse, MachineInfo, MatchupAnalysis
 from api.services.matchup_calculator import (
@@ -113,7 +114,7 @@ def get_matchup_analysis(
         current_season = (
             latest_result[0]["max_season"]
             if latest_result and latest_result[0]["max_season"]
-            else 23
+            else CURRENT_SEASON
         )
         seasons = [current_season, current_season - 1]
 

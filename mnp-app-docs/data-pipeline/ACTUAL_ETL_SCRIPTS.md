@@ -353,9 +353,9 @@ python etl/calculate_match_points.py --season 22 --verbose
 ```bash
 # Load specific seasons
 python etl/run_full_pipeline.py --seasons 22
-python etl/run_full_pipeline.py --seasons 18 19 20 21 22
+python etl/run_full_pipeline.py --seasons 20 21 22 23
 
-# Load all available seasons (18-22)
+# Load all available seasons (20-23)
 python etl/run_full_pipeline.py --all-seasons
 
 # Skip loading step (just run aggregates)
@@ -764,7 +764,7 @@ python etl/load_preseason.py --season 23
 ### Full Pipeline (All Seasons)
 
 ```bash
-python etl/run_full_pipeline.py --seasons 18 19 20 21 22 23
+python etl/run_full_pipeline.py --seasons 20 21 22 23
 ```
 
 ---

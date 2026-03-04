@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 
+from api.config import CURRENT_SEASON
 from api.dependencies import execute_query
 from api.models.schemas import (
     ErrorResponse,
@@ -166,7 +167,7 @@ def list_venues_with_stats(
         season = (
             season_result[0]["max_season"]
             if season_result and season_result[0]["max_season"]
-            else 22
+            else CURRENT_SEASON
         )
 
     # Build WHERE clauses
@@ -288,7 +289,9 @@ def get_venue(venue_key: str):
     season_query = "SELECT MAX(season) as max_season FROM teams"
     season_result = execute_query(season_query, {})
     season = (
-        season_result[0]["max_season"] if season_result and season_result[0]["max_season"] else 22
+        season_result[0]["max_season"]
+        if season_result and season_result[0]["max_season"]
+        else CURRENT_SEASON
     )
 
     home_teams_query = """
