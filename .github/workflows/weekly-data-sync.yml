@@ -57,7 +57,8 @@ jobs:
           echo "Changed files:"
           echo "$CHANGED_FILES"
 
-          SEASONS=$(echo "$CHANGED_FILES" | grep -oP 'season-\K\d+' | sort -nu | tr '\n' ' ')
+          # Only process seasons 20+ (earlier seasons are too old to be useful)
+          SEASONS=$(echo "$CHANGED_FILES" | grep -oP 'season-\K\d+' | sort -nu | awk '$1 >= 20' | tr '\n' ' ')
 
           if [ -z "$SEASONS" ]; then
             echo "No season data files changed"
