@@ -153,6 +153,21 @@ def _parse_comebacks(season: int, week: int) -> list[dict]:
 
 
 @router.get(
+    "/weekly-recap/weeks",
+    summary="Available weeks for weekly recap",
+    description="Returns list of weeks that have completed matches for the given season.",
+)
+def get_available_weeks(
+    season: int = Query(..., description="Season number (e.g., 23)"),
+):
+    rows = execute_query(
+        "SELECT DISTINCT week FROM matches WHERE season = :season AND state = 'complete' ORDER BY week",
+        {"season": season},
+    )
+    return [r["week"] for r in rows] if rows else []
+
+
+@router.get(
     "/weekly-recap",
     response_model=WeeklyRecap,
     summary="Weekly analysis recap",

@@ -43,8 +43,14 @@ function WeeklyAnalysisContent() {
     searchParams.get('week') ? parseInt(searchParams.get('week')!) : undefined
   );
   const [recap, setRecap] = useState<WeeklyRecap | null>(null);
+  const [availableWeeks, setAvailableWeeks] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch available weeks when season changes
+  useEffect(() => {
+    api.getWeeklyRecapWeeks(season).then(setAvailableWeeks).catch(() => setAvailableWeeks([]));
+  }, [season]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -64,8 +70,6 @@ function WeeklyAnalysisContent() {
       .catch((err) => setError(err.message || 'Failed to load weekly recap'))
       .finally(() => setLoading(false));
   }, [season, week]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const weekOptions = Array.from({ length: 15 }, (_, i) => i + 1);
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -101,7 +105,7 @@ function WeeklyAnalysisContent() {
             className="rounded-md border px-3 py-1.5 text-sm"
             style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg)', color: 'var(--text-primary)' }}
           >
-            {weekOptions.map((w) => (
+            {availableWeeks.map((w) => (
               <option key={w} value={w}>Week {w}</option>
             ))}
           </select>
@@ -328,73 +332,120 @@ function MatchResultsTable({
   showUnderdogBadge?: boolean;
 }) {
   return (
-    <Table>
-      <thead>
-        <tr>
-          <th>Match</th>
-          <th>Score</th>
-          <th>Avg IPR</th>
-          <th>IPR Gap</th>
-          {showUpsetTeam && <th>Upset Team</th>}
-          {showUnderdogBadge && <th>Type</th>}
-        </tr>
-      </thead>
-      <tbody>
+    <>
+      {/* Mobile: card layout */}
+      <div className="sm:hidden divide-y" style={{ borderColor: 'var(--table-border)' }}>
         {rows.map((r) => (
-          <tr key={r.match_key}>
-            <td>
-              <div className="font-medium" style={{ color: 'var(--text-primary)' }}>
+          <div key={r.match_key} className="px-4 py-3 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>
                 <span style={{ color: r.winner === 'home' ? 'var(--color-success-600)' : 'var(--text-muted)' }}>
                   {r.home_team_name}
                 </span>
-                <span className="mx-2" style={{ color: 'var(--text-muted)' }}>vs</span>
+                <span className="mx-1.5" style={{ color: 'var(--text-muted)' }}>vs</span>
                 <span style={{ color: r.winner === 'away' ? 'var(--color-success-600)' : 'var(--text-muted)' }}>
                   {r.away_team_name}
                 </span>
               </div>
-              <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                {r.venue_key} · {r.match_key}
-              </div>
-            </td>
-            <td className="text-center font-mono text-sm">
-              {r.home_team_points} – {r.away_team_points}
-            </td>
-            <td className="text-center text-sm">
-              {r.home_avg_ipr != null && r.away_avg_ipr != null ? (
-                <span>
-                  <span className={r.winner === 'home' ? 'font-semibold' : ''}>{r.home_avg_ipr.toFixed(1)}</span>
-                  <span style={{ color: 'var(--text-muted)' }}> / </span>
-                  <span className={r.winner === 'away' ? 'font-semibold' : ''}>{r.away_avg_ipr.toFixed(1)}</span>
-                </span>
-              ) : '—'}
-            </td>
-            <td className="text-center">
-              {r.ipr_gap != null ? (
+              <span className="font-mono text-sm font-semibold">
+                {r.home_team_points} – {r.away_team_points}
+              </span>
+            </div>
+            <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+              <span>{r.venue_key}</span>
+              {r.ipr_gap != null && (
                 <Badge variant={r.ipr_gap >= 2 ? 'error' : 'warning'}>
-                  {r.ipr_gap.toFixed(1)}
+                  Gap {r.ipr_gap.toFixed(1)}
                 </Badge>
-              ) : '—'}
-            </td>
-            {showUpsetTeam && (
-              <td>
+              )}
+              {showUpsetTeam && r.upset_team_name && (
                 <span className="font-medium" style={{ color: 'var(--color-warning-700)' }}>
-                  {r.upset_team_name ?? '—'}
+                  Upset: {r.upset_team_name}
                 </span>
-              </td>
-            )}
-            {showUnderdogBadge && (
-              <td className="text-center">
-                {r.is_underdog ? (
+              )}
+              {showUnderdogBadge && (
+                r.is_underdog ? (
                   <Badge variant="warning">Underdog</Badge>
                 ) : (
                   <Badge variant="default">Road Win</Badge>
-                )}
-              </td>
-            )}
-          </tr>
+                )
+              )}
+            </div>
+          </div>
         ))}
-      </tbody>
-    </Table>
+      </div>
+
+      {/* Desktop: table layout */}
+      <div className="hidden sm:block">
+        <Table>
+          <thead>
+            <tr>
+              <th>Match</th>
+              <th>Score</th>
+              <th>Avg IPR</th>
+              <th>IPR Gap</th>
+              {showUpsetTeam && <th>Upset Team</th>}
+              {showUnderdogBadge && <th>Type</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.match_key}>
+                <td>
+                  <div className="font-medium" style={{ color: 'var(--text-primary)' }}>
+                    <span style={{ color: r.winner === 'home' ? 'var(--color-success-600)' : 'var(--text-muted)' }}>
+                      {r.home_team_name}
+                    </span>
+                    <span className="mx-2" style={{ color: 'var(--text-muted)' }}>vs</span>
+                    <span style={{ color: r.winner === 'away' ? 'var(--color-success-600)' : 'var(--text-muted)' }}>
+                      {r.away_team_name}
+                    </span>
+                  </div>
+                  <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                    {r.venue_key} · {r.match_key}
+                  </div>
+                </td>
+                <td className="text-center font-mono text-sm">
+                  {r.home_team_points} – {r.away_team_points}
+                </td>
+                <td className="text-center text-sm">
+                  {r.home_avg_ipr != null && r.away_avg_ipr != null ? (
+                    <span>
+                      <span className={r.winner === 'home' ? 'font-semibold' : ''}>{r.home_avg_ipr.toFixed(1)}</span>
+                      <span style={{ color: 'var(--text-muted)' }}> / </span>
+                      <span className={r.winner === 'away' ? 'font-semibold' : ''}>{r.away_avg_ipr.toFixed(1)}</span>
+                    </span>
+                  ) : '—'}
+                </td>
+                <td className="text-center">
+                  {r.ipr_gap != null ? (
+                    <Badge variant={r.ipr_gap >= 2 ? 'error' : 'warning'}>
+                      {r.ipr_gap.toFixed(1)}
+                    </Badge>
+                  ) : '—'}
+                </td>
+                {showUpsetTeam && (
+                  <td>
+                    <span className="font-medium" style={{ color: 'var(--color-warning-700)' }}>
+                      {r.upset_team_name ?? '—'}
+                    </span>
+                  </td>
+                )}
+                {showUnderdogBadge && (
+                  <td className="text-center">
+                    {r.is_underdog ? (
+                      <Badge variant="warning">Underdog</Badge>
+                    ) : (
+                      <Badge variant="default">Road Win</Badge>
+                    )}
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </div>
+    </>
   );
 }
 
@@ -404,47 +455,76 @@ function MatchResultsTable({
 
 function ComebacksTable({ rows }: { rows: ComebackResult[] }) {
   return (
-    <Table>
-      <thead>
-        <tr>
-          <th>Comeback Team</th>
-          <th>Deficit After R3</th>
-          <th>R4 Points</th>
-          <th>Final Score</th>
-          <th>Venue</th>
-        </tr>
-      </thead>
-      <tbody>
+    <>
+      {/* Mobile: card layout */}
+      <div className="sm:hidden divide-y" style={{ borderColor: 'var(--table-border)' }}>
         {rows.map((r) => (
-          <tr key={r.match_key}>
-            <td>
-              <div className="font-medium" style={{ color: 'var(--text-primary)' }}>
+          <div key={r.match_key} className="px-4 py-3 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>
                 {r.comeback_team_name}
+                <span className="font-normal" style={{ color: 'var(--text-muted)' }}> vs {r.other_team_name}</span>
               </div>
-              <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                vs {r.other_team_name}
-              </div>
-            </td>
-            <td className="text-center">
-              <Badge variant="error">−{r.deficit_after_r3}</Badge>
-            </td>
-            <td className="text-center font-mono text-sm">
-              <span style={{ color: 'var(--color-success-600)', fontWeight: 600 }}>
-                {r.comeback_r4_points}
+              <span className="font-mono text-sm font-semibold">
+                {r.final_score_comeback} – {r.final_score_other}
               </span>
-              <span style={{ color: 'var(--text-muted)' }}> / </span>
-              <span>{r.other_r4_points}</span>
-            </td>
-            <td className="text-center font-mono text-sm">
-              {r.final_score_comeback} – {r.final_score_other}
-            </td>
-            <td className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              {r.venue_key}
-            </td>
-          </tr>
+            </div>
+            <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+              <Badge variant="error">−{r.deficit_after_r3} after R3</Badge>
+              <span>
+                R4: <span style={{ color: 'var(--color-success-600)', fontWeight: 600 }}>{r.comeback_r4_points}</span> / {r.other_r4_points}
+              </span>
+              <span>{r.venue_key}</span>
+            </div>
+          </div>
         ))}
-      </tbody>
-    </Table>
+      </div>
+
+      {/* Desktop: table layout */}
+      <div className="hidden sm:block">
+        <Table>
+          <thead>
+            <tr>
+              <th>Comeback Team</th>
+              <th>Deficit After R3</th>
+              <th>R4 Points</th>
+              <th>Final Score</th>
+              <th>Venue</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.match_key}>
+                <td>
+                  <div className="font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {r.comeback_team_name}
+                  </div>
+                  <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                    vs {r.other_team_name}
+                  </div>
+                </td>
+                <td className="text-center">
+                  <Badge variant="error">−{r.deficit_after_r3}</Badge>
+                </td>
+                <td className="text-center font-mono text-sm">
+                  <span style={{ color: 'var(--color-success-600)', fontWeight: 600 }}>
+                    {r.comeback_r4_points}
+                  </span>
+                  <span style={{ color: 'var(--text-muted)' }}> / </span>
+                  <span>{r.other_r4_points}</span>
+                </td>
+                <td className="text-center font-mono text-sm">
+                  {r.final_score_comeback} – {r.final_score_other}
+                </td>
+                <td className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                  {r.venue_key}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </div>
+    </>
   );
 }
 
@@ -456,30 +536,24 @@ const ROUND_LABELS: Record<number, string> = { 1: 'R1 Dbl', 2: 'R2 Sng', 3: 'R3 
 
 function OutliersTable({ rows }: { rows: ScoreOutlier[] }) {
   return (
-    <Table>
-      <thead>
-        <tr>
-          <th>Player</th>
-          <th>Machine</th>
-          <th>Score</th>
-          <th>Pctile</th>
-          <th>Round</th>
-          <th>Team</th>
-        </tr>
-      </thead>
-      <tbody>
+    <>
+      {/* Mobile: card layout */}
+      <div className="sm:hidden divide-y" style={{ borderColor: 'var(--table-border)' }}>
         {rows.map((r, i) => (
-          <tr key={`${r.match_key}-${r.player_key}-${r.machine_key}-${i}`}>
-            <td>
+          <div key={`${r.match_key}-${r.player_key}-${r.machine_key}-${i}`} className="px-4 py-3 space-y-1">
+            <div className="flex items-center justify-between">
               <Link
                 href={`/players/${r.player_key}`}
-                className="font-medium hover:underline"
+                className="font-medium text-sm hover:underline"
                 style={{ color: 'var(--color-primary-700)' }}
               >
                 {r.player_name}
               </Link>
-            </td>
-            <td>
+              <span className="font-mono text-sm font-semibold">
+                {formatScore(r.score)}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
               <Link
                 href={`/machines/${r.machine_key}`}
                 className="hover:underline"
@@ -487,25 +561,70 @@ function OutliersTable({ rows }: { rows: ScoreOutlier[] }) {
               >
                 {r.machine_name}
               </Link>
-            </td>
-            <td className="font-mono text-sm font-semibold">
-              {formatScore(r.score)}
-            </td>
-            <td className="text-center">
               <Badge variant={r.pctile_floor >= 99 ? 'success' : 'warning'}>
                 {r.pctile_floor >= 99 ? '99th+' : '95th+'}
               </Badge>
-            </td>
-            <td className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              {ROUND_LABELS[r.round_number] ?? `R${r.round_number}`}
-            </td>
-            <td className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              {r.team_name}
-            </td>
-          </tr>
+              <span>{ROUND_LABELS[r.round_number] ?? `R${r.round_number}`}</span>
+              <span>{r.team_name}</span>
+            </div>
+          </div>
         ))}
-      </tbody>
-    </Table>
+      </div>
+
+      {/* Desktop: table layout */}
+      <div className="hidden sm:block">
+        <Table>
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th>Machine</th>
+              <th>Score</th>
+              <th>Pctile</th>
+              <th>Round</th>
+              <th>Team</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={`${r.match_key}-${r.player_key}-${r.machine_key}-${i}`}>
+                <td>
+                  <Link
+                    href={`/players/${r.player_key}`}
+                    className="font-medium hover:underline"
+                    style={{ color: 'var(--color-primary-700)' }}
+                  >
+                    {r.player_name}
+                  </Link>
+                </td>
+                <td>
+                  <Link
+                    href={`/machines/${r.machine_key}`}
+                    className="hover:underline"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
+                    {r.machine_name}
+                  </Link>
+                </td>
+                <td className="font-mono text-sm font-semibold">
+                  {formatScore(r.score)}
+                </td>
+                <td className="text-center">
+                  <Badge variant={r.pctile_floor >= 99 ? 'success' : 'warning'}>
+                    {r.pctile_floor >= 99 ? '99th+' : '95th+'}
+                  </Badge>
+                </td>
+                <td className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                  {ROUND_LABELS[r.round_number] ?? `R${r.round_number}`}
+                </td>
+                <td className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                  {r.team_name}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </div>
+    </>
   );
 }
 

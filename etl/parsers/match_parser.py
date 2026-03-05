@@ -149,9 +149,25 @@ class MatchParser:
             "venue_key": match["venue"]["key"],
             "home_team_key": match["home"]["key"],
             "away_team_key": match["away"]["key"],
-            "state": match.get("state", "unknown"),
+            "state": self._resolve_state(match),
             "machines": machines,
         }
+
+    @staticmethod
+    def _resolve_state(match: dict) -> str:
+        """Resolve match state — treat 'playing' as 'complete' if all rounds have scores."""
+        state = match.get("state", "unknown")
+        if state == "playing":
+            rounds = match.get("rounds", [])
+            if len(rounds) == 4 and all(
+                all(
+                    p.get("score", 0) > 0
+                    for p in r.get("away_players", []) + r.get("home_players", [])
+                )
+                for r in rounds
+            ):
+                return "complete"
+        return state
 
     def extract_games_from_match(self, match: dict) -> list[dict]:
         """Extract game records from a match"""

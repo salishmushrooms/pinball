@@ -562,6 +562,10 @@ export const api = {
    * @param season - Season number (e.g., 23)
    * @param week - Week number (defaults to most recent completed week)
    */
+  getWeeklyRecapWeeks: (season: number): Promise<number[]> => {
+    return fetchAPI<number[]>('/analysis/weekly-recap/weeks', { season });
+  },
+
   getWeeklyRecap: (season: number, week?: number): Promise<WeeklyRecap> => {
     const params: Record<string, unknown> = { season };
     if (week !== undefined) params.week = week;

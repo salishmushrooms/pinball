@@ -25,6 +25,7 @@ from sqlalchemy import text
 
 from etl.config import config
 from etl.database import db
+from etl.parsers.match_parser import MatchParser
 
 # Configure logging
 logging.basicConfig(
@@ -76,7 +77,7 @@ def calculate_match_points(match_data: dict):
         tuple: (match_key, home_points, away_points) or None if incomplete
     """
     match_key = match_data.get("key")
-    state = match_data.get("state", "")
+    state = MatchParser._resolve_state(match_data)
 
     # Only process complete matches
     if state != "complete":
