@@ -30,7 +30,6 @@ router = APIRouter(prefix="/analysis", tags=["analysis"])
 #   Singles R3: 7 games × 3 pts = 21
 #   Doubles R4: 4 games × 5 pts = 20
 #   Total = 82
-MAX_POINTS_PER_MATCH = 82.0
 
 # Threshold for "significant" upset: ≥1.0 average IPR gap (scale is 1–6)
 UPSET_IPR_THRESHOLD = 1.0
@@ -205,22 +204,34 @@ def get_weekly_recap(
         )
 
     # -------------------------------------------------------------------------
-    # 1. Match summary
+    # 1. Match summary (with shared-venue adjustment)
     # -------------------------------------------------------------------------
     summary_rows = execute_query(
         """
         SELECT
             COUNT(*) as total_matches,
-            COUNT(*) FILTER (WHERE home_team_points > away_team_points) as home_wins,
-            COUNT(*) FILTER (WHERE away_team_points > home_team_points) as away_wins,
-            COUNT(*) FILTER (WHERE home_team_points = away_team_points) as ties
-        FROM matches
-        WHERE season = :season AND week = :week AND state = 'complete'
+            COUNT(*) FILTER (WHERE m.home_team_points > m.away_team_points) as home_wins,
+            COUNT(*) FILTER (WHERE m.away_team_points > m.home_team_points) as away_wins,
+            COUNT(*) FILTER (WHERE m.home_team_points = m.away_team_points) as ties,
+            COUNT(*) FILTER (WHERE at.home_venue_key = m.venue_key) as shared_venue_matches,
+            COUNT(*) FILTER (
+                WHERE m.home_team_points > m.away_team_points
+                AND at.home_venue_key != m.venue_key
+            ) as true_home_wins,
+            COUNT(*) FILTER (
+                WHERE m.away_team_points > m.home_team_points
+                AND at.home_venue_key != m.venue_key
+            ) as true_away_wins
+        FROM matches m
+        JOIN teams at ON m.away_team_key = at.team_key AND m.season = at.season
+        WHERE m.season = :season AND m.week = :week AND m.state = 'complete'
         """,
         {"season": season, "week": week},
     )
     sr = summary_rows[0]
     total = sr["total_matches"] or 0
+    shared = sr["shared_venue_matches"] or 0
+    non_shared = total - shared
     match_summary = {
         "total_matches": total,
         "home_wins": sr["home_wins"] or 0,
@@ -228,7 +239,17 @@ def get_weekly_recap(
         "ties": sr["ties"] or 0,
         "home_win_pct": round((sr["home_wins"] or 0) / total * 100, 1) if total > 0 else 0.0,
         "away_win_pct": round((sr["away_wins"] or 0) / total * 100, 1) if total > 0 else 0.0,
+        "shared_venue_matches": shared,
     }
+    if shared > 0:
+        match_summary["true_home_wins"] = sr["true_home_wins"] or 0
+        match_summary["true_away_wins"] = sr["true_away_wins"] or 0
+        match_summary["true_home_win_pct"] = (
+            round((sr["true_home_wins"] or 0) / non_shared * 100, 1) if non_shared > 0 else 0.0
+        )
+        match_summary["true_away_win_pct"] = (
+            round((sr["true_away_wins"] or 0) / non_shared * 100, 1) if non_shared > 0 else 0.0
+        )
 
     # -------------------------------------------------------------------------
     # 2. Upsets + 3. Away wins — computed together from per-match IPR data
@@ -262,7 +283,8 @@ def get_weekly_recap(
                 WHEN m.home_team_points > m.away_team_points THEN 'home'
                 WHEN m.away_team_points > m.home_team_points THEN 'away'
                 ELSE 'tie'
-            END AS winner
+            END AS winner,
+            CASE WHEN at2.home_venue_key = m.venue_key THEN true ELSE false END AS is_shared_venue
         FROM matches m
         JOIN teams ht ON m.home_team_key = ht.team_key AND m.season = ht.season
         JOIN teams at2 ON m.away_team_key = at2.team_key AND m.season = at2.season
@@ -285,6 +307,7 @@ def get_weekly_recap(
         winner = row["winner"]
         ipr_gap = abs((home_ipr or 0) - (away_ipr or 0)) if (home_ipr and away_ipr) else None
 
+        is_shared_venue = row["is_shared_venue"]
         base = {
             "match_key": row["match_key"],
             "home_team_key": row["home_team_key"],
@@ -298,6 +321,7 @@ def get_weekly_recap(
             "ipr_gap": round(ipr_gap, 2) if ipr_gap is not None else None,
             "winner": winner,
             "venue_key": row["venue_key"],
+            "is_shared_venue": is_shared_venue,
         }
 
         # Away win tracking
@@ -418,7 +442,7 @@ def get_weekly_recap(
 
     # -------------------------------------------------------------------------
     # 7. Group standings with POPS
-    # POPS = total_points_earned / (matches_played × 82)
+    # POPS = avg of (team_pts / match_total) per match
     # -------------------------------------------------------------------------
     standings_rows = execute_query(
         """
@@ -443,7 +467,18 @@ def get_weekly_recap(
                     WHEN m.home_team_key = t.team_key THEN COALESCE(m.home_team_points, 0)
                     ELSE COALESCE(m.away_team_points, 0)
                 END
-            ) AS total_points_earned
+            ) AS total_points_earned,
+            SUM(
+                CASE
+                    WHEN (m.home_team_points + m.away_team_points) > 0 THEN
+                        CASE
+                            WHEN m.home_team_key = t.team_key
+                                THEN m.home_team_points::float / (m.home_team_points + m.away_team_points)
+                            ELSE m.away_team_points::float / (m.home_team_points + m.away_team_points)
+                        END
+                    ELSE 0
+                END
+            ) AS pct_total
         FROM teams t
         JOIN matches m
             ON (m.home_team_key = t.team_key OR m.away_team_key = t.team_key)
@@ -461,7 +496,8 @@ def get_weekly_recap(
     for r in standings_rows:
         mp = r["matches_played"] or 0
         earned = float(r["total_points_earned"] or 0)
-        pops = round(earned / (mp * MAX_POINTS_PER_MATCH), 3) if mp > 0 else 0.0
+        pct_total = float(r["pct_total"] or 0)
+        pops = round(pct_total / mp, 3) if mp > 0 else 0.0
         group_standings.append(
             {
                 "division": r["division"],

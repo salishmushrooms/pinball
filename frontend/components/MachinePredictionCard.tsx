@@ -8,7 +8,7 @@ import { Card, Badge, Alert, LoadingSpinner, EmptyState } from '@/components/ui'
 interface MachinePredictionCardProps {
   teamKey: string;
   teamName: string;
-  roundNum: 1 | 4;
+  roundNum: 1 | 2 | 3 | 4;
   venueKey: string;
   seasons?: number[];
   limit?: number;
@@ -53,13 +53,13 @@ export function MachinePredictionCard({
     }
   }, [teamKey, roundNum, venueKey, seasons, limit]);
 
-  const title = roundNum === 1
-    ? `Round 1 Prediction (${teamName} picks)`
-    : `Round 4 Prediction (${teamName} picks)`;
-
-  const description = roundNum === 1
-    ? 'Away team picks machines in Round 1'
-    : 'Home team picks machines in Round 4';
+  const roundLabels: Record<number, { title: string; description: string }> = {
+    1: { title: `Round 1 Prediction (${teamName} picks)`, description: 'Away team picks doubles machines in Round 1' },
+    2: { title: `Round 2 Prediction (${teamName} picks)`, description: 'Home team picks singles machines in Round 2' },
+    3: { title: `Round 3 Prediction (${teamName} picks)`, description: 'Away team picks singles machines in Round 3' },
+    4: { title: `Round 4 Prediction (${teamName} picks)`, description: 'Home team picks doubles machines in Round 4' },
+  };
+  const { title, description } = roundLabels[roundNum];
 
   return (
     <Card>

@@ -487,9 +487,13 @@ class MatchupAnalysis(BaseModel):
     # Available machines with full names
     available_machines_info: list[MachineInfo] | None = None
 
-    # Team machine pick frequency (limited to available machines)
+    # Team machine pick frequency - doubles rounds (limited to available machines)
     home_team_pick_frequency: list[MachinePickFrequency]
     away_team_pick_frequency: list[MachinePickFrequency]
+
+    # Team machine pick frequency - singles rounds (limited to available machines)
+    home_team_singles_pick_frequency: list[MachinePickFrequency] = []
+    away_team_singles_pick_frequency: list[MachinePickFrequency] = []
 
     # Player machine preferences (limited to available machines)
     home_team_player_preferences: list[PlayerMachinePreference]
@@ -924,6 +928,12 @@ class MatchSummary(BaseModel):
     ties: int
     home_win_pct: float
     away_win_pct: float
+    # Shared-venue adjustments (away team playing at their own home venue)
+    shared_venue_matches: int = 0
+    true_home_wins: int | None = None
+    true_away_wins: int | None = None
+    true_home_win_pct: float | None = None
+    true_away_win_pct: float | None = None
 
 
 class MatchResult(BaseModel):
@@ -944,6 +954,8 @@ class MatchResult(BaseModel):
     upset_team_name: str | None = None
     # Away-win-specific
     is_underdog: bool | None = None
+    # Shared-venue flag (away team at their own home venue)
+    is_shared_venue: bool | None = None
 
 
 class ComebackResult(BaseModel):

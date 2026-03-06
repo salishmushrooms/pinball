@@ -133,11 +133,22 @@ function WeeklyAnalysisContent() {
               <StatCard label="Ties" value={recap.match_summary.ties} />
               <StatCard
                 label="Home Advantage"
-                value={`${recap.match_summary.home_win_pct}%`}
-                tooltip="Home team win percentage this week"
-                trendDirection={recap.match_summary.home_win_pct > 50 ? 'up' : 'down'}
+                value={recap.match_summary.true_home_win_pct != null
+                  ? `${recap.match_summary.true_home_win_pct}%`
+                  : `${recap.match_summary.home_win_pct}%`}
+                tooltip={recap.match_summary.shared_venue_matches
+                  ? `Adjusted: excludes ${recap.match_summary.shared_venue_matches} shared-venue match${recap.match_summary.shared_venue_matches > 1 ? 'es' : ''} (raw: ${recap.match_summary.home_win_pct}%)`
+                  : 'Home team win percentage this week'}
+                trendDirection={(recap.match_summary.true_home_win_pct ?? recap.match_summary.home_win_pct) > 50 ? 'up' : 'down'}
               />
             </div>
+            {recap.match_summary.shared_venue_matches != null && recap.match_summary.shared_venue_matches > 0 && (
+              <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+                * {recap.match_summary.shared_venue_matches} match{recap.match_summary.shared_venue_matches > 1 ? 'es' : ''} this
+                week {recap.match_summary.shared_venue_matches > 1 ? 'feature' : 'features'} teams sharing a home venue.
+                Home Advantage % excludes {recap.match_summary.shared_venue_matches > 1 ? 'these' : 'this'} to avoid skewing the stat.
+              </p>
+            )}
           </section>
 
           {/* Group Standings */}
@@ -339,16 +350,16 @@ function MatchResultsTable({
           <div key={r.match_key} className="px-4 py-3 space-y-1.5">
             <div className="flex items-center justify-between">
               <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>
-                <span style={{ color: r.winner === 'home' ? 'var(--color-success-600)' : 'var(--text-muted)' }}>
-                  {r.home_team_name}
-                </span>
-                <span className="mx-1.5" style={{ color: 'var(--text-muted)' }}>vs</span>
                 <span style={{ color: r.winner === 'away' ? 'var(--color-success-600)' : 'var(--text-muted)' }}>
                   {r.away_team_name}
                 </span>
+                <span className="mx-1.5" style={{ color: 'var(--text-muted)' }}>@</span>
+                <span style={{ color: r.winner === 'home' ? 'var(--color-success-600)' : 'var(--text-muted)' }}>
+                  {r.home_team_name}
+                </span>
               </div>
               <span className="font-mono text-sm font-semibold">
-                {r.home_team_points} – {r.away_team_points}
+                {r.away_team_points} – {r.home_team_points}
               </span>
             </div>
             <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -364,7 +375,9 @@ function MatchResultsTable({
                 </span>
               )}
               {showUnderdogBadge && (
-                r.is_underdog ? (
+                r.is_shared_venue ? (
+                  <Badge variant="info">Home Venue</Badge>
+                ) : r.is_underdog ? (
                   <Badge variant="warning">Underdog</Badge>
                 ) : (
                   <Badge variant="default">Road Win</Badge>
@@ -393,27 +406,28 @@ function MatchResultsTable({
               <tr key={r.match_key}>
                 <td>
                   <div className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                    <span style={{ color: r.winner === 'home' ? 'var(--color-success-600)' : 'var(--text-muted)' }}>
-                      {r.home_team_name}
-                    </span>
-                    <span className="mx-2" style={{ color: 'var(--text-muted)' }}>vs</span>
                     <span style={{ color: r.winner === 'away' ? 'var(--color-success-600)' : 'var(--text-muted)' }}>
                       {r.away_team_name}
+                    </span>
+                    <span className="mx-2" style={{ color: 'var(--text-muted)' }}>@</span>
+                    <span style={{ color: r.winner === 'home' ? 'var(--color-success-600)' : 'var(--text-muted)' }}>
+                      {r.home_team_name}
                     </span>
                   </div>
                   <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                     {r.venue_key} · {r.match_key}
+                    {r.is_shared_venue && <span className="ml-1" title="Away team is at their own home venue"> (shared venue)</span>}
                   </div>
                 </td>
                 <td className="text-center font-mono text-sm">
-                  {r.home_team_points} – {r.away_team_points}
+                  {r.away_team_points} – {r.home_team_points}
                 </td>
                 <td className="text-center text-sm">
                   {r.home_avg_ipr != null && r.away_avg_ipr != null ? (
                     <span>
-                      <span className={r.winner === 'home' ? 'font-semibold' : ''}>{r.home_avg_ipr.toFixed(1)}</span>
-                      <span style={{ color: 'var(--text-muted)' }}> / </span>
                       <span className={r.winner === 'away' ? 'font-semibold' : ''}>{r.away_avg_ipr.toFixed(1)}</span>
+                      <span style={{ color: 'var(--text-muted)' }}> / </span>
+                      <span className={r.winner === 'home' ? 'font-semibold' : ''}>{r.home_avg_ipr.toFixed(1)}</span>
                     </span>
                   ) : '—'}
                 </td>
@@ -433,7 +447,9 @@ function MatchResultsTable({
                 )}
                 {showUnderdogBadge && (
                   <td className="text-center">
-                    {r.is_underdog ? (
+                    {r.is_shared_venue ? (
+                      <Badge variant="info">Home Venue</Badge>
+                    ) : r.is_underdog ? (
                       <Badge variant="warning">Underdog</Badge>
                     ) : (
                       <Badge variant="default">Road Win</Badge>

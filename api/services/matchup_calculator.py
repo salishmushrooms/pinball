@@ -114,6 +114,7 @@ def get_team_machine_pick_frequency(
     available_machines: list[str],
     seasons: list[int],
     is_home_team_at_venue: bool = True,
+    round_type: str = "doubles",
 ) -> list[MachinePickFrequency]:
     """
     Calculate how often a team picks each machine across multiple seasons.
@@ -139,7 +140,7 @@ def get_team_machine_pick_frequency(
             INNER JOIN machines m ON tmp.machine_key = m.machine_key
             WHERE tmp.team_key = :team_key
             AND tmp.season = ANY(:seasons)
-            AND tmp.round_type = 'doubles'
+            AND tmp.round_type = :round_type
             AND tmp.machine_key = ANY(:machines)
             GROUP BY tmp.machine_key, m.machine_name
             HAVING SUM(tmp.total_opportunities) >= 3
@@ -147,7 +148,13 @@ def get_team_machine_pick_frequency(
         """
 
         results = execute_query(
-            query, {"team_key": team_key, "seasons": seasons, "machines": available_machines}
+            query,
+            {
+                "team_key": team_key,
+                "seasons": seasons,
+                "machines": available_machines,
+                "round_type": round_type,
+            },
         )
 
         result = []
@@ -442,10 +449,16 @@ def calculate_full_matchup_analysis(
 
     # Calculate all components
     home_pick_freq = get_team_machine_pick_frequency(
-        home_team, home_team_home_venue, available_machines, seasons, True
+        home_team, home_team_home_venue, available_machines, seasons, True, round_type="doubles"
     )
     away_pick_freq = get_team_machine_pick_frequency(
-        away_team, away_team_home_venue, available_machines, seasons, False
+        away_team, away_team_home_venue, available_machines, seasons, False, round_type="doubles"
+    )
+    home_singles_pick_freq = get_team_machine_pick_frequency(
+        home_team, home_team_home_venue, available_machines, seasons, True, round_type="singles"
+    )
+    away_singles_pick_freq = get_team_machine_pick_frequency(
+        away_team, away_team_home_venue, available_machines, seasons, False, round_type="singles"
     )
 
     home_player_prefs = get_player_machine_preferences(home_team, available_machines, seasons, True)
@@ -484,6 +497,8 @@ def calculate_full_matchup_analysis(
         available_machines_info=available_machines_info,
         home_team_pick_frequency=home_pick_freq,
         away_team_pick_frequency=away_pick_freq,
+        home_team_singles_pick_frequency=home_singles_pick_freq,
+        away_team_singles_pick_frequency=away_singles_pick_freq,
         home_team_player_preferences=home_player_prefs,
         away_team_player_preferences=away_player_prefs,
         home_team_player_confidence=home_player_confidence,

@@ -1,29 +1,17 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import {
-  MatchupAnalysis,
-  TeamMachineConfidence,
-  PlayerMachineConfidence,
-  MachinePickFrequency,
   ScheduleMatch,
-  MatchplayRatingInfo,
   SeasonStatus,
 } from '@/lib/types';
 import {
-  Card,
   PageHeader,
   Alert,
-  Badge,
-  Table,
-  Tabs,
-  Collapsible,
-  EmptyState,
   LoadingSpinner,
 } from '@/components/ui';
-import { MachinePredictionCard } from '@/components/MachinePredictionCard';
 import { filterSupportedSeasons, cn } from '@/lib/utils';
 
 export default function MatchupsPage() {
@@ -35,38 +23,20 @@ export default function MatchupsPage() {
 }
 
 function MatchupsPageContent() {
-  const searchParams = useSearchParams();
   const router = useRouter();
 
   const [currentSeason, setCurrentSeason] = useState<number | null>(null);
   const [currentWeek, setCurrentWeek] = useState<number | null>(null);
   const [seasonStatus, setSeasonStatus] = useState<SeasonStatus | null>(null);
   const [matches, setMatches] = useState<ScheduleMatch[]>([]);
-  const [selectedMatch, setSelectedMatch] = useState<string>('');
-  const [matchup, setMatchup] = useState<MatchupAnalysis | null>(null);
-  const [matchplayRatings, setMatchplayRatings] = useState<Record<string, MatchplayRatingInfo>>({});
-  const [loading, setLoading] = useState(false);
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [initialMatchFromUrl, setInitialMatchFromUrl] = useState<string | null>(null);
 
-  // Read match key from URL on initial load
-  useEffect(() => {
-    const matchFromUrl = searchParams.get('match');
-    if (matchFromUrl) {
-      setInitialMatchFromUrl(matchFromUrl);
-    }
-  }, [searchParams]);
-
-  // Load current season and matches on mount using combined endpoint
   useEffect(() => {
     async function loadCurrentSeasonMatches() {
       setLoadingMatches(true);
       try {
-        // Single API call for all initialization data
         const initData = await api.getMatchupsInit();
-
-        // Filter to supported seasons
         const supportedSeasons = filterSupportedSeasons(initData.seasons);
         const latestSeason = supportedSeasons.length > 0
           ? Math.max(...supportedSeasons)
@@ -75,36 +45,29 @@ function MatchupsPageContent() {
         setCurrentSeason(latestSeason);
         setSeasonStatus(initData.season_status);
 
-        // Filter to only show matches from the next upcoming week
         const allMatches = initData.matches;
-
-        // Find the first week that has upcoming matches (not complete AND date not in past)
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // Normalize to start of day
+        today.setHours(0, 0, 0, 0);
 
         const upcomingWeeks = new Set<number>();
         allMatches.forEach((match) => {
           if (match.state !== 'complete') {
-            // Parse date from MM/DD/YYYY format
             const matchDate = match.date ? new Date(match.date) : null;
-            // Include if date is today or future, or if no date available
             if (!matchDate || matchDate >= today) {
               upcomingWeeks.add(match.week);
             }
           }
         });
 
-        // Get the lowest upcoming week number (or show all if season is complete)
         const nextWeek = upcomingWeeks.size > 0
           ? Math.min(...Array.from(upcomingWeeks))
           : null;
 
         setCurrentWeek(nextWeek);
 
-        // Filter to only show matches from the next upcoming week
         const filteredMatches = nextWeek !== null
           ? allMatches.filter((match) => match.week === nextWeek)
-          : allMatches; // Show all if season is complete (for historical analysis)
+          : allMatches;
 
         setMatches(filteredMatches);
       } catch (err) {
@@ -117,126 +80,6 @@ function MatchupsPageContent() {
     loadCurrentSeasonMatches();
   }, []);
 
-  // Update URL with match key
-  const updateUrlWithMatch = useCallback((matchKey: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('match', matchKey);
-    router.replace(`/matchups?${params.toString()}`, { scroll: false });
-  }, [searchParams, router]);
-
-  // Load matchup analysis
-  const handleAnalyzeMatchup = useCallback(async (matchKeyOverride?: string) => {
-    const matchKey = matchKeyOverride || selectedMatch;
-
-    if (!matchKey) {
-      setError('Please select a match');
-      return;
-    }
-
-    const match = matches.find((m) => m.match_key === matchKey);
-    if (!match) {
-      setError('Selected match not found');
-      return;
-    }
-
-    // If using override, also update the selected match state
-    if (matchKeyOverride && matchKeyOverride !== selectedMatch) {
-      setSelectedMatch(matchKeyOverride);
-    }
-
-    setLoading(true);
-    setError(null);
-    setMatchup(null);
-
-    try {
-      let data: MatchupAnalysis;
-
-      // For current week scheduled matches, try pre-computed endpoint first
-      const isCurrentWeekScheduled = match.state === 'scheduled' && match.week === currentWeek;
-
-      if (isCurrentWeekScheduled) {
-        try {
-          // Use pre-computed endpoint for faster response
-          data = await api.getPrecomputedMatchup(matchKey);
-        } catch {
-          // Fall back to on-demand calculation if pre-computed not available
-          console.log('Pre-computed matchup not available, calculating on-demand');
-          const seasonsToAnalyze = currentSeason
-            ? [currentSeason, currentSeason - 1]
-            : [23, 22];
-
-          data = await api.getMatchupAnalysis({
-            home_team: match.home_key,
-            away_team: match.away_key,
-            venue: match.venue.key,
-            seasons: seasonsToAnalyze,
-          });
-        }
-      } else {
-        // On-demand for completed matches or historical analysis
-        const seasonsToAnalyze = currentSeason
-          ? [currentSeason, currentSeason - 1]
-          : [23, 22];
-
-        data = await api.getMatchupAnalysis({
-          home_team: match.home_key,
-          away_team: match.away_key,
-          venue: match.venue.key,
-          seasons: seasonsToAnalyze,
-        });
-      }
-
-      setMatchup(data);
-
-      // Update URL with the analyzed match
-      updateUrlWithMatch(matchKey);
-
-      // Fetch Matchplay ratings for all players in both teams
-      const allPlayerKeys = new Set<string>();
-      data.home_team_player_preferences?.forEach((p) => allPlayerKeys.add(p.player_key));
-      data.away_team_player_preferences?.forEach((p) => allPlayerKeys.add(p.player_key));
-      data.home_team_player_confidence?.forEach((p) => allPlayerKeys.add(p.player_key));
-      data.away_team_player_confidence?.forEach((p) => allPlayerKeys.add(p.player_key));
-
-      if (allPlayerKeys.size > 0) {
-        try {
-          const ratingsResponse = await api.getMatchplayRatings(Array.from(allPlayerKeys));
-          setMatchplayRatings(ratingsResponse.ratings || {});
-        } catch (ratingsErr) {
-          console.warn('Failed to fetch Matchplay ratings:', ratingsErr);
-        }
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to analyze matchup');
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedMatch, matches, currentSeason, updateUrlWithMatch]);
-
-  // Auto-analyze match from URL after matches are loaded
-  useEffect(() => {
-    if (!loadingMatches && initialMatchFromUrl && matches.length > 0 && !matchup) {
-      const matchExists = matches.find((m) => m.match_key === initialMatchFromUrl);
-      if (matchExists) {
-        handleAnalyzeMatchup(initialMatchFromUrl);
-      }
-      // Clear the initial URL match so we don't re-trigger
-      setInitialMatchFromUrl(null);
-    }
-  }, [loadingMatches, initialMatchFromUrl, matches, matchup, handleAnalyzeMatchup]);
-
-  const formatScore = (score: number): string => {
-    if (score >= 1_000_000_000) {
-      return `${(score / 1_000_000_000).toFixed(1)}B`;
-    } else if (score >= 1_000_000) {
-      return `${(score / 1_000_000).toFixed(1)}M`;
-    } else if (score >= 1_000) {
-      return `${(score / 1_000).toFixed(1)}K`;
-    }
-    return score.toString();
-  };
-
-  // Check if season is completed (off-season)
   const isOffSeason = seasonStatus?.status === 'completed';
 
   return (
@@ -246,7 +89,6 @@ function MatchupsPageContent() {
         description="Select a scheduled match to analyze team vs team performance at the venue"
       />
 
-      {/* Off-Season Message */}
       {isOffSeason && (
         <Alert variant="info" title={`Season ${currentSeason} Complete`}>
           <p className="mb-2">
@@ -260,7 +102,6 @@ function MatchupsPageContent() {
         </Alert>
       )}
 
-      {/* No Matches Available */}
       {!loadingMatches && matches.length === 0 && (
         <Alert variant="info" title={`No Remaining Matchups in Season ${currentSeason}`}>
           <p className="mb-2">
@@ -273,7 +114,12 @@ function MatchupsPageContent() {
         </Alert>
       )}
 
-      {/* Match Selection Cards */}
+      {loadingMatches && (
+        <div className="flex items-center justify-center py-16">
+          <LoadingSpinner size="lg" text="Loading matchups..." />
+        </div>
+      )}
+
       {!loadingMatches && matches.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
@@ -281,7 +127,7 @@ function MatchupsPageContent() {
               className="text-lg font-semibold"
               style={{ color: 'var(--text-primary)' }}
             >
-              {currentWeek !== null ? `Week ${currentWeek} Matchups` : 'Select Match'}
+              {currentWeek !== null ? `Week ${currentWeek} Matchups` : 'All Matchups'}
             </h2>
             <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
               {isOffSeason
@@ -291,70 +137,41 @@ function MatchupsPageContent() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {matches.map((match) => {
-              const isSelected = selectedMatch === match.match_key;
-              const isAnalyzed = matchup && selectedMatch === match.match_key;
-              return (
-                <button
-                  key={match.match_key}
-                  onClick={() => {
-                    setSelectedMatch(match.match_key);
-                    handleAnalyzeMatchup(match.match_key);
-                  }}
-                  disabled={loading}
-                  className={cn(
-                    'border rounded-lg p-4 text-left transition-all',
-                    loading && !isSelected ? 'opacity-50' : 'cursor-pointer',
-                    isSelected
-                      ? 'shadow-md'
-                      : 'hover:shadow-md'
-                  )}
-                  style={{
-                    borderColor: isSelected ? 'var(--color-primary-600)' : 'var(--border)',
-                    borderWidth: isSelected ? '2px' : '1px',
-                    backgroundColor: isSelected ? 'var(--color-primary-50)' : 'var(--card-bg)',
-                  }}
-                >
-                  {/* Week & Date */}
-                  <div className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
-                    Week {match.week}{match.date ? ` \u2022 ${match.date}` : ''}
-                  </div>
+            {matches.map((match) => (
+              <button
+                key={match.match_key}
+                onClick={() => router.push(`/matchups/${match.match_key}`)}
+                className={cn(
+                  'border rounded-lg p-4 text-left transition-all cursor-pointer hover:shadow-md',
+                )}
+                style={{
+                  borderColor: 'var(--border)',
+                  borderWidth: '1px',
+                  backgroundColor: 'var(--card-bg)',
+                }}
+              >
+                {/* Week & Date */}
+                <div className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
+                  Week {match.week}{match.date ? ` \u2022 ${match.date}` : ''}
+                </div>
 
-                  {/* Teams */}
-                  <div className="space-y-0.5">
-                    <div className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
-                      {match.away_name}
-                    </div>
-                    <div className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>@</div>
-                    <div className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
-                      {match.home_name}
-                    </div>
+                {/* Teams */}
+                <div className="space-y-0.5">
+                  <div className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
+                    {match.away_name}
                   </div>
-
-                  {/* Venue */}
-                  <div className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {match.venue.name}
+                  <div className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>@</div>
+                  <div className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
+                    {match.home_name}
                   </div>
+                </div>
 
-                  {/* Status indicator */}
-                  {isSelected && isAnalyzed && (
-                    <div className="mt-2">
-                      <span
-                        className="text-xs font-medium px-2 py-0.5 rounded-full"
-                        style={{ backgroundColor: 'var(--color-primary-100)', color: 'var(--color-primary-700)' }}
-                      >
-                        Viewing
-                      </span>
-                    </div>
-                  )}
-                  {isSelected && loading && (
-                    <div className="mt-2">
-                      <LoadingSpinner size="sm" text="Analyzing..." />
-                    </div>
-                  )}
-                </button>
-              );
-            })}
+                {/* Venue */}
+                <div className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                  {match.venue.name}
+                </div>
+              </button>
+            ))}
           </div>
 
           {error && (
@@ -364,448 +181,6 @@ function MatchupsPageContent() {
           )}
         </div>
       )}
-
-      {/* Matchup Results */}
-      {matchup && (
-        <div className="space-y-6">
-          {/* Matchup Header */}
-          <Card>
-            <Card.Content>
-              <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
-                {matchup.home_team_name} vs {matchup.away_team_name}
-              </h2>
-              <p style={{ color: 'var(--text-secondary)' }}>
-                Venue: {matchup.venue_name} | Season{typeof matchup.season === 'string' && matchup.season.includes('-') ? 's' : ''}: {matchup.season}
-              </p>
-            </Card.Content>
-          </Card>
-
-          {/* Available Machines - Collapsible */}
-          <Collapsible
-            title="Available Machines"
-            badge={
-              <Badge variant="info">
-                {matchup.available_machines.length}
-              </Badge>
-            }
-            defaultOpen={false}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-              {(matchup.available_machines_info || matchup.available_machines.map(k => ({ key: k, name: k }))).map((machine) => (
-                <div
-                  key={typeof machine === 'string' ? machine : machine.key}
-                  className="flex items-center justify-between p-2 rounded text-sm"
-                  style={{ backgroundColor: 'var(--card-bg-secondary)' }}
-                >
-                  <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                    {typeof machine === 'string' ? machine : machine.name}
-                  </span>
-                  <span className="text-xs ml-2" style={{ color: 'var(--text-muted)' }}>
-                    {typeof machine === 'string' ? '' : machine.key}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </Collapsible>
-
-          {/* Machine Pick Predictions */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <MachinePredictionCard
-              teamKey={matches.find((m) => m.match_key === selectedMatch)?.away_key || matchup.away_team_key || ''}
-              teamName={matchup.away_team_name}
-              roundNum={1}
-              venueKey={matchup.venue_key}
-              seasons={typeof matchup.season === 'string' && matchup.season.includes('-') ? matchup.season.split('-').map(Number) : [typeof matchup.season === 'string' ? parseInt(matchup.season) : matchup.season]}
-            />
-            <MachinePredictionCard
-              teamKey={matches.find((m) => m.match_key === selectedMatch)?.home_key || matchup.home_team_key || ''}
-              teamName={matchup.home_team_name}
-              roundNum={4}
-              venueKey={matchup.venue_key}
-              seasons={typeof matchup.season === 'string' && matchup.season.includes('-') ? matchup.season.split('-').map(Number) : [typeof matchup.season === 'string' ? parseInt(matchup.season) : matchup.season]}
-            />
-          </div>
-
-          {/* Tab Navigation for Teams */}
-          <Tabs defaultValue="home">
-            <Tabs.List className="w-full md:w-auto">
-              <Tabs.Trigger value="home">{matchup.home_team_name}</Tabs.Trigger>
-              <Tabs.Trigger value="away">{matchup.away_team_name}</Tabs.Trigger>
-            </Tabs.List>
-
-            {/* Home Team Tab */}
-            <Tabs.Content value="home">
-              <div className="space-y-4">
-                {/* Team Expected Scores - Always visible */}
-                <Card>
-                  <Card.Header>
-                    <Card.Title>Expected Scores (Team Average)</Card.Title>
-                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                      Based on all team members&apos; performance at this venue
-                    </p>
-                  </Card.Header>
-                  <Card.Content>
-                    <TeamConfidenceTable
-                      confidences={matchup.home_team_machine_confidence}
-                      formatScore={formatScore}
-                    />
-                  </Card.Content>
-                </Card>
-
-                {/* Machine Pick Frequency - Collapsible */}
-                <Collapsible
-                  title="Team Pick History"
-                  badge={
-                    <Badge variant="default">
-                      {matchup.home_team_pick_frequency.length}
-                    </Badge>
-                  }
-                >
-                  <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>
-                    Machines this team has historically picked in doubles rounds
-                  </p>
-                  <MachinePickTable picks={matchup.home_team_pick_frequency} />
-                </Collapsible>
-
-                {/* Player Preferences - Collapsible */}
-                <Collapsible
-                  title="Roster Player Preferences"
-                  badge={
-                    <Badge variant="default">
-                      {matchup.home_team_player_preferences.length} players
-                    </Badge>
-                  }
-                >
-                  <PlayerPreferencesGrid
-                    preferences={matchup.home_team_player_preferences}
-                    matchplayRatings={matchplayRatings}
-                  />
-                </Collapsible>
-
-                {/* Player-Specific Expected Scores - Collapsible */}
-                <Collapsible
-                  title="Roster Player Expected Scores"
-                  badge={
-                    <Badge variant="info">Requires 5+ games</Badge>
-                  }
-                >
-                  <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-                    Only showing roster players with 5 or more games on each machine for
-                    statistical confidence (95% confidence interval).
-                  </p>
-                  <PlayerConfidenceGrid
-                    confidences={matchup.home_team_player_confidence}
-                    formatScore={formatScore}
-                    matchplayRatings={matchplayRatings}
-                  />
-                </Collapsible>
-              </div>
-            </Tabs.Content>
-
-            {/* Away Team Tab */}
-            <Tabs.Content value="away">
-              <div className="space-y-4">
-                {/* Team Expected Scores - Always visible */}
-                <Card>
-                  <Card.Header>
-                    <Card.Title>Expected Scores (Team Average)</Card.Title>
-                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                      Based on all team members&apos; performance at this venue
-                    </p>
-                  </Card.Header>
-                  <Card.Content>
-                    <TeamConfidenceTable
-                      confidences={matchup.away_team_machine_confidence}
-                      formatScore={formatScore}
-                    />
-                  </Card.Content>
-                </Card>
-
-                {/* Machine Pick Frequency - Collapsible */}
-                <Collapsible
-                  title="Team Pick History"
-                  badge={
-                    <Badge variant="default">
-                      {matchup.away_team_pick_frequency.length}
-                    </Badge>
-                  }
-                >
-                  <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>
-                    Machines this team has historically picked in doubles rounds
-                  </p>
-                  <MachinePickTable picks={matchup.away_team_pick_frequency} />
-                </Collapsible>
-
-                {/* Player Preferences - Collapsible */}
-                <Collapsible
-                  title="Roster Player Preferences"
-                  badge={
-                    <Badge variant="default">
-                      {matchup.away_team_player_preferences.length} players
-                    </Badge>
-                  }
-                >
-                  <PlayerPreferencesGrid
-                    preferences={matchup.away_team_player_preferences}
-                    matchplayRatings={matchplayRatings}
-                  />
-                </Collapsible>
-
-                {/* Player-Specific Expected Scores - Collapsible */}
-                <Collapsible
-                  title="Roster Player Expected Scores"
-                  badge={
-                    <Badge variant="info">Requires 5+ games</Badge>
-                  }
-                >
-                  <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-                    Only showing roster players with 5 or more games on each machine for
-                    statistical confidence (95% confidence interval).
-                  </p>
-                  <PlayerConfidenceGrid
-                    confidences={matchup.away_team_player_confidence}
-                    formatScore={formatScore}
-                    matchplayRatings={matchplayRatings}
-                  />
-                </Collapsible>
-              </div>
-            </Tabs.Content>
-          </Tabs>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Component for machine pick frequency table
-function MachinePickTable({ picks }: { picks: MachinePickFrequency[] }) {
-  if (picks.length === 0) {
-    return <EmptyState title="No pick data available" />;
-  }
-
-  return (
-    <Table>
-      <Table.Header>
-        <Table.Row>
-          <Table.Head>Machine</Table.Head>
-          <Table.Head className="text-right">Times Picked</Table.Head>
-        </Table.Row>
-      </Table.Header>
-      <Table.Body>
-        {picks.slice(0, 10).map((pick) => (
-          <Table.Row key={pick.machine_key}>
-            <Table.Cell>{pick.machine_name}</Table.Cell>
-            <Table.Cell className="text-right font-medium">
-              {pick.times_picked}
-            </Table.Cell>
-          </Table.Row>
-        ))}
-      </Table.Body>
-    </Table>
-  );
-}
-
-// Component for team confidence interval table
-function TeamConfidenceTable({
-  confidences,
-  formatScore,
-}: {
-  confidences: TeamMachineConfidence[];
-  formatScore: (score: number) => string;
-}) {
-  const withData = confidences.filter((c) => !c.insufficient_data);
-
-  if (withData.length === 0) {
-    return <EmptyState title="Insufficient data for predictions" />;
-  }
-
-  return (
-    <Table>
-      <Table.Header>
-        <Table.Row>
-          <Table.Head>Machine</Table.Head>
-          <Table.Head className="text-right">Expected Score</Table.Head>
-          <Table.Head className="text-right">95% Range</Table.Head>
-          <Table.Head className="text-right">Sample</Table.Head>
-        </Table.Row>
-      </Table.Header>
-      <Table.Body>
-        {withData.slice(0, 10).map((conf) => (
-          <Table.Row key={conf.machine_key}>
-            <Table.Cell className="font-medium">{conf.machine_name}</Table.Cell>
-            <Table.Cell className="text-right font-semibold text-blue-600">
-              {conf.confidence_interval
-                ? formatScore(conf.confidence_interval.mean)
-                : 'N/A'}
-            </Table.Cell>
-            <Table.Cell className="text-right text-xs">
-              <span style={{ color: 'var(--text-secondary)' }}>
-                {conf.confidence_interval
-                  ? `${formatScore(conf.confidence_interval.lower_bound)} - ${formatScore(conf.confidence_interval.upper_bound)}`
-                  : 'N/A'}
-              </span>
-            </Table.Cell>
-            <Table.Cell className="text-right text-xs">
-              <span style={{ color: 'var(--text-muted)' }}>
-                n={conf.confidence_interval?.sample_size || 0}
-              </span>
-            </Table.Cell>
-          </Table.Row>
-        ))}
-      </Table.Body>
-    </Table>
-  );
-}
-
-// Component for player preferences grid
-function PlayerPreferencesGrid({
-  preferences,
-  matchplayRatings,
-}: {
-  preferences: { player_key: string; player_name: string; top_machines: MachinePickFrequency[] }[];
-  matchplayRatings: Record<string, MatchplayRatingInfo>;
-}) {
-  if (preferences.length === 0) {
-    return <EmptyState title="No preference data available" />;
-  }
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {preferences.map((pref) => {
-        const mpRating = matchplayRatings[pref.player_key];
-        return (
-          <div
-            key={pref.player_key}
-            className="border rounded-lg p-4 transition-colors"
-            style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg)' }}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{pref.player_name}</p>
-              {mpRating && (
-                <a
-                  href={mpRating.profile_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs hover:underline"
-                  style={{ color: 'var(--text-link)' }}
-                  title={`Matchplay: ${mpRating.matchplay_name}`}
-                >
-                  MP: {mpRating.rating ?? '—'}
-                </a>
-              )}
-            </div>
-            <div className="space-y-2">
-              {pref.top_machines.slice(0, 5).map((machine, idx) => (
-                <div
-                  key={machine.machine_key}
-                  className="flex items-center justify-between text-sm"
-                >
-                  <span style={{ color: 'var(--text-secondary)' }}>
-                    {idx + 1}. {machine.machine_name}
-                  </span>
-                  <Badge variant="default" className="text-xs">
-                    {machine.times_picked}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// Component for player confidence grid
-function PlayerConfidenceGrid({
-  confidences,
-  formatScore,
-  matchplayRatings,
-}: {
-  confidences: PlayerMachineConfidence[];
-  formatScore: (score: number) => string;
-  matchplayRatings: Record<string, MatchplayRatingInfo>;
-}) {
-  const withData = confidences.filter((c) => !c.insufficient_data);
-
-  if (withData.length === 0) {
-    return (
-      <EmptyState title="Insufficient data for player predictions" description="Players need 5+ games on a machine to generate confidence intervals." />
-    );
-  }
-
-  // Group by player
-  const byPlayer: { [key: string]: PlayerMachineConfidence[] } = {};
-  withData.forEach((conf) => {
-    if (!byPlayer[conf.player_key]) {
-      byPlayer[conf.player_key] = [];
-    }
-    byPlayer[conf.player_key].push(conf);
-  });
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {Object.entries(byPlayer).map(([playerKey, confs]) => {
-        const mpRating = matchplayRatings[playerKey];
-        return (
-          <Card key={playerKey} className="shadow-sm">
-            <Card.Header>
-              <div className="flex items-center justify-between">
-                <Card.Title className="text-base">
-                  {confs[0].player_name}
-                  <Badge variant="info" className="ml-2">
-                    {confs.length} machines
-                  </Badge>
-                </Card.Title>
-                {mpRating && (
-                  <a
-                    href={mpRating.profile_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs hover:underline"
-                    style={{ color: 'var(--text-link)' }}
-                    title={`Matchplay: ${mpRating.matchplay_name}`}
-                  >
-                    MP: {mpRating.rating ?? '—'}
-                  </a>
-                )}
-              </div>
-            </Card.Header>
-            <Card.Content>
-              <Table>
-                <Table.Header>
-                  <Table.Row>
-                    <Table.Head className="text-xs">Machine</Table.Head>
-                    <Table.Head className="text-xs text-right">Expected</Table.Head>
-                    <Table.Head className="text-xs text-right">Range</Table.Head>
-                  </Table.Row>
-                </Table.Header>
-                <Table.Body>
-                  {confs.map((conf) => (
-                    <Table.Row key={conf.machine_key}>
-                      <Table.Cell className="text-xs py-2">
-                        {conf.machine_name}
-                      </Table.Cell>
-                      <Table.Cell className="text-xs text-right font-semibold text-blue-600 py-2">
-                        {conf.confidence_interval
-                          ? formatScore(conf.confidence_interval.mean)
-                          : 'N/A'}
-                      </Table.Cell>
-                      <Table.Cell className="text-xs text-right py-2">
-                        <span style={{ color: 'var(--text-secondary)' }}>
-                          {conf.confidence_interval
-                            ? `${formatScore(conf.confidence_interval.lower_bound)}-${formatScore(conf.confidence_interval.upper_bound)}`
-                            : 'N/A'}
-                        </span>
-                      </Table.Cell>
-                    </Table.Row>
-                  ))}
-                </Table.Body>
-              </Table>
-            </Card.Content>
-          </Card>
-        );
-      })}
     </div>
   );
 }

@@ -155,15 +155,13 @@ class MatchParser:
 
     @staticmethod
     def _resolve_state(match: dict) -> str:
-        """Resolve match state — treat 'playing' as 'complete' if all rounds have scores."""
+        """Resolve match state — treat 'playing' as 'complete' if all games are done."""
         state = match.get("state", "unknown")
         if state == "playing":
             rounds = match.get("rounds", [])
             if len(rounds) == 4 and all(
-                all(
-                    p.get("score", 0) > 0
-                    for p in r.get("away_players", []) + r.get("home_players", [])
-                )
+                all(g.get("done", False) for g in r.get("games", []))
+                and len(r.get("games", [])) > 0
                 for r in rounds
             ):
                 return "complete"

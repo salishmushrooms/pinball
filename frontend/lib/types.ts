@@ -11,6 +11,11 @@ export interface MatchSummary {
   ties: number;
   home_win_pct: number;
   away_win_pct: number;
+  shared_venue_matches?: number;
+  true_home_wins?: number;
+  true_away_wins?: number;
+  true_home_win_pct?: number;
+  true_away_win_pct?: number;
 }
 
 export interface MatchResult {
@@ -29,6 +34,7 @@ export interface MatchResult {
   upset_team_key?: string;
   upset_team_name?: string;
   is_underdog?: boolean;
+  is_shared_venue?: boolean;
 }
 
 export interface ComebackResult {
@@ -598,6 +604,8 @@ export interface MatchupAnalysis {
   available_machines_info?: MachineInfo[];
   home_team_pick_frequency: MachinePickFrequency[];
   away_team_pick_frequency: MachinePickFrequency[];
+  home_team_singles_pick_frequency?: MachinePickFrequency[];
+  away_team_singles_pick_frequency?: MachinePickFrequency[];
   home_team_player_preferences: PlayerMachinePreference[];
   away_team_player_preferences: PlayerMachinePreference[];
   home_team_player_confidence: PlayerMachineConfidence[];

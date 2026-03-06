@@ -163,12 +163,40 @@ def get_matchup_analysis(
             detail=f"No machine data found for venue '{venue}' in seasons {seasons}",
         )
 
-    # Get team machine pick frequencies
+    # Get team machine pick frequencies (doubles)
     home_pick_freq = get_team_machine_pick_frequency(
-        home_team, home_team_home_venue, available_machines, seasons, is_home_team_at_venue=True
+        home_team,
+        home_team_home_venue,
+        available_machines,
+        seasons,
+        is_home_team_at_venue=True,
+        round_type="doubles",
     )
     away_pick_freq = get_team_machine_pick_frequency(
-        away_team, away_team_home_venue, available_machines, seasons, is_home_team_at_venue=False
+        away_team,
+        away_team_home_venue,
+        available_machines,
+        seasons,
+        is_home_team_at_venue=False,
+        round_type="doubles",
+    )
+
+    # Get team machine pick frequencies (singles)
+    home_singles_pick_freq = get_team_machine_pick_frequency(
+        home_team,
+        home_team_home_venue,
+        available_machines,
+        seasons,
+        is_home_team_at_venue=True,
+        round_type="singles",
+    )
+    away_singles_pick_freq = get_team_machine_pick_frequency(
+        away_team,
+        away_team_home_venue,
+        available_machines,
+        seasons,
+        is_home_team_at_venue=False,
+        round_type="singles",
     )
 
     # Get player machine preferences - filtered to roster players only
@@ -213,6 +241,8 @@ def get_matchup_analysis(
         available_machines_info=available_machines_info,
         home_team_pick_frequency=home_pick_freq,
         away_team_pick_frequency=away_pick_freq,
+        home_team_singles_pick_frequency=home_singles_pick_freq,
+        away_team_singles_pick_frequency=away_singles_pick_freq,
         home_team_player_preferences=home_player_prefs,
         away_team_player_preferences=away_player_prefs,
         home_team_player_confidence=home_player_confidence,

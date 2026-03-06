@@ -3,13 +3,16 @@
 Calculate and update match point totals (home_team_points, away_team_points).
 
 This script calculates the total points for each team in a match by summing
-the away_points and home_points from each game in all rounds.
+the away_points and home_points from each game in all rounds, plus bonus points
+(participation and handicap) per team.
 
 MNP Scoring:
 - Each game awards points based on head-to-head position finishes
 - Singles (Rounds 2 & 3): 3 points per game (winner takes all or split)
 - Doubles (Rounds 1 & 4): 5 points per game (based on position finishes)
-- Match total is sum of all game points across all 4 rounds
+- Participation bonus: 9 pts if all 10 players play 3+ rounds, 4 pts if 9 do
+- Handicap bonus: based on team IPR (capped at 15 pts)
+- Match total = game points + participation + handicap per team
 
 Usage:
     python etl/calculate_match_points.py --season 22
@@ -19,6 +22,7 @@ Usage:
 import argparse
 import json
 import logging
+import math
 import sys
 
 from sqlalchemy import text
@@ -66,9 +70,84 @@ def load_match_files(season: int):
     return matches
 
 
+def _use_full_team_ipr(num_players, player_rounds, played_0, played_1, played_3plus) -> bool:
+    """Check if full team IPR should be used for handicap (vs partial)."""
+    if player_rounds < 15:
+        return True
+    if num_players == 10:
+        if player_rounds < 22 and played_0 == 0:
+            return True
+        if player_rounds < 30 and played_0 == 0 and played_1 == 0:
+            return True
+        if player_rounds == 30 and played_3plus == 10:
+            return True
+    return False
+
+
+def calculate_team_bonus(lineup: list[dict]) -> dict:
+    """
+    Calculate participation and handicap bonus for a team.
+
+    Ported from MNP main site (model/matches.js getBonus).
+
+    Args:
+        lineup: List of player dicts with 'IPR' and 'num_played' keys
+
+    Returns:
+        dict with 'participation' and 'handicap' integer values
+    """
+    bonus = {"participation": 0, "handicap": 0}
+    if not lineup:
+        return bonus
+
+    handicap = 0
+    player_rounds = 0
+    player_rounds_ipr = 0
+    num_players = len(lineup)
+    played_0 = played_1 = played_3plus = 0
+    team_ipr = sum(p.get("IPR", 0) for p in lineup)
+
+    for p in lineup:
+        n = p.get("num_played", 0)
+        player_rounds += n
+        player_rounds_ipr += n * p.get("IPR", 0)
+        if n >= 3:
+            played_3plus += 1
+        if n == 1:
+            played_1 += 1
+        if n == 0:
+            played_0 += 1
+
+    # No bonus until match is complete (30 player rounds: 8+7+7+8)
+    if player_rounds < 30 or player_rounds == 0:
+        return bonus
+
+    if _use_full_team_ipr(num_players, player_rounds, played_0, played_1, played_3plus):
+        handicap = (50 - team_ipr) / 2
+
+    if handicap == 0:
+        team_ipr_partial = (player_rounds_ipr * 10) / player_rounds
+        handicap = (50 - team_ipr_partial) / 2
+
+    handicap *= player_rounds / 30
+    handicap = math.trunc(handicap)
+    handicap = max(handicap, 0)
+    handicap = min(handicap, 15)
+
+    if played_3plus == 10:
+        bonus["participation"] = 9
+    elif played_3plus == 9:
+        bonus["participation"] = 4
+
+    bonus["handicap"] = handicap
+    return bonus
+
+
 def calculate_match_points(match_data: dict):
     """
     Calculate total points for home and away teams from match data.
+
+    Includes game points + participation bonus + handicap bonus per team.
 
     Args:
         match_data: Match dictionary from JSON file
@@ -98,6 +177,15 @@ def calculate_match_points(match_data: dict):
 
             home_points += float(game_home)
             away_points += float(game_away)
+
+    # Add bonus points (participation + handicap)
+    home_lineup = match_data.get("home", {}).get("lineup", [])
+    away_lineup = match_data.get("away", {}).get("lineup", [])
+    home_bonus = calculate_team_bonus(home_lineup)
+    away_bonus = calculate_team_bonus(away_lineup)
+
+    home_points += home_bonus["participation"] + home_bonus["handicap"]
+    away_points += away_bonus["participation"] + away_bonus["handicap"]
 
     return (match_key, home_points, away_points)
 
