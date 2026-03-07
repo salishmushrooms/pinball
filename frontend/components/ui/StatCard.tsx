@@ -36,26 +36,23 @@ export function StatCard({
 
   const content = (
     <>
-      {icon && (
-        <div
-          className="flex justify-center mb-2"
-          style={{ color: 'var(--color-primary-600)' }}
-        >
-          {icon}
-        </div>
-      )}
       <div
         className="text-xs font-medium uppercase tracking-wide mb-1"
         style={{ color: 'var(--text-muted)' }}
       >
-        <div className="flex items-center justify-center gap-1">
+        <div className="flex items-center gap-1">
+          {icon && (
+            <span style={{ color: 'var(--color-primary-600)' }}>
+              {icon}
+            </span>
+          )}
           {label}
           {tooltip && <Tooltip content={tooltip} iconSize={12} />}
         </div>
       </div>
       <div
         className="text-2xl font-bold"
-        style={{ color: 'var(--color-primary-700)' }}
+        style={{ color: 'var(--text-primary)' }}
       >
         {value}
       </div>
@@ -68,16 +65,19 @@ export function StatCard({
         </div>
       )}
       {trend && (
-        <div className={cn('text-sm mt-2', trendColors[trendDirection])}>
+        <div className={cn('text-sm mt-1', trendColors[trendDirection])}>
           {trend}
         </div>
       )}
     </>
   );
 
-  const baseStyles = {
-    backgroundColor: 'var(--color-primary-50)',
-    border: '1px solid var(--border-light)',
+  const baseStyles: React.CSSProperties = {
+    backgroundColor: 'var(--card-bg)',
+    borderLeft: '3px solid var(--color-primary-500)',
+    borderTop: '1px solid var(--border-light)',
+    borderRight: '1px solid var(--border-light)',
+    borderBottom: '1px solid var(--border-light)',
   };
 
   if (href) {
@@ -85,7 +85,7 @@ export function StatCard({
       <Link
         href={href}
         className={cn(
-          'rounded-lg p-4 md:p-6 text-center block transition-all duration-200 hover:scale-105',
+          'rounded-md p-3 md:p-4 block transition-all duration-200 hover:scale-[1.02]',
           className
         )}
         style={{
@@ -93,12 +93,10 @@ export function StatCard({
           textDecoration: 'none',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = 'var(--color-primary-100)';
-          e.currentTarget.style.borderColor = 'var(--color-primary-300)';
+          e.currentTarget.style.backgroundColor = 'var(--card-bg-secondary)';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'var(--color-primary-50)';
-          e.currentTarget.style.borderColor = 'var(--border-light)';
+          e.currentTarget.style.backgroundColor = 'var(--card-bg)';
         }}
       >
         {content}
@@ -108,7 +106,7 @@ export function StatCard({
 
   return (
     <div
-      className={cn('rounded-lg p-4 md:p-6 text-center', className)}
+      className={cn('rounded-md p-3 md:p-4', className)}
       style={baseStyles}
     >
       {content}
