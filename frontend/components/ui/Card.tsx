@@ -10,10 +10,10 @@ interface CardProps {
 }
 
 export function Card({ children, className, variant = 'default', href }: CardProps) {
-  const baseStyles = 'rounded-lg shadow-md border';
+  const baseStyles = 'rounded-lg shadow-sm border';
   const variantStyles = {
     default: '',
-    interactive: 'hover:shadow-lg hover:border-blue-500 transition-all cursor-pointer',
+    interactive: 'hover:shadow-md hover:border-blue-500 hover:scale-[1.01] transition-all cursor-pointer',
   };
 
   const combinedStyles = cn(baseStyles, variantStyles[variant], className);
@@ -41,7 +41,7 @@ interface CardHeaderProps {
 
 export function CardHeader({ children, className }: CardHeaderProps) {
   return (
-    <div className={cn('px-6 py-4 border-b', className)} style={{ borderColor: 'var(--border)' }}>
+    <div className={cn('px-4 py-3 border-b', className)} style={{ borderColor: 'var(--border)' }}>
       {children}
     </div>
   );
@@ -66,7 +66,7 @@ interface CardContentProps {
 }
 
 export function CardContent({ children, className }: CardContentProps) {
-  return <div className={cn('p-6', className)}>{children}</div>;
+  return <div className={cn('p-4', className)}>{children}</div>;
 }
 
 interface CardFooterProps {
@@ -77,7 +77,7 @@ interface CardFooterProps {
 export function CardFooter({ children, className }: CardFooterProps) {
   return (
     <div
-      className={cn('px-6 py-4 border-t', className)}
+      className={cn('px-4 py-3 border-t', className)}
       style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg-secondary)' }}
     >
       {children}
