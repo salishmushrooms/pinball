@@ -412,24 +412,23 @@ class MachineScoreList(BaseModel):
 
 # Matchup Models
 class ConfidenceInterval(BaseModel):
-    """Confidence interval for a score prediction"""
+    """Score range using 25th-75th percentiles"""
 
-    mean: float
-    std_dev: float
-    lower_bound: float
-    upper_bound: float
+    median: float
+    p25: float
+    p75: float
     sample_size: int
-    confidence_level: float = 95.0
 
 
 class PlayerMachineConfidence(BaseModel):
-    """Player's expected performance on a machine with confidence interval"""
+    """Player's expected performance on a machine with percentile range"""
 
     player_key: str
     player_name: str
     machine_key: str
     machine_name: str
     confidence_interval: ConfidenceInterval | None = None
+    win_percentage: float | None = None
     insufficient_data: bool = False
     message: str | None = None
 
@@ -454,6 +453,7 @@ class MachinePickFrequency(BaseModel):
     times_picked: int
     total_opportunities: int
     pick_percentage: float
+    win_percentage: float | None = None
 
 
 class PlayerMachinePreference(BaseModel):
@@ -461,6 +461,7 @@ class PlayerMachinePreference(BaseModel):
 
     player_key: str
     player_name: str
+    current_ipr: float | None = None
     top_machines: list[MachinePickFrequency]
 
 

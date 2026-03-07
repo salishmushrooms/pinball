@@ -6,7 +6,7 @@ used by both the API endpoint (on-demand) and ETL script (batch pre-calculation)
 """
 
 import json
-import math
+import statistics
 from collections import defaultdict
 from typing import Any
 
@@ -84,27 +84,20 @@ def calculate_confidence_interval(
     scores: list[float], confidence_level: float = 95.0
 ) -> ConfidenceInterval | None:
     """
-    Calculate confidence interval for a list of scores.
+    Calculate 25th-75th percentile range for a list of scores.
     Returns None if insufficient data (< 5 scores).
     """
     if len(scores) < 5:
         return None
 
-    mean = sum(scores) / len(scores)
-    variance = sum((x - mean) ** 2 for x in scores) / len(scores)
-    std_dev = math.sqrt(variance)
-
-    z_score = 1.96 if confidence_level == 95.0 else 1.645
-
-    margin_of_error = z_score * (std_dev / math.sqrt(len(scores)))
+    sorted_scores = sorted(scores)
+    quantiles = statistics.quantiles(sorted_scores, n=4)
 
     return ConfidenceInterval(
-        mean=mean,
-        std_dev=std_dev,
-        lower_bound=max(0, mean - margin_of_error),
-        upper_bound=mean + margin_of_error,
+        median=statistics.median(sorted_scores),
+        p25=quantiles[0],
+        p75=quantiles[2],
         sample_size=len(scores),
-        confidence_level=confidence_level,
     )
 
 
@@ -185,6 +178,83 @@ def get_team_machine_pick_frequency(
         return []
 
 
+def _get_player_win_percentages(
+    player_keys: list[str], seasons: list[int], machines: list[str]
+) -> dict[str, dict[str, float]]:
+    """
+    Batch calculate win percentages for multiple players on specific machines.
+    Returns {player_key: {machine_key: win_percentage}}.
+    """
+    if not player_keys or not machines:
+        return {}
+
+    query = """
+        WITH player_games AS (
+            SELECT
+                ps.player_key,
+                ps.machine_key,
+                ps.score AS player_score,
+                ps.match_key,
+                ps.round_number,
+                ps.player_position AS player_pos
+            FROM scores ps
+            WHERE ps.player_key = ANY(:player_keys)
+                AND ps.season = ANY(:seasons)
+                AND ps.machine_key = ANY(:machines)
+        )
+        SELECT
+            pg.player_key,
+            pg.machine_key,
+            pg.player_score,
+            pg.round_number,
+            pg.player_pos,
+            rs.player_position AS other_pos,
+            rs.score AS other_score
+        FROM player_games pg
+        JOIN scores rs ON
+            rs.match_key = pg.match_key
+            AND rs.round_number = pg.round_number
+            AND rs.machine_key = pg.machine_key
+            AND rs.player_position != pg.player_pos
+    """
+    comparisons = execute_query(
+        query, {"player_keys": player_keys, "seasons": seasons, "machines": machines}
+    )
+
+    # {player_key: {machine_key: {wins, total}}}
+    stats: dict[str, dict[str, dict[str, int]]] = defaultdict(
+        lambda: defaultdict(lambda: {"wins": 0, "total": 0})
+    )
+
+    for row in comparisons:
+        player_key = row["player_key"]
+        machine_key = row["machine_key"]
+        round_number = row["round_number"]
+        player_pos = row["player_pos"]
+        other_pos = row["other_pos"]
+
+        is_doubles = round_number in [1, 4]
+        if is_doubles:
+            player_is_odd = player_pos % 2 == 1
+            other_is_odd = other_pos % 2 == 1
+            is_opponent = player_is_odd != other_is_odd
+        else:
+            is_opponent = True
+
+        if is_opponent:
+            stats[player_key][machine_key]["total"] += 1
+            if row["player_score"] > row["other_score"]:
+                stats[player_key][machine_key]["wins"] += 1
+
+    result: dict[str, dict[str, float]] = {}
+    for player_key, machines_data in stats.items():
+        result[player_key] = {}
+        for machine_key, s in machines_data.items():
+            if s["total"] > 0:
+                result[player_key][machine_key] = round(s["wins"] / s["total"] * 100.0, 1)
+    return result
+
+
 def get_player_machine_preferences(
     team_key: str, available_machines: list[str], seasons: list[int], roster_only: bool = True
 ) -> list[PlayerMachinePreference]:
@@ -204,6 +274,7 @@ def get_player_machine_preferences(
         SELECT
             s.player_key,
             p.name as player_name,
+            p.current_ipr,
             s.machine_key,
             m.machine_name,
             COUNT(*) as times_played
@@ -214,13 +285,14 @@ def get_player_machine_preferences(
             AND s.season = ANY(:seasons)
             AND s.machine_key = ANY(:machines)
             {roster_filter}
-        GROUP BY s.player_key, p.name, s.machine_key, m.machine_name
+        GROUP BY s.player_key, p.name, p.current_ipr, s.machine_key, m.machine_name
         ORDER BY s.player_key, times_played DESC
     """
 
     all_picks = execute_query(all_picks_query, query_params)
 
-    player_picks = defaultdict(list)
+    player_picks: dict[str, list[dict]] = defaultdict(list)
+    player_iprs: dict[str, float | None] = {}
     for pick in all_picks:
         player_key = pick["player_key"]
         player_picks[player_key].append(
@@ -231,11 +303,18 @@ def get_player_machine_preferences(
                 "times_played": pick["times_played"],
             }
         )
+        if player_key not in player_iprs:
+            player_iprs[player_key] = pick["current_ipr"]
+
+    # Batch fetch win percentages for all players
+    all_player_keys = list(player_picks.keys())
+    win_pcts = _get_player_win_percentages(all_player_keys, seasons, available_machines)
 
     result = []
     for player_key, picks in player_picks.items():
         if picks:
             player_name = picks[0]["player_name"]
+            player_win_pcts = win_pcts.get(player_key, {})
             top_machines = [
                 MachinePickFrequency(
                     machine_key=pick["machine_key"],
@@ -243,13 +322,17 @@ def get_player_machine_preferences(
                     times_picked=pick["times_played"],
                     total_opportunities=pick["times_played"],
                     pick_percentage=100.0,
+                    win_percentage=player_win_pcts.get(pick["machine_key"]),
                 )
                 for pick in picks[:5]
             ]
 
             result.append(
                 PlayerMachinePreference(
-                    player_key=player_key, player_name=player_name, top_machines=top_machines
+                    player_key=player_key,
+                    player_name=player_name,
+                    current_ipr=player_iprs.get(player_key),
+                    top_machines=top_machines,
                 )
             )
 
@@ -305,10 +388,15 @@ def get_player_machine_confidence(
         machine_key = row["machine_key"]
         player_machine_scores[player_key][machine_key].append(row["score"])
 
+    # Batch fetch win percentages for all players
+    all_player_keys = list(player_machine_scores.keys())
+    win_pcts = _get_player_win_percentages(all_player_keys, seasons, available_machines)
+
     result = []
 
     for player_key, machine_scores in player_machine_scores.items():
         player_name = player_names[player_key]
+        player_win_pcts = win_pcts.get(player_key, {})
 
         for machine_key in available_machines:
             machine_name = machine_name_map.get(machine_key, machine_key)
@@ -323,6 +411,7 @@ def get_player_machine_confidence(
                         machine_key=machine_key,
                         machine_name=machine_name,
                         confidence_interval=ci,
+                        win_percentage=player_win_pcts.get(machine_key),
                         insufficient_data=False,
                     )
                 )

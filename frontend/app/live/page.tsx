@@ -209,7 +209,7 @@ export default function LivePage() {
 
   return (
     <ContentContainer>
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <PageHeader

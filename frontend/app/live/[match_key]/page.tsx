@@ -571,7 +571,7 @@ export default function LiveMatchDetailPage() {
             )}
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {match.rounds.map(round => (
               <RoundSection
                 key={round.n}

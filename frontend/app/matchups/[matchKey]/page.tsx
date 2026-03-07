@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import {
@@ -148,7 +148,7 @@ export default function MatchupDetailPage() {
     : [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center gap-3">
         <Link
           href="/matchups"
@@ -172,7 +172,7 @@ export default function MatchupDetailPage() {
       )}
 
       {matchup && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Matchup Header */}
           <Card>
             <Card.Content>
@@ -271,20 +271,12 @@ export default function MatchupDetailPage() {
             {/* Home Team Tab */}
             <Tabs.Content value="home">
               <div className="space-y-4">
-                <Card>
-                  <Card.Header>
-                    <Card.Title>Expected Scores (Team Average)</Card.Title>
-                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                      Based on all team members&apos; performance at this venue
-                    </p>
-                  </Card.Header>
-                  <Card.Content>
-                    <TeamConfidenceTable
-                      confidences={matchup.home_team_machine_confidence}
-                      formatScore={formatScore}
-                    />
-                  </Card.Content>
-                </Card>
+                <MachineScoreRanges
+                  teamConfidences={matchup.home_team_machine_confidence}
+                  playerConfidences={matchup.home_team_player_confidence}
+                  formatScore={formatScore}
+                  matchplayRatings={matchplayRatings}
+                />
 
                 <Collapsible
                   title="Doubles Pick History"
@@ -327,43 +319,18 @@ export default function MatchupDetailPage() {
                     matchplayRatings={matchplayRatings}
                   />
                 </Collapsible>
-
-                <Collapsible
-                  title="Roster Player Expected Scores"
-                  badge={
-                    <Badge variant="info">Requires 5+ games</Badge>
-                  }
-                >
-                  <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-                    Only showing roster players with 5 or more games on each machine for
-                    statistical confidence (95% confidence interval).
-                  </p>
-                  <PlayerConfidenceGrid
-                    confidences={matchup.home_team_player_confidence}
-                    formatScore={formatScore}
-                    matchplayRatings={matchplayRatings}
-                  />
-                </Collapsible>
               </div>
             </Tabs.Content>
 
             {/* Away Team Tab */}
             <Tabs.Content value="away">
               <div className="space-y-4">
-                <Card>
-                  <Card.Header>
-                    <Card.Title>Expected Scores (Team Average)</Card.Title>
-                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                      Based on all team members&apos; performance at this venue
-                    </p>
-                  </Card.Header>
-                  <Card.Content>
-                    <TeamConfidenceTable
-                      confidences={matchup.away_team_machine_confidence}
-                      formatScore={formatScore}
-                    />
-                  </Card.Content>
-                </Card>
+                <MachineScoreRanges
+                  teamConfidences={matchup.away_team_machine_confidence}
+                  playerConfidences={matchup.away_team_player_confidence}
+                  formatScore={formatScore}
+                  matchplayRatings={matchplayRatings}
+                />
 
                 <Collapsible
                   title="Doubles Pick History"
@@ -406,23 +373,6 @@ export default function MatchupDetailPage() {
                     matchplayRatings={matchplayRatings}
                   />
                 </Collapsible>
-
-                <Collapsible
-                  title="Roster Player Expected Scores"
-                  badge={
-                    <Badge variant="info">Requires 5+ games</Badge>
-                  }
-                >
-                  <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-                    Only showing roster players with 5 or more games on each machine for
-                    statistical confidence (95% confidence interval).
-                  </p>
-                  <PlayerConfidenceGrid
-                    confidences={matchup.away_team_player_confidence}
-                    formatScore={formatScore}
-                    matchplayRatings={matchplayRatings}
-                  />
-                </Collapsible>
               </div>
             </Tabs.Content>
           </Tabs>
@@ -447,7 +397,7 @@ function MachinePickTable({ picks }: { picks: MachinePickFrequency[] }) {
         </Table.Row>
       </Table.Header>
       <Table.Body>
-        {picks.slice(0, 10).map((pick) => (
+        {[...picks].sort((a, b) => b.times_picked - a.times_picked).slice(0, 10).map((pick) => (
           <Table.Row key={pick.machine_key}>
             <Table.Cell>{pick.machine_name}</Table.Cell>
             <Table.Cell className="text-right font-medium">
@@ -460,55 +410,197 @@ function MachinePickTable({ picks }: { picks: MachinePickFrequency[] }) {
   );
 }
 
-// Component for team confidence interval table
-function TeamConfidenceTable({
-  confidences,
+// Integrated component: team score ranges with per-player breakdowns
+function MachineScoreRanges({
+  teamConfidences,
+  playerConfidences,
   formatScore,
+  matchplayRatings,
 }: {
-  confidences: TeamMachineConfidence[];
+  teamConfidences: TeamMachineConfidence[];
+  playerConfidences: PlayerMachineConfidence[];
   formatScore: (score: number) => string;
+  matchplayRatings: Record<string, MatchplayRatingInfo>;
 }) {
-  const withData = confidences.filter((c) => !c.insufficient_data);
+  const [expandedMachines, setExpandedMachines] = useState<Set<string>>(new Set());
 
-  if (withData.length === 0) {
-    return <EmptyState title="Insufficient data for predictions" />;
+  const teamWithData = teamConfidences.filter((c) => !c.insufficient_data);
+
+  // Group player data by machine
+  const playersByMachine: Record<string, PlayerMachineConfidence[]> = {};
+  playerConfidences
+    .filter((c) => !c.insufficient_data)
+    .forEach((conf) => {
+      if (!playersByMachine[conf.machine_key]) {
+        playersByMachine[conf.machine_key] = [];
+      }
+      playersByMachine[conf.machine_key].push(conf);
+    });
+
+  if (teamWithData.length === 0) {
+    return (
+      <Card>
+        <Card.Header>
+          <Card.Title>Score Ranges</Card.Title>
+        </Card.Header>
+        <Card.Content>
+          <EmptyState title="Insufficient data for score ranges" />
+        </Card.Content>
+      </Card>
+    );
   }
 
+  const toggleMachine = (machineKey: string) => {
+    setExpandedMachines((prev) => {
+      const next = new Set(prev);
+      if (next.has(machineKey)) {
+        next.delete(machineKey);
+      } else {
+        next.add(machineKey);
+      }
+      return next;
+    });
+  };
+
   return (
-    <Table>
-      <Table.Header>
-        <Table.Row>
-          <Table.Head>Machine</Table.Head>
-          <Table.Head className="text-right">Expected Score</Table.Head>
-          <Table.Head className="text-right">95% Range</Table.Head>
-          <Table.Head className="text-right">Sample</Table.Head>
-        </Table.Row>
-      </Table.Header>
-      <Table.Body>
-        {withData.slice(0, 10).map((conf) => (
-          <Table.Row key={conf.machine_key}>
-            <Table.Cell className="font-medium">{conf.machine_name}</Table.Cell>
-            <Table.Cell className="text-right font-semibold text-blue-600">
-              {conf.confidence_interval
-                ? formatScore(conf.confidence_interval.mean)
-                : 'N/A'}
-            </Table.Cell>
-            <Table.Cell className="text-right text-xs">
-              <span style={{ color: 'var(--text-secondary)' }}>
-                {conf.confidence_interval
-                  ? `${formatScore(conf.confidence_interval.lower_bound)} - ${formatScore(conf.confidence_interval.upper_bound)}`
-                  : 'N/A'}
-              </span>
-            </Table.Cell>
-            <Table.Cell className="text-right text-xs">
-              <span style={{ color: 'var(--text-muted)' }}>
-                n={conf.confidence_interval?.sample_size || 0}
-              </span>
-            </Table.Cell>
-          </Table.Row>
-        ))}
-      </Table.Body>
-    </Table>
+    <Card>
+      <Card.Header>
+        <Card.Title>Score Ranges</Card.Title>
+        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+          25th-75th percentile range. Click a machine to see player breakdowns.
+        </p>
+      </Card.Header>
+      <Card.Content>
+        <Table>
+          <Table.Header>
+            <Table.Row>
+              <Table.Head>Machine</Table.Head>
+              <Table.Head className="text-right">25th</Table.Head>
+              <Table.Head className="text-right">Median</Table.Head>
+              <Table.Head className="text-right">75th</Table.Head>
+              <Table.Head className="text-right">Win%</Table.Head>
+              <Table.Head className="text-right">n</Table.Head>
+            </Table.Row>
+          </Table.Header>
+          <Table.Body>
+            {teamWithData.slice(0, 10).map((conf) => {
+              const players = playersByMachine[conf.machine_key] || [];
+              const isExpanded = expandedMachines.has(conf.machine_key);
+
+              return (
+                <React.Fragment key={conf.machine_key}>
+                  <Table.Row
+                    className={players.length > 0 ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800' : ''}
+                    onClick={() => players.length > 0 && toggleMachine(conf.machine_key)}
+                  >
+                    <Table.Cell className="font-medium">
+                      <span className="flex items-center gap-1">
+                        {players.length > 0 && (
+                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                            {isExpanded ? '▼' : '▶'}
+                          </span>
+                        )}
+                        {conf.machine_name}
+                      </span>
+                    </Table.Cell>
+                    <Table.Cell className="text-right text-xs">
+                      <span style={{ color: 'var(--text-secondary)' }}>
+                        {conf.confidence_interval
+                          ? formatScore(conf.confidence_interval.p25)
+                          : 'N/A'}
+                      </span>
+                    </Table.Cell>
+                    <Table.Cell className="text-right font-semibold text-blue-600">
+                      {conf.confidence_interval
+                        ? formatScore(conf.confidence_interval.median)
+                        : 'N/A'}
+                    </Table.Cell>
+                    <Table.Cell className="text-right text-xs">
+                      <span style={{ color: 'var(--text-secondary)' }}>
+                        {conf.confidence_interval
+                          ? formatScore(conf.confidence_interval.p75)
+                          : 'N/A'}
+                      </span>
+                    </Table.Cell>
+                    <Table.Cell className="text-right text-xs">
+                      <span style={{ color: 'var(--text-muted)' }}>—</span>
+                    </Table.Cell>
+                    <Table.Cell className="text-right text-xs">
+                      <span style={{ color: 'var(--text-muted)' }}>
+                        {conf.confidence_interval?.sample_size || 0}
+                      </span>
+                    </Table.Cell>
+                  </Table.Row>
+                  {isExpanded && players.map((player) => {
+                    const mpRating = matchplayRatings[player.player_key];
+                    return (
+                      <Table.Row
+                        key={`${conf.machine_key}-${player.player_key}`}
+                        style={{ backgroundColor: 'var(--card-bg-secondary)' }}
+                      >
+                        <Table.Cell className="text-xs pl-8">
+                          <span className="flex items-center gap-1">
+                            {mpRating ? (
+                              <a
+                                href={mpRating.profile_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:underline"
+                                style={{ color: 'var(--text-link)' }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {player.player_name}
+                              </a>
+                            ) : (
+                              <span style={{ color: 'var(--text-secondary)' }}>
+                                {player.player_name}
+                              </span>
+                            )}
+                          </span>
+                        </Table.Cell>
+                        <Table.Cell className="text-right text-xs">
+                          <span style={{ color: 'var(--text-secondary)' }}>
+                            {player.confidence_interval
+                              ? formatScore(player.confidence_interval.p25)
+                              : '—'}
+                          </span>
+                        </Table.Cell>
+                        <Table.Cell className="text-right text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+                          {player.confidence_interval
+                            ? formatScore(player.confidence_interval.median)
+                            : '—'}
+                        </Table.Cell>
+                        <Table.Cell className="text-right text-xs">
+                          <span style={{ color: 'var(--text-secondary)' }}>
+                            {player.confidence_interval
+                              ? formatScore(player.confidence_interval.p75)
+                              : '—'}
+                          </span>
+                        </Table.Cell>
+                        <Table.Cell className="text-right text-xs">
+                          {player.win_percentage != null ? (
+                            <span style={{ color: player.win_percentage >= 50 ? '#16a34a' : 'var(--text-muted)' }}>
+                              {player.win_percentage.toFixed(0)}%
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)' }}>—</span>
+                          )}
+                        </Table.Cell>
+                        <Table.Cell className="text-right text-xs">
+                          <span style={{ color: 'var(--text-muted)' }}>
+                            {player.confidence_interval?.sample_size || 0}
+                          </span>
+                        </Table.Cell>
+                      </Table.Row>
+                    );
+                  })}
+                </React.Fragment>
+              );
+            })}
+          </Table.Body>
+        </Table>
+      </Card.Content>
+    </Card>
   );
 }
 
@@ -517,7 +609,7 @@ function PlayerPreferencesGrid({
   preferences,
   matchplayRatings,
 }: {
-  preferences: { player_key: string; player_name: string; top_machines: MachinePickFrequency[] }[];
+  preferences: { player_key: string; player_name: string; current_ipr?: number | null; top_machines: MachinePickFrequency[] }[];
   matchplayRatings: Record<string, MatchplayRatingInfo>;
 }) {
   if (preferences.length === 0) {
@@ -535,7 +627,14 @@ function PlayerPreferencesGrid({
             style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg)' }}
           >
             <div className="flex items-center justify-between mb-3">
-              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{pref.player_name}</p>
+              <div className="flex items-center gap-2">
+                <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{pref.player_name}</p>
+                {pref.current_ipr != null && (
+                  <Badge variant="info" className="text-xs">
+                    IPR {pref.current_ipr}
+                  </Badge>
+                )}
+              </div>
               {mpRating && (
                 <a
                   href={mpRating.profile_url}
@@ -558,107 +657,20 @@ function PlayerPreferencesGrid({
                   <span style={{ color: 'var(--text-secondary)' }}>
                     {idx + 1}. {machine.machine_name}
                   </span>
-                  <Badge variant="default" className="text-xs">
-                    {machine.times_picked}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {machine.win_percentage != null && (
+                      <span className="text-xs" style={{ color: machine.win_percentage >= 50 ? '#16a34a' : 'var(--text-muted)' }}>
+                        {machine.win_percentage.toFixed(0)}% W
+                      </span>
+                    )}
+                    <Badge variant="default" className="text-xs">
+                      {machine.times_picked}
+                    </Badge>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// Component for player confidence grid
-function PlayerConfidenceGrid({
-  confidences,
-  formatScore,
-  matchplayRatings,
-}: {
-  confidences: PlayerMachineConfidence[];
-  formatScore: (score: number) => string;
-  matchplayRatings: Record<string, MatchplayRatingInfo>;
-}) {
-  const withData = confidences.filter((c) => !c.insufficient_data);
-
-  if (withData.length === 0) {
-    return (
-      <EmptyState title="Insufficient data for player predictions" description="Players need 5+ games on a machine to generate confidence intervals." />
-    );
-  }
-
-  // Group by player
-  const byPlayer: { [key: string]: PlayerMachineConfidence[] } = {};
-  withData.forEach((conf) => {
-    if (!byPlayer[conf.player_key]) {
-      byPlayer[conf.player_key] = [];
-    }
-    byPlayer[conf.player_key].push(conf);
-  });
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {Object.entries(byPlayer).map(([playerKey, confs]) => {
-        const mpRating = matchplayRatings[playerKey];
-        return (
-          <Card key={playerKey} className="shadow-sm">
-            <Card.Header>
-              <div className="flex items-center justify-between">
-                <Card.Title className="text-base">
-                  {confs[0].player_name}
-                  <Badge variant="info" className="ml-2">
-                    {confs.length} machines
-                  </Badge>
-                </Card.Title>
-                {mpRating && (
-                  <a
-                    href={mpRating.profile_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs hover:underline"
-                    style={{ color: 'var(--text-link)' }}
-                    title={`Matchplay: ${mpRating.matchplay_name}`}
-                  >
-                    MP: {mpRating.rating ?? '—'}
-                  </a>
-                )}
-              </div>
-            </Card.Header>
-            <Card.Content>
-              <Table>
-                <Table.Header>
-                  <Table.Row>
-                    <Table.Head className="text-xs">Machine</Table.Head>
-                    <Table.Head className="text-xs text-right">Expected</Table.Head>
-                    <Table.Head className="text-xs text-right">Range</Table.Head>
-                  </Table.Row>
-                </Table.Header>
-                <Table.Body>
-                  {confs.map((conf) => (
-                    <Table.Row key={conf.machine_key}>
-                      <Table.Cell className="text-xs py-2">
-                        {conf.machine_name}
-                      </Table.Cell>
-                      <Table.Cell className="text-xs text-right font-semibold text-blue-600 py-2">
-                        {conf.confidence_interval
-                          ? formatScore(conf.confidence_interval.mean)
-                          : 'N/A'}
-                      </Table.Cell>
-                      <Table.Cell className="text-xs text-right py-2">
-                        <span style={{ color: 'var(--text-secondary)' }}>
-                          {conf.confidence_interval
-                            ? `${formatScore(conf.confidence_interval.lower_bound)}-${formatScore(conf.confidence_interval.upper_bound)}`
-                            : 'N/A'}
-                        </span>
-                      </Table.Cell>
-                    </Table.Row>
-                  ))}
-                </Table.Body>
-              </Table>
-            </Card.Content>
-          </Card>
         );
       })}
     </div>

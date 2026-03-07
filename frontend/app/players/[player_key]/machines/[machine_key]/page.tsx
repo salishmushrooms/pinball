@@ -152,7 +152,7 @@ export default function PlayerMachineGamesPage() {
   const games = gamesData?.games || [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
         <Breadcrumb
           items={[
@@ -211,7 +211,7 @@ export default function PlayerMachineGamesPage() {
               No games found for the selected filters.
             </Alert>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {games.map((game, idx) => (
                 <div
                   key={`${game.match_key}-${game.round_number}`}

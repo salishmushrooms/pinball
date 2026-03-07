@@ -21,25 +21,37 @@ export default function Navigation() {
   ];
 
   return (
-    <nav className="shadow-lg" style={{ backgroundColor: '#111827', color: '#ffffff' }}>
+    <nav style={{ backgroundColor: '#111827', color: '#ffffff', borderBottom: '1px solid #2a2a2a' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
+        <div className="flex justify-between h-14">
           <div className="flex">
-            <Link href="/" className="flex items-center">
-              <span className="text-xl font-bold" style={{ color: '#ffffff' }}>Monday Night Pinball</span>
+            <Link href="/" className="flex items-center gap-2">
+              <span className="text-lg font-bold" style={{ color: '#ffffff' }}>Monday Night Pinball</span>
             </Link>
             {/* Desktop navigation */}
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+            <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-1">
               {navItems.map((item) => {
                 const isActive = pathname === item.href;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                    className="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150"
                     style={{
-                      borderColor: isActive ? '#3b82f6' : 'transparent',
-                      color: isActive ? '#ffffff' : '#d1d5db',
+                      backgroundColor: isActive ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+                      color: isActive ? '#ffffff' : '#9ca3af',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                        e.currentTarget.style.color = '#ffffff';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = '#9ca3af';
+                      }
                     }}
                   >
                     {item.label}
@@ -74,30 +86,35 @@ export default function Navigation() {
       </div>
 
       {/* Mobile menu dropdown */}
-      {mobileMenuOpen && (
-        <div className="sm:hidden" id="mobile-menu">
-          <div className="pt-2 pb-3 space-y-1" style={{ backgroundColor: '#1f2937' }}>
-            {navItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
-                  style={{
-                    borderColor: isActive ? '#3b82f6' : 'transparent',
-                    backgroundColor: isActive ? '#374151' : 'transparent',
-                    color: isActive ? '#ffffff' : '#d1d5db',
-                  }}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </div>
+      <div
+        className="sm:hidden overflow-hidden transition-all duration-200 ease-in-out"
+        id="mobile-menu"
+        style={{
+          maxHeight: mobileMenuOpen ? `${navItems.length * 44 + 20}px` : '0px',
+          opacity: mobileMenuOpen ? 1 : 0,
+        }}
+      >
+        <div className="pt-2 pb-3 space-y-1" style={{ backgroundColor: '#1f2937' }}>
+          {navItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileMenuOpen(false)}
+                className="block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
+                style={{
+                  borderColor: isActive ? '#3b82f6' : 'transparent',
+                  backgroundColor: isActive ? '#374151' : 'transparent',
+                  color: isActive ? '#ffffff' : '#d1d5db',
+                }}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </div>
-      )}
+      </div>
     </nav>
   );
 }

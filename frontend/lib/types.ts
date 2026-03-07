@@ -545,12 +545,10 @@ export interface TeamPlayerList {
 
 // Matchup Types
 export interface ConfidenceInterval {
-  mean: number;
-  std_dev: number;
-  lower_bound: number;
-  upper_bound: number;
+  median: number;
+  p25: number;
+  p75: number;
   sample_size: number;
-  confidence_level: number;
 }
 
 export interface PlayerMachineConfidence {
@@ -559,6 +557,7 @@ export interface PlayerMachineConfidence {
   machine_key: string;
   machine_name: string;
   confidence_interval: ConfidenceInterval | null;
+  win_percentage: number | null;
   insufficient_data: boolean;
   message?: string;
 }
@@ -579,11 +578,13 @@ export interface MachinePickFrequency {
   times_picked: number;
   total_opportunities: number;
   pick_percentage: number;
+  win_percentage: number | null;
 }
 
 export interface PlayerMachinePreference {
   player_key: string;
   player_name: string;
+  current_ipr: number | null;
   top_machines: MachinePickFrequency[];
 }
 

@@ -76,7 +76,7 @@ export function TeamsClient({ teams: allTeams }: TeamsClientProps) {
   }, [teams, sortField, sortDirection]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Teams"
         description="Browse all teams and view their machine statistics"

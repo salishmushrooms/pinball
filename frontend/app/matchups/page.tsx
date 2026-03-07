@@ -83,7 +83,7 @@ function MatchupsPageContent() {
   const isOffSeason = seasonStatus?.status === 'completed';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Matchup Analysis"
         description="Select a scheduled match to analyze team vs team performance at the venue"

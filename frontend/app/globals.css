@@ -2,12 +2,12 @@
 
 :root {
   /* Base Colors - Light Mode */
-  --background: #f9fafb;
+  --background: #f2f3f5;
   --foreground: #111827;
   --card-bg: #ffffff;
-  --card-bg-secondary: #f9fafb;
-  --border: #e5e7eb;
-  --border-light: #f3f4f6;
+  --card-bg-secondary: #f7f8f9;
+  --border: #e0e2e6;
+  --border-light: #edeef0;
 
   /* Text Colors */
   --text-primary: #111827;

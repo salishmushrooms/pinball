@@ -359,7 +359,7 @@ function ScoresPageContent() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Score Browser"
         description="Browse and compare scores across teams, venues, and machines"

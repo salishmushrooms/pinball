@@ -51,7 +51,7 @@ interface TableBodyProps {
   striped?: boolean;
 }
 
-export function TableBody({ children, className, striped = false }: TableBodyProps) {
+export function TableBody({ children, className, striped = true }: TableBodyProps) {
   // If striped, wrap children to add alternating backgrounds
   const styledChildren = striped
     ? React.Children.map(children, (child, index) => {
@@ -80,19 +80,21 @@ interface TableRowProps {
   onClick?: () => void;
   hoverable?: boolean;
   isEven?: boolean;
+  style?: React.CSSProperties;
 }
 
-export function TableRow({ children, className, onClick, hoverable = true, isEven }: TableRowProps) {
+export function TableRow({ children, className, onClick, hoverable = true, isEven, style }: TableRowProps) {
   return (
     <tr
       className={cn(
-        'transition-colors duration-150',
-        hoverable && 'hover:bg-[var(--table-row-hover-enhanced)]',
+        'transition-all duration-150',
+        hoverable && 'hover:bg-[var(--table-row-hover-enhanced)] hover:shadow-[inset_2px_0_0_var(--color-primary-500)]',
         onClick && 'cursor-pointer',
         className
       )}
       style={{
         backgroundColor: isEven ? 'var(--table-row-stripe)' : undefined,
+        ...style,
       }}
       onClick={onClick}
     >
@@ -121,7 +123,7 @@ export function TableHead({
   return (
     <th
       className={cn(
-        'px-3 py-2 sm:px-4 sm:py-3 text-left text-xs font-medium uppercase tracking-wider',
+        'px-2 py-1.5 sm:px-3 sm:py-2 text-left text-[11px] font-medium uppercase tracking-wide',
         sortable && 'cursor-pointer select-none',
         className
       )}
@@ -147,13 +149,14 @@ interface TableCellProps {
   children: React.ReactNode;
   className?: string;
   colSpan?: number;
+  style?: React.CSSProperties;
 }
 
-export function TableCell({ children, className, colSpan }: TableCellProps) {
+export function TableCell({ children, className, colSpan, style }: TableCellProps) {
   return (
     <td
-      className={cn('px-3 py-2 sm:px-4 sm:py-3 whitespace-nowrap text-sm', className)}
-      style={{ color: 'var(--text-primary)' }}
+      className={cn('px-2 py-1.5 sm:px-3 sm:py-2 whitespace-nowrap text-sm', className)}
+      style={{ color: 'var(--text-primary)', ...style }}
       colSpan={colSpan}
     >
       {children}

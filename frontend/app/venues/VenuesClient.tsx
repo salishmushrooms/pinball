@@ -33,7 +33,7 @@ export function VenuesClient({ venues }: VenuesClientProps) {
   }, [venues]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title="Venues"
         description="Browse all MNP venues and view their machine lineups"
