@@ -467,7 +467,7 @@ function MachineScoreRanges({
       <Card.Header>
         <Card.Title>Score Ranges</Card.Title>
         <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-          25th-75th percentile range. Click a machine to see player breakdowns.
+          Typical score range and median. Click a machine to see player breakdowns.
         </p>
       </Card.Header>
       <Card.Content>
@@ -475,9 +475,8 @@ function MachineScoreRanges({
           <Table.Header>
             <Table.Row>
               <Table.Head>Machine</Table.Head>
-              <Table.Head className="text-right">25th</Table.Head>
+              <Table.Head className="text-right">Typical Score</Table.Head>
               <Table.Head className="text-right">Median</Table.Head>
-              <Table.Head className="text-right">75th</Table.Head>
               <Table.Head className="text-right">Win%</Table.Head>
               <Table.Head className="text-right">n</Table.Head>
             </Table.Row>
@@ -506,7 +505,7 @@ function MachineScoreRanges({
                     <Table.Cell className="text-right text-xs">
                       <span style={{ color: 'var(--text-secondary)' }}>
                         {conf.confidence_interval
-                          ? formatScore(conf.confidence_interval.p25)
+                          ? `${formatScore(conf.confidence_interval.p25)} – ${formatScore(conf.confidence_interval.p75)}`
                           : 'N/A'}
                       </span>
                     </Table.Cell>
@@ -514,13 +513,6 @@ function MachineScoreRanges({
                       {conf.confidence_interval
                         ? formatScore(conf.confidence_interval.median)
                         : 'N/A'}
-                    </Table.Cell>
-                    <Table.Cell className="text-right text-xs">
-                      <span style={{ color: 'var(--text-secondary)' }}>
-                        {conf.confidence_interval
-                          ? formatScore(conf.confidence_interval.p75)
-                          : 'N/A'}
-                      </span>
                     </Table.Cell>
                     <Table.Cell className="text-right text-xs">
                       <span style={{ color: 'var(--text-muted)' }}>—</span>
@@ -561,7 +553,7 @@ function MachineScoreRanges({
                         <Table.Cell className="text-right text-xs">
                           <span style={{ color: 'var(--text-secondary)' }}>
                             {player.confidence_interval
-                              ? formatScore(player.confidence_interval.p25)
+                              ? `${formatScore(player.confidence_interval.p25)} – ${formatScore(player.confidence_interval.p75)}`
                               : '—'}
                           </span>
                         </Table.Cell>
@@ -569,13 +561,6 @@ function MachineScoreRanges({
                           {player.confidence_interval
                             ? formatScore(player.confidence_interval.median)
                             : '—'}
-                        </Table.Cell>
-                        <Table.Cell className="text-right text-xs">
-                          <span style={{ color: 'var(--text-secondary)' }}>
-                            {player.confidence_interval
-                              ? formatScore(player.confidence_interval.p75)
-                              : '—'}
-                          </span>
                         </Table.Cell>
                         <Table.Cell className="text-right text-xs">
                           {player.win_percentage != null ? (
