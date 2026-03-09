@@ -568,6 +568,7 @@ export interface TeamMachineConfidence {
   machine_key: string;
   machine_name: string;
   confidence_interval: ConfidenceInterval | null;
+  win_percentage?: number | null;
   insufficient_data: boolean;
   message?: string;
 }
@@ -639,6 +640,8 @@ export interface ScheduleMatch {
   home_key: string;
   home_name: string;
   home_linked: boolean;
+  home_record?: string | null;
+  away_record?: string | null;
   venue: {
     key: string;
     name: string;
@@ -730,6 +733,7 @@ export interface MachinePrediction {
   confidence_pct: number;  // Pick rate: picks / opportunities * 100
   confidence_score: number;  // Wilson score * 100 (for ranking confidence)
   available_at_venue: boolean;
+  win_percentage?: number | null;
 }
 
 export interface MachinePredictionResponse {
@@ -1060,4 +1064,5 @@ export interface LiveWeekResponse {
   season: number;
   week: number;
   matches: LiveMatchSummary[];
+  available_weeks: number[];
 }

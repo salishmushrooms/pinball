@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import {
@@ -11,8 +11,17 @@ import {
   PageHeader,
   Alert,
   LoadingSpinner,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
 } from '@/components/ui';
-import { filterSupportedSeasons, cn } from '@/lib/utils';
+import { filterSupportedSeasons } from '@/lib/utils';
+
+type SortField = 'away' | 'home' | 'venue';
+type SortDir = 'asc' | 'desc';
 
 export default function MatchupsPage() {
   return (
@@ -27,10 +36,13 @@ function MatchupsPageContent() {
 
   const [currentSeason, setCurrentSeason] = useState<number | null>(null);
   const [currentWeek, setCurrentWeek] = useState<number | null>(null);
+  const [weekDate, setWeekDate] = useState<string | null>(null);
   const [seasonStatus, setSeasonStatus] = useState<SeasonStatus | null>(null);
   const [matches, setMatches] = useState<ScheduleMatch[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
 
   useEffect(() => {
     async function loadCurrentSeasonMatches() {
@@ -69,6 +81,11 @@ function MatchupsPageContent() {
           ? allMatches.filter((match) => match.week === nextWeek)
           : allMatches;
 
+        // Extract date from first match of the week
+        if (filteredMatches.length > 0 && filteredMatches[0].date) {
+          setWeekDate(filteredMatches[0].date);
+        }
+
         setMatches(filteredMatches);
       } catch (err) {
         console.error('Failed to load matches:', err);
@@ -79,6 +96,36 @@ function MatchupsPageContent() {
     }
     loadCurrentSeasonMatches();
   }, []);
+
+  const handleSort = useCallback((field: SortField) => {
+    if (sortField === field) {
+      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  }, [sortField]);
+
+  const sortedMatches = [...matches].sort((a, b) => {
+    if (!sortField) return 0;
+    let aVal: string, bVal: string;
+    switch (sortField) {
+      case 'away':
+        aVal = a.away_name;
+        bVal = b.away_name;
+        break;
+      case 'home':
+        aVal = a.home_name;
+        bVal = b.home_name;
+        break;
+      case 'venue':
+        aVal = a.venue.name;
+        bVal = b.venue.name;
+        break;
+    }
+    const cmp = aVal.localeCompare(bVal);
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
 
   const isOffSeason = seasonStatus?.status === 'completed';
 
@@ -123,12 +170,19 @@ function MatchupsPageContent() {
       {!loadingMatches && matches.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2
-              className="text-lg font-semibold"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              {currentWeek !== null ? `Week ${currentWeek} Matchups` : 'All Matchups'}
-            </h2>
+            <div>
+              <h2
+                className="text-lg font-semibold"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                {currentWeek !== null ? `Week ${currentWeek}` : 'All Matchups'}
+              </h2>
+              {weekDate && (
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                  {weekDate}
+                </p>
+              )}
+            </div>
             <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
               {isOffSeason
                 ? 'Browse completed matches'
@@ -136,43 +190,65 @@ function MatchupsPageContent() {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {matches.map((match) => (
-              <button
-                key={match.match_key}
-                onClick={() => router.push(`/matchups/${match.match_key}`)}
-                className={cn(
-                  'border rounded-lg p-4 text-left transition-all cursor-pointer hover:shadow-md',
-                )}
-                style={{
-                  borderColor: 'var(--border)',
-                  borderWidth: '1px',
-                  backgroundColor: 'var(--card-bg)',
-                }}
-              >
-                {/* Week & Date */}
-                <div className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
-                  Week {match.week}{match.date ? ` \u2022 ${match.date}` : ''}
-                </div>
-
-                {/* Teams */}
-                <div className="space-y-0.5">
-                  <div className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
-                    {match.away_name}
-                  </div>
-                  <div className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>@</div>
-                  <div className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>
-                    {match.home_name}
-                  </div>
-                </div>
-
-                {/* Venue */}
-                <div className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {match.venue.name}
-                </div>
-              </button>
-            ))}
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow hoverable={false}>
+                <TableHead
+                  sortable
+                  onSort={() => handleSort('away')}
+                  sortDirection={sortField === 'away' ? sortDir : null}
+                >
+                  Away
+                </TableHead>
+                <TableHead className="text-center w-8">{''}</TableHead>
+                <TableHead
+                  sortable
+                  onSort={() => handleSort('home')}
+                  sortDirection={sortField === 'home' ? sortDir : null}
+                >
+                  Home
+                </TableHead>
+                <TableHead
+                  sortable
+                  onSort={() => handleSort('venue')}
+                  sortDirection={sortField === 'venue' ? sortDir : null}
+                >
+                  Venue
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedMatches.map((match) => (
+                <TableRow
+                  key={match.match_key}
+                  onClick={() => router.push(`/matchups/${match.match_key}`)}
+                >
+                  <TableCell>
+                    <span className="font-medium">{match.away_name}</span>
+                    {match.away_record && (
+                      <span className="ml-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+                        ({match.away_record})
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+                    @
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-medium">{match.home_name}</span>
+                    {match.home_record && (
+                      <span className="ml-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+                        ({match.home_record})
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <span style={{ color: 'var(--text-secondary)' }}>{match.venue.name}</span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
 
           {error && (
             <Alert variant="error" title="Error" className="mt-4">

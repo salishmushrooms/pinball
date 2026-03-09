@@ -14,7 +14,6 @@ import {
   EmptyState,
   Table,
   Badge,
-  TopMachinesList,
   FilterPanel,
   ContentContainer,
   Breadcrumb,
@@ -49,7 +48,6 @@ export default function VenueDetailPage() {
 
   const [venue, setVenue] = useState<VenueDetail | null>(null);
   const [machines, setMachines] = useState<VenueMachineStats[]>([]);
-  const [topMachines, setTopMachines] = useState<VenueMachineStats[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [availableSeasons, setAvailableSeasons] = useState<number[]>([...SUPPORTED_SEASONS]);
   const [loading, setLoading] = useState(true);
@@ -69,13 +67,9 @@ export default function VenueDetailPage() {
   useEffect(() => {
     async function fetchInitialData() {
       try {
-        const [seasonsData, teamsData, topMachinesData] = await Promise.all([
+        const [seasonsData, teamsData] = await Promise.all([
           api.getSeasons(),
           api.getTeams({ limit: 500 }),
-          api.getVenueMachines(venueKey, {
-            current_only: true,
-            seasons: [22, 23],
-          }),
         ]);
         const supported = filterSupportedSeasons(seasonsData.seasons);
         setAvailableSeasons(supported);
@@ -84,9 +78,6 @@ export default function VenueDetailPage() {
         if (filters.seasons.isDefault) {
           setSeasons(supported);
         }
-        // Top 3 machines by score count
-        const sorted = [...topMachinesData].sort((a, b) => b.total_scores - a.total_scores);
-        setTopMachines(sorted.slice(0, 3));
       } catch (err) {
         console.error('Failed to fetch initial data:', err);
       }
@@ -367,15 +358,6 @@ export default function VenueDetailPage() {
           )}
         </div>
       </FilterPanel>
-
-      {/* Top Machines */}
-      {topMachines.length > 0 && (
-        <TopMachinesList
-          machines={topMachines}
-          title="Most Played Machines"
-          subtitle="Season 22-23 scores"
-        />
-      )}
 
       {/* Pinball Map Current Machines */}
       {venue.pinballmap_location_id && (

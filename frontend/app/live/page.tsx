@@ -138,6 +138,7 @@ const POLL_INTERVAL_MS = 60_000;
 
 export default function LivePage() {
   const [data, setData] = useState<LiveWeekResponse | null>(null);
+  const [selectedWeek, setSelectedWeek] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -151,7 +152,7 @@ export default function LivePage() {
       if (!data) setLoading(true);
       else setRefreshing(true);
 
-      const result = await api.getLiveWeek(undefined, undefined, bypass || undefined);
+      const result = await api.getLiveWeek(undefined, selectedWeek, bypass || undefined);
       setData(result);
       setLastUpdated(new Date());
     } catch (err) {
@@ -160,12 +161,12 @@ export default function LivePage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [data]);
+  }, [data, selectedWeek]);
 
-  // Initial fetch
+  // Fetch on mount and when selected week changes
   useEffect(() => {
     fetchData();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedWeek]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Polling
   useEffect(() => {
@@ -212,16 +213,33 @@ export default function LivePage() {
       <div className="space-y-4">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <PageHeader
-            title={data ? `Season ${data.season} — Week ${data.week}` : 'Live Matches'}
-            description={
-              liveCount > 0
-                ? `${liveCount} match${liveCount !== 1 ? 'es' : ''} in progress`
-                : completeCount > 0
-                ? `${completeCount} of ${sorted.length} matches complete`
-                : 'Matches scheduled for this week'
-            }
-          />
+          <div className="flex items-center gap-4">
+            <PageHeader
+              title={data ? `Season ${data.season} — Week ${data.week}` : 'Live Matches'}
+              description={
+                liveCount > 0
+                  ? `${liveCount} match${liveCount !== 1 ? 'es' : ''} in progress`
+                  : completeCount > 0
+                  ? `${completeCount} of ${sorted.length} matches complete`
+                  : 'Matches scheduled for this week'
+              }
+            />
+            {data && data.available_weeks.length > 1 && (
+              <select
+                value={selectedWeek ?? data.week}
+                onChange={e => {
+                  const val = Number(e.target.value);
+                  setSelectedWeek(val);
+                  setData(null);
+                }}
+                className="rounded-md border border-gray-600 bg-gray-800 text-white text-sm px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {data.available_weeks.map(w => (
+                  <option key={w} value={w}>Week {w}</option>
+                ))}
+              </select>
+            )}
+          </div>
 
           <div className="flex items-center gap-3 shrink-0">
             {refreshing && <LoadingSpinner size="sm" />}

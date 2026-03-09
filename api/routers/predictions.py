@@ -6,6 +6,7 @@ based on historical data.
 """
 
 import logging
+from collections import defaultdict
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -158,6 +159,10 @@ def predict_machine_picks(
                 "message": f"No historical data found for {team_key} in {context} round {round_num}",
             }
 
+        # Calculate team win percentages for predicted machines
+        machine_keys = [row["machine_key"] for row in results]
+        team_win_pcts = _calculate_team_win_percentages(team_key, season_list, machine_keys)
+
         # Build predictions with pick rate (picks/opportunities)
         predictions = []
         for row in results:
@@ -180,6 +185,7 @@ def predict_machine_picks(
                     "confidence_pct": round(pick_rate_pct, 1),  # Keep name for backward compat
                     "confidence_score": round(wilson_lower * 100, 1),  # Wilson score as 0-100
                     "available_at_venue": available_at_venue,
+                    "win_percentage": team_win_pcts.get(row["machine_key"]),
                 }
             )
 
@@ -199,3 +205,68 @@ def predict_machine_picks(
     except Exception as e:
         logger.error(f"Error predicting machine picks: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to predict machine picks: {str(e)}")
+
+
+def _calculate_team_win_percentages(
+    team_key: str, seasons: list[int], machine_keys: list[str]
+) -> dict[str, float]:
+    """Calculate team-level win percentages on specific machines."""
+    if not machine_keys:
+        return {}
+
+    query = """
+        WITH team_games AS (
+            SELECT
+                s.machine_key,
+                s.score AS player_score,
+                s.match_key,
+                s.round_number,
+                s.player_position AS player_pos
+            FROM scores s
+            WHERE s.team_key = :team_key
+                AND s.season = ANY(:seasons)
+                AND s.machine_key = ANY(:machines)
+        )
+        SELECT
+            tg.machine_key,
+            tg.player_score,
+            tg.round_number,
+            tg.player_pos,
+            rs.player_position AS other_pos,
+            rs.score AS other_score
+        FROM team_games tg
+        JOIN scores rs ON
+            rs.match_key = tg.match_key
+            AND rs.round_number = tg.round_number
+            AND rs.machine_key = tg.machine_key
+            AND rs.player_position != tg.player_pos
+    """
+    comparisons = execute_query(
+        query, {"team_key": team_key, "seasons": seasons, "machines": machine_keys}
+    )
+
+    stats: dict[str, dict[str, int]] = defaultdict(lambda: {"wins": 0, "total": 0})
+    for row in comparisons:
+        machine_key = row["machine_key"]
+        round_number = row["round_number"]
+        player_pos = row["player_pos"]
+        other_pos = row["other_pos"]
+
+        is_doubles = round_number in [1, 4]
+        if is_doubles:
+            player_is_odd = player_pos % 2 == 1
+            other_is_odd = other_pos % 2 == 1
+            is_opponent = player_is_odd != other_is_odd
+        else:
+            is_opponent = True
+
+        if is_opponent:
+            stats[machine_key]["total"] += 1
+            if row["player_score"] > row["other_score"]:
+                stats[machine_key]["wins"] += 1
+
+    result: dict[str, float] = {}
+    for machine_key, s in stats.items():
+        if s["total"] > 0:
+            result[machine_key] = round(s["wins"] / s["total"] * 100.0, 1)
+    return result

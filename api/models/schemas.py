@@ -441,6 +441,7 @@ class TeamMachineConfidence(BaseModel):
     machine_key: str
     machine_name: str
     confidence_interval: ConfidenceInterval | None = None
+    win_percentage: float | None = None
     insufficient_data: bool = False
     message: str | None = None
 
@@ -911,6 +912,7 @@ class LiveWeekResponse(BaseModel):
     season: int
     week: int
     matches: list[LiveMatchSummary]
+    available_weeks: list[int] = []  # All weeks with matches in this season
 
 
 # Update forward references

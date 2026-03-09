@@ -400,6 +400,84 @@ def get_team_schedule(season: int, team_key: str):
         raise HTTPException(status_code=500, detail="Failed to fetch team schedule")
 
 
+def _build_season_status(season: int) -> dict | None:
+    """Build season status dict from match date/state aggregates."""
+    status_query = """
+        SELECT
+            MIN(date) as first_date,
+            MAX(date) as last_date,
+            COUNT(*) as total_matches,
+            SUM(CASE WHEN state = 'complete' THEN 1 ELSE 0 END) as completed_matches,
+            SUM(CASE WHEN date >= CURRENT_DATE THEN 1 ELSE 0 END) as upcoming_matches
+        FROM matches
+        WHERE season = :season
+    """
+    status_result = execute_query(status_query, {"season": season})
+    if not status_result or status_result[0]["total_matches"] == 0:
+        return None
+
+    row = status_result[0]
+    first_week_date = row["first_date"]
+    last_week_date = row["last_date"]
+    total_matches = row["total_matches"]
+    upcoming_matches = row["upcoming_matches"] or 0
+    completed_matches = row["completed_matches"] or 0
+    now = datetime.now()
+
+    if first_week_date is None:
+        status, message = "unknown", "Unable to determine season dates"
+    elif now.date() < first_week_date:
+        status = "upcoming"
+        message = f"Season {season} starts on {first_week_date.strftime('%B %d, %Y')}"
+    elif completed_matches == total_matches:
+        status = "completed"
+        message = f"Season {season} has completed. Check back for Season {season + 1}!"
+    elif now.date() <= last_week_date + timedelta(days=1):
+        status = "in_progress"
+        message = (
+            f"Season {season} is currently in progress with {upcoming_matches} upcoming matches"
+        )
+    else:
+        status = "completed"
+        message = f"Season {season} has completed. Check back for Season {season + 1}!"
+
+    return {
+        "season": season,
+        "status": status,
+        "message": message,
+        "first_week_date": first_week_date.strftime("%Y-%m-%d") if first_week_date else None,
+        "last_week_date": last_week_date.strftime("%Y-%m-%d") if last_week_date else None,
+        "total_matches": total_matches,
+        "upcoming_matches": upcoming_matches,
+    }
+
+
+def _build_team_records(matches_result: list[dict]) -> dict[str, dict[str, int]]:
+    """Compute team W-L-T records from completed matches."""
+    team_records: dict[str, dict[str, int]] = {}
+    for row in matches_result:
+        if (
+            row["state"] == "complete"
+            and row["home_team_points"] is not None
+            and row["away_team_points"] is not None
+        ):
+            hk, ak = row["home_key"], row["away_key"]
+            hp, ap = row["home_team_points"], row["away_team_points"]
+            for tk in (hk, ak):
+                if tk not in team_records:
+                    team_records[tk] = {"wins": 0, "losses": 0, "ties": 0}
+            if hp > ap:
+                team_records[hk]["wins"] += 1
+                team_records[ak]["losses"] += 1
+            elif ap > hp:
+                team_records[ak]["wins"] += 1
+                team_records[hk]["losses"] += 1
+            else:
+                team_records[hk]["ties"] += 1
+                team_records[ak]["ties"] += 1
+    return team_records
+
+
 @router.get("/matchups-init")
 def get_matchups_init():
     """
@@ -413,65 +491,10 @@ def get_matchups_init():
         seasons_result = execute_query(seasons_query, {})
         all_seasons = [row["season"] for row in seasons_result] if seasons_result else []
 
-        # Find the latest season
         latest_season = max(all_seasons) if all_seasons else CURRENT_SEASON
+        season_status = _build_season_status(latest_season)
 
-        # Get season status (inline logic from get_season_status)
-        status_query = """
-            SELECT
-                MIN(date) as first_date,
-                MAX(date) as last_date,
-                COUNT(*) as total_matches,
-                SUM(CASE WHEN state = 'scheduled' THEN 1 ELSE 0 END) as scheduled_matches,
-                SUM(CASE WHEN state = 'complete' THEN 1 ELSE 0 END) as completed_matches,
-                SUM(CASE WHEN date >= CURRENT_DATE THEN 1 ELSE 0 END) as upcoming_matches
-            FROM matches
-            WHERE season = :season
-        """
-        status_result = execute_query(status_query, {"season": latest_season})
-
-        season_status = None
-        if status_result and status_result[0]["total_matches"] > 0:
-            row = status_result[0]
-            first_week_date = row["first_date"]
-            last_week_date = row["last_date"]
-            total_matches = row["total_matches"]
-            upcoming_matches = row["upcoming_matches"] or 0
-            completed_matches = row["completed_matches"] or 0
-
-            now = datetime.now()
-
-            if first_week_date is None:
-                status = "unknown"
-                message = "Unable to determine season dates"
-            elif now.date() < first_week_date:
-                status = "upcoming"
-                message = (
-                    f"Season {latest_season} starts on {first_week_date.strftime('%B %d, %Y')}"
-                )
-            elif completed_matches == total_matches:
-                status = "completed"
-                message = f"Season {latest_season} has completed. Check back for Season {latest_season + 1}!"
-            elif now.date() <= last_week_date + timedelta(days=1):
-                status = "in_progress"
-                message = f"Season {latest_season} is currently in progress with {upcoming_matches} upcoming matches"
-            else:
-                status = "completed"
-                message = f"Season {latest_season} has completed. Check back for Season {latest_season + 1}!"
-
-            season_status = {
-                "season": latest_season,
-                "status": status,
-                "message": message,
-                "first_week_date": first_week_date.strftime("%Y-%m-%d")
-                if first_week_date
-                else None,
-                "last_week_date": last_week_date.strftime("%Y-%m-%d") if last_week_date else None,
-                "total_matches": total_matches,
-                "upcoming_matches": upcoming_matches,
-            }
-
-        # Get matches for the latest season (inline logic from get_season_matches)
+        # Get matches for the latest season
         matches_query = """
             SELECT
                 m.match_key,
@@ -484,7 +507,9 @@ def get_matchups_init():
                 m.home_team_key as home_key,
                 ht.team_name as home_name,
                 m.away_team_key as away_key,
-                at.team_name as away_name
+                at.team_name as away_name,
+                m.home_team_points,
+                m.away_team_points
             FROM matches m
             LEFT JOIN venues v ON m.venue_key = v.venue_key
             LEFT JOIN teams ht ON m.home_team_key = ht.team_key AND ht.season = m.season
@@ -492,26 +517,42 @@ def get_matchups_init():
             WHERE m.season = :season
             ORDER BY m.week, m.match_key
         """
-        matches_result = execute_query(matches_query, {"season": latest_season})
+        matches_result = execute_query(matches_query, {"season": latest_season}) or []
+
+        team_records = _build_team_records(matches_result)
+
+        def format_record(team_key: str) -> str | None:
+            r = team_records.get(team_key)
+            if not r:
+                return None
+            if r["ties"] > 0:
+                return f"{r['wins']}-{r['losses']}-{r['ties']}"
+            return f"{r['wins']}-{r['losses']}"
 
         all_matches = []
-        for row in matches_result or []:
-            match_info = {
-                "match_key": row["match_key"],
-                "week": row["week"],
-                "week_label": f"WEEK {row['week']}",
-                "date": row["date"].strftime("%m/%d/%Y") if row["date"] else None,
-                "home_key": row["home_key"],
-                "home_name": row["home_name"] or row["home_key"],
-                "home_linked": True,
-                "away_key": row["away_key"],
-                "away_name": row["away_name"] or row["away_key"],
-                "away_linked": True,
-                "venue": {"key": row["venue_key"], "name": row["venue_name"] or row["venue_key"]},
-                "is_playoffs": row["week"] > 10,
-                "state": row["state"],
-            }
-            all_matches.append(match_info)
+        for row in matches_result:
+            all_matches.append(
+                {
+                    "match_key": row["match_key"],
+                    "week": row["week"],
+                    "week_label": f"WEEK {row['week']}",
+                    "date": row["date"].strftime("%m/%d/%Y") if row["date"] else None,
+                    "home_key": row["home_key"],
+                    "home_name": row["home_name"] or row["home_key"],
+                    "home_linked": True,
+                    "home_record": format_record(row["home_key"]),
+                    "away_key": row["away_key"],
+                    "away_name": row["away_name"] or row["away_key"],
+                    "away_linked": True,
+                    "away_record": format_record(row["away_key"]),
+                    "venue": {
+                        "key": row["venue_key"],
+                        "name": row["venue_name"] or row["venue_key"],
+                    },
+                    "is_playoffs": row["week"] > 10,
+                    "state": row["state"],
+                }
+            )
 
         return {
             "seasons": all_seasons,

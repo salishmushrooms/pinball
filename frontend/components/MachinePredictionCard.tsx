@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { MachinePredictionResponse } from '@/lib/types';
-import { Card, Badge, Alert, LoadingSpinner, EmptyState } from '@/components/ui';
+import { MachinePredictionResponse, MachinePickFrequency } from '@/lib/types';
+import { Card, Badge, Alert, LoadingSpinner, EmptyState, Table } from '@/components/ui';
 
 interface MachinePredictionCardProps {
   teamKey: string;
@@ -12,6 +12,32 @@ interface MachinePredictionCardProps {
   venueKey: string;
   seasons?: number[];
   limit?: number;
+  pickHistory?: MachinePickFrequency[];
+}
+
+function LikelihoodDot({ percentage }: { percentage: number }) {
+  let color: string;
+  if (percentage >= 60) {
+    color = '#16a34a'; // green
+  } else if (percentage >= 30) {
+    color = '#ca8a04'; // yellow
+  } else {
+    color = '#dc2626'; // red
+  }
+
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        width: 12,
+        height: 12,
+        borderRadius: '50%',
+        backgroundColor: color,
+        flexShrink: 0,
+      }}
+      title={`${percentage}% pick rate`}
+    />
+  );
 }
 
 export function MachinePredictionCard({
@@ -21,10 +47,12 @@ export function MachinePredictionCard({
   venueKey,
   seasons = [21, 22],
   limit = 5,
+  pickHistory,
 }: MachinePredictionCardProps) {
   const [data, setData] = useState<MachinePredictionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     async function loadPredictions() {
@@ -37,7 +65,7 @@ export function MachinePredictionCard({
           round_num: roundNum,
           venue_key: venueKey,
           seasons,
-          limit,
+          limit: 10,
         });
         setData(response);
       } catch (err) {
@@ -53,32 +81,24 @@ export function MachinePredictionCard({
     }
   }, [teamKey, roundNum, venueKey, seasons, limit]);
 
-  const roundLabels: Record<number, { title: string; description: string }> = {
-    1: { title: `Round 1 Prediction (${teamName} picks)`, description: 'Away team picks doubles machines in Round 1' },
-    2: { title: `Round 2 Prediction (${teamName} picks)`, description: 'Home team picks singles machines in Round 2' },
-    3: { title: `Round 3 Prediction (${teamName} picks)`, description: 'Away team picks singles machines in Round 3' },
-    4: { title: `Round 4 Prediction (${teamName} picks)`, description: 'Home team picks doubles machines in Round 4' },
-  };
-  const { title, description } = roundLabels[roundNum];
+  const roundType = roundNum === 1 || roundNum === 4 ? 'Doubles' : 'Singles';
+  const title = `Round ${roundNum} — ${teamName} picks (${roundType})`;
 
   return (
     <Card>
       <Card.Header>
         <div className="flex items-start justify-between">
-          <div>
-            <Card.Title>{title}</Card.Title>
-            <p className="text-sm text-gray-500 mt-1">{description}</p>
-          </div>
+          <Card.Title className="text-base">{title}</Card.Title>
           {data && data.sample_size > 0 && (
-            <Badge variant="info">
-              {data.sample_size} opportunities
+            <Badge variant="info" className="text-xs">
+              {data.sample_size} opps
             </Badge>
           )}
         </div>
       </Card.Header>
       <Card.Content>
         {loading && (
-          <div className="flex items-center justify-center py-8">
+          <div className="flex items-center justify-center py-6">
             <LoadingSpinner size="lg" />
           </div>
         )}
@@ -90,8 +110,12 @@ export function MachinePredictionCard({
         )}
 
         {!loading && !error && data && (() => {
-          // Always filter to only show machines available at the venue
           const displayPredictions = data.predictions.filter(p => p.available_at_venue);
+          const topPredictions = displayPredictions.slice(0, limit);
+          const remainingPredictions = displayPredictions.slice(limit);
+
+          // Merge remaining predictions with pick history for expanded view
+          const expandedRows = expanded ? remainingPredictions : [];
 
           return (
             <>
@@ -105,54 +129,89 @@ export function MachinePredictionCard({
                   }
                 />
               ) : (
-                <div className="space-y-3">
-                  {displayPredictions.map((prediction, index) => (
-                  <div
-                    key={prediction.machine_key}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 flex-1">
-                      <div className="text-lg font-semibold text-gray-400 w-6">
-                        {index + 1}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900">
+                <>
+                  <Table>
+                    <Table.Header>
+                      <Table.Row>
+                        <Table.Head className="w-6">{' '}</Table.Head>
+                        <Table.Head>Machine</Table.Head>
+                        <Table.Head className="text-right">Pick%</Table.Head>
+                        <Table.Head className="text-right">Win%</Table.Head>
+                        <Table.Head className="text-right">Picks</Table.Head>
+                      </Table.Row>
+                    </Table.Header>
+                    <Table.Body>
+                      {topPredictions.map((prediction) => (
+                        <Table.Row key={prediction.machine_key}>
+                          <Table.Cell className="pr-0">
+                            <LikelihoodDot percentage={prediction.confidence_pct} />
+                          </Table.Cell>
+                          <Table.Cell className="font-medium">
                             {prediction.machine_name}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="flex-1 bg-gray-200 rounded-full h-2 max-w-xs">
-                            <div
-                              className="h-2 rounded-full bg-blue-600"
-                              style={{ width: `${prediction.confidence_pct}%` }}
-                            />
-                          </div>
-                          <span className="text-xs text-gray-600 w-12 text-right">
+                          </Table.Cell>
+                          <Table.Cell className="text-right text-sm">
                             {prediction.confidence_pct}%
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-xs text-gray-500">
-                          {prediction.pick_count}/{prediction.opportunities || '?'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                          </Table.Cell>
+                          <Table.Cell className="text-right text-sm">
+                            {prediction.win_percentage != null ? (
+                              <span style={{ color: prediction.win_percentage >= 50 ? '#16a34a' : 'var(--text-muted)' }}>
+                                {prediction.win_percentage.toFixed(0)}%
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)' }}>—</span>
+                            )}
+                          </Table.Cell>
+                          <Table.Cell className="text-right text-xs" style={{ color: 'var(--text-muted)' }}>
+                            {prediction.pick_count}/{prediction.opportunities || '?'}
+                          </Table.Cell>
+                        </Table.Row>
+                      ))}
+                      {expandedRows.map((prediction) => (
+                        <Table.Row key={prediction.machine_key}>
+                          <Table.Cell className="pr-0">
+                            <LikelihoodDot percentage={prediction.confidence_pct} />
+                          </Table.Cell>
+                          <Table.Cell className="font-medium text-sm" style={{ color: 'var(--text-secondary)' }}>
+                            {prediction.machine_name}
+                          </Table.Cell>
+                          <Table.Cell className="text-right text-sm">
+                            {prediction.confidence_pct}%
+                          </Table.Cell>
+                          <Table.Cell className="text-right text-sm">
+                            {prediction.win_percentage != null ? (
+                              <span style={{ color: prediction.win_percentage >= 50 ? '#16a34a' : 'var(--text-muted)' }}>
+                                {prediction.win_percentage.toFixed(0)}%
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)' }}>—</span>
+                            )}
+                          </Table.Cell>
+                          <Table.Cell className="text-right text-xs" style={{ color: 'var(--text-muted)' }}>
+                            {prediction.pick_count}/{prediction.opportunities || '?'}
+                          </Table.Cell>
+                        </Table.Row>
+                      ))}
+                    </Table.Body>
+                  </Table>
 
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <p className="text-xs text-gray-500">
-                    Pick rate based on {data.context} rounds across {data.seasons_analyzed.length > 1 ? 'seasons' : 'season'} {data.seasons_analyzed.join(', ')}
+                  {remainingPredictions.length > 0 && (
+                    <button
+                      onClick={() => setExpanded(!expanded)}
+                      className="mt-2 text-xs font-medium hover:underline"
+                      style={{ color: 'var(--text-link)' }}
+                    >
+                      {expanded
+                        ? 'Show less'
+                        : `Show ${remainingPredictions.length} more`}
+                    </button>
+                  )}
+
+                  <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
+                    Seasons {data.seasons_analyzed.join(', ')} | Min 3 opportunities
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Only showing machines available at this venue (min 3 opportunities)
-                  </p>
-                </div>
-              </div>
-            )}
-          </>
+                </>
+              )}
+            </>
           );
         })()}
       </Card.Content>

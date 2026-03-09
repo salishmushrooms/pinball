@@ -215,12 +215,12 @@ export default function MatchupDetailPage() {
             </div>
           </Collapsible>
 
-          {/* Machine Pick Predictions - Doubles */}
-          <div>
-            <h3 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-              Doubles Pick Predictions
+          {/* Machine Pick Predictions - By Round */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+              Pick Predictions
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <MachinePredictionCard
                 teamKey={match?.away_key || matchup.away_team_key || ''}
                 teamName={matchup.away_team_name}
@@ -228,22 +228,6 @@ export default function MatchupDetailPage() {
                 venueKey={matchup.venue_key}
                 seasons={seasonsArray}
               />
-              <MachinePredictionCard
-                teamKey={match?.home_key || matchup.home_team_key || ''}
-                teamName={matchup.home_team_name}
-                roundNum={4}
-                venueKey={matchup.venue_key}
-                seasons={seasonsArray}
-              />
-            </div>
-          </div>
-
-          {/* Machine Pick Predictions - Singles */}
-          <div>
-            <h3 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-              Singles Pick Predictions
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <MachinePredictionCard
                 teamKey={match?.home_key || matchup.home_team_key || ''}
                 teamName={matchup.home_team_name}
@@ -255,6 +239,13 @@ export default function MatchupDetailPage() {
                 teamKey={match?.away_key || matchup.away_team_key || ''}
                 teamName={matchup.away_team_name}
                 roundNum={3}
+                venueKey={matchup.venue_key}
+                seasons={seasonsArray}
+              />
+              <MachinePredictionCard
+                teamKey={match?.home_key || matchup.home_team_key || ''}
+                teamName={matchup.home_team_name}
+                roundNum={4}
                 venueKey={matchup.venue_key}
                 seasons={seasonsArray}
               />
@@ -278,47 +269,20 @@ export default function MatchupDetailPage() {
                   matchplayRatings={matchplayRatings}
                 />
 
-                <Collapsible
-                  title="Doubles Pick History"
-                  badge={
-                    <Badge variant="default">
-                      {matchup.home_team_pick_frequency.length}
-                    </Badge>
-                  }
-                >
-                  <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>
-                    Machines this team has historically picked in doubles rounds
-                  </p>
-                  <MachinePickTable picks={matchup.home_team_pick_frequency} />
-                </Collapsible>
-
-                <Collapsible
-                  title="Singles Pick History"
-                  badge={
-                    <Badge variant="default">
-                      {matchup.home_team_singles_pick_frequency?.length || 0}
-                    </Badge>
-                  }
-                >
-                  <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>
-                    Machines this team has historically picked in singles rounds
-                  </p>
-                  <MachinePickTable picks={matchup.home_team_singles_pick_frequency || []} />
-                </Collapsible>
-
-                <Collapsible
-                  title="Roster Player Preferences"
-                  badge={
-                    <Badge variant="default">
-                      {matchup.home_team_player_preferences.length} players
-                    </Badge>
-                  }
-                >
-                  <PlayerPreferencesGrid
-                    preferences={matchup.home_team_player_preferences}
-                    matchplayRatings={matchplayRatings}
-                  />
-                </Collapsible>
+                <Card>
+                  <Card.Header>
+                    <Card.Title>Roster</Card.Title>
+                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+                      Players sorted by name with top machine preferences
+                    </p>
+                  </Card.Header>
+                  <Card.Content>
+                    <PlayerPreferencesTable
+                      preferences={matchup.home_team_player_preferences}
+                      matchplayRatings={matchplayRatings}
+                    />
+                  </Card.Content>
+                </Card>
               </div>
             </Tabs.Content>
 
@@ -332,81 +296,26 @@ export default function MatchupDetailPage() {
                   matchplayRatings={matchplayRatings}
                 />
 
-                <Collapsible
-                  title="Doubles Pick History"
-                  badge={
-                    <Badge variant="default">
-                      {matchup.away_team_pick_frequency.length}
-                    </Badge>
-                  }
-                >
-                  <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>
-                    Machines this team has historically picked in doubles rounds
-                  </p>
-                  <MachinePickTable picks={matchup.away_team_pick_frequency} />
-                </Collapsible>
-
-                <Collapsible
-                  title="Singles Pick History"
-                  badge={
-                    <Badge variant="default">
-                      {matchup.away_team_singles_pick_frequency?.length || 0}
-                    </Badge>
-                  }
-                >
-                  <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>
-                    Machines this team has historically picked in singles rounds
-                  </p>
-                  <MachinePickTable picks={matchup.away_team_singles_pick_frequency || []} />
-                </Collapsible>
-
-                <Collapsible
-                  title="Roster Player Preferences"
-                  badge={
-                    <Badge variant="default">
-                      {matchup.away_team_player_preferences.length} players
-                    </Badge>
-                  }
-                >
-                  <PlayerPreferencesGrid
-                    preferences={matchup.away_team_player_preferences}
-                    matchplayRatings={matchplayRatings}
-                  />
-                </Collapsible>
+                <Card>
+                  <Card.Header>
+                    <Card.Title>Roster</Card.Title>
+                    <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+                      Players sorted by name with top machine preferences
+                    </p>
+                  </Card.Header>
+                  <Card.Content>
+                    <PlayerPreferencesTable
+                      preferences={matchup.away_team_player_preferences}
+                      matchplayRatings={matchplayRatings}
+                    />
+                  </Card.Content>
+                </Card>
               </div>
             </Tabs.Content>
           </Tabs>
         </div>
       )}
     </div>
-  );
-}
-
-// Component for machine pick frequency table
-function MachinePickTable({ picks }: { picks: MachinePickFrequency[] }) {
-  if (picks.length === 0) {
-    return <EmptyState title="No pick data available" />;
-  }
-
-  return (
-    <Table>
-      <Table.Header>
-        <Table.Row>
-          <Table.Head>Machine</Table.Head>
-          <Table.Head className="text-right">Times Picked</Table.Head>
-        </Table.Row>
-      </Table.Header>
-      <Table.Body>
-        {[...picks].sort((a, b) => b.times_picked - a.times_picked).slice(0, 10).map((pick) => (
-          <Table.Row key={pick.machine_key}>
-            <Table.Cell>{pick.machine_name}</Table.Cell>
-            <Table.Cell className="text-right font-medium">
-              {pick.times_picked}
-            </Table.Cell>
-          </Table.Row>
-        ))}
-      </Table.Body>
-    </Table>
   );
 }
 
@@ -515,7 +424,13 @@ function MachineScoreRanges({
                         : 'N/A'}
                     </Table.Cell>
                     <Table.Cell className="text-right text-xs">
-                      <span style={{ color: 'var(--text-muted)' }}>—</span>
+                      {conf.win_percentage != null ? (
+                        <span style={{ color: conf.win_percentage >= 50 ? '#16a34a' : 'var(--text-muted)' }}>
+                          {conf.win_percentage.toFixed(0)}%
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>—</span>
+                      )}
                     </Table.Cell>
                     <Table.Cell className="text-right text-xs">
                       <span style={{ color: 'var(--text-muted)' }}>
@@ -589,75 +504,117 @@ function MachineScoreRanges({
   );
 }
 
-// Component for player preferences grid
-function PlayerPreferencesGrid({
+// Component for player preferences as table with expandable machine rows
+function PlayerPreferencesTable({
   preferences,
   matchplayRatings,
 }: {
   preferences: { player_key: string; player_name: string; current_ipr?: number | null; top_machines: MachinePickFrequency[] }[];
   matchplayRatings: Record<string, MatchplayRatingInfo>;
 }) {
+  const [expandedPlayers, setExpandedPlayers] = useState<Set<string>>(new Set());
+
   if (preferences.length === 0) {
     return <EmptyState title="No preference data available" />;
   }
 
+  // Sort by first name
+  const sorted = [...preferences].sort((a, b) =>
+    a.player_name.localeCompare(b.player_name)
+  );
+
+  const togglePlayer = (key: string) => {
+    setExpandedPlayers((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {preferences.map((pref) => {
-        const mpRating = matchplayRatings[pref.player_key];
-        return (
-          <div
-            key={pref.player_key}
-            className="border rounded-lg p-4 transition-colors"
-            style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card-bg)' }}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{pref.player_name}</p>
-                {pref.current_ipr != null && (
-                  <Badge variant="info" className="text-xs">
-                    IPR {pref.current_ipr}
-                  </Badge>
-                )}
-              </div>
-              {mpRating && (
-                <a
-                  href={mpRating.profile_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs hover:underline"
-                  style={{ color: 'var(--text-link)' }}
-                  title={`Matchplay: ${mpRating.matchplay_name}`}
-                >
-                  MP: {mpRating.rating ?? '—'}
-                </a>
-              )}
-            </div>
-            <div className="space-y-2">
-              {pref.top_machines.slice(0, 5).map((machine, idx) => (
-                <div
-                  key={machine.machine_key}
-                  className="flex items-center justify-between text-sm"
-                >
-                  <span style={{ color: 'var(--text-secondary)' }}>
-                    {idx + 1}. {machine.machine_name}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {machine.win_percentage != null && (
-                      <span className="text-xs" style={{ color: machine.win_percentage >= 50 ? '#16a34a' : 'var(--text-muted)' }}>
-                        {machine.win_percentage.toFixed(0)}% W
-                      </span>
+    <Table>
+      <Table.Header>
+        <Table.Row>
+          <Table.Head>Player</Table.Head>
+          <Table.Head className="text-right">IPR</Table.Head>
+          <Table.Head className="text-right">MP Rating</Table.Head>
+          <Table.Head className="text-right">Games</Table.Head>
+        </Table.Row>
+      </Table.Header>
+      <Table.Body>
+        {sorted.map((pref) => {
+          const mpRating = matchplayRatings[pref.player_key];
+          const isExpanded = expandedPlayers.has(pref.player_key);
+          const totalGames = pref.top_machines.reduce((sum, m) => sum + m.times_picked, 0);
+
+          return (
+            <React.Fragment key={pref.player_key}>
+              <Table.Row
+                className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                onClick={() => togglePlayer(pref.player_key)}
+              >
+                <Table.Cell className="font-medium">
+                  <span className="flex items-center gap-1">
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {isExpanded ? '▼' : '▶'}
+                    </span>
+                    {mpRating ? (
+                      <a
+                        href={mpRating.profile_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline"
+                        style={{ color: 'var(--text-link)' }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {pref.player_name}
+                      </a>
+                    ) : (
+                      pref.player_name
                     )}
-                    <Badge variant="default" className="text-xs">
-                      {machine.times_picked}
-                    </Badge>
-                  </div>
-                </div>
+                  </span>
+                </Table.Cell>
+                <Table.Cell className="text-right text-sm">
+                  {pref.current_ipr != null ? pref.current_ipr : '—'}
+                </Table.Cell>
+                <Table.Cell className="text-right text-sm">
+                  {mpRating?.rating ?? '—'}
+                </Table.Cell>
+                <Table.Cell className="text-right text-sm">
+                  {totalGames}
+                </Table.Cell>
+              </Table.Row>
+              {isExpanded && pref.top_machines.slice(0, 5).map((machine) => (
+                <Table.Row
+                  key={`${pref.player_key}-${machine.machine_key}`}
+                  style={{ backgroundColor: 'var(--card-bg-secondary)' }}
+                >
+                  <Table.Cell className="text-xs pl-8" style={{ color: 'var(--text-secondary)' }}>
+                    {machine.machine_name}
+                  </Table.Cell>
+                  <Table.Cell>{' '}</Table.Cell>
+                  <Table.Cell className="text-right text-xs">
+                    {machine.win_percentage != null ? (
+                      <span style={{ color: machine.win_percentage >= 50 ? '#16a34a' : 'var(--text-muted)' }}>
+                        {machine.win_percentage.toFixed(0)}%
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)' }}>—</span>
+                    )}
+                  </Table.Cell>
+                  <Table.Cell className="text-right text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {machine.times_picked}
+                  </Table.Cell>
+                </Table.Row>
               ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
+            </React.Fragment>
+          );
+        })}
+      </Table.Body>
+    </Table>
   );
 }

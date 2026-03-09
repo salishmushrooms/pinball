@@ -530,14 +530,14 @@ export default function TeamDetailPage() {
                         <div className="ml-auto shrink-0">
                           {isNextMatch ? (
                             <Link
-                              href={`/matchups?match=${match.match_key}`}
+                              href={`/matchups/${match.match_key}`}
                               className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors"
                             >
                               Analyze
                             </Link>
                           ) : isAnalyzable ? (
                             <Link
-                              href={`/matchups?match=${match.match_key}`}
+                              href={`/matchups/${match.match_key}`}
                               className="px-2 py-0.5 text-xs font-medium rounded-full transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
                               style={{
                                 backgroundColor: 'var(--card-bg-secondary)',

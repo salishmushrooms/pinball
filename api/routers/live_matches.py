@@ -37,6 +37,7 @@ _week_cache: dict[str, dict] = {}
 ACTIVE_TTL = timedelta(seconds=30)
 COMPLETE_TTL = timedelta(minutes=10)
 WEEK_TTL = timedelta(seconds=60)
+STALE_THRESHOLD = timedelta(days=2)  # Treat active matches as complete after 2 days
 
 
 def _get_current_week(season: int) -> int:
@@ -235,6 +236,22 @@ def _calculate_bonus(lineup: list[dict]) -> dict:
     return bonus
 
 
+def _is_stale(db_match: dict) -> bool:
+    """Return True if the match date is more than STALE_THRESHOLD ago."""
+    match_date = db_match.get("date")
+    if match_date is None:
+        return False
+    from datetime import date as date_type
+
+    if isinstance(match_date, str):
+        match_date = datetime.strptime(match_date, "%Y-%m-%d").date()
+    elif isinstance(match_date, datetime):
+        match_date = match_date.date()
+    elif not isinstance(match_date, date_type):
+        return False
+    return datetime.now().date() - match_date >= STALE_THRESHOLD
+
+
 def _build_summary(db_match: dict, raw: dict | None) -> LiveMatchSummary:
     """Build a LiveMatchSummary from a DB row and optional live JSON."""
     if raw is None:
@@ -247,6 +264,11 @@ def _build_summary(db_match: dict, raw: dict | None) -> LiveMatchSummary:
         state = _parse_state(raw)
         away_total, home_total = _compute_totals(raw)
         current_round = int(raw.get("round", 0) or 0)
+
+        # If match is 2+ days old but still not COMPLETE on the league site,
+        # override to COMPLETE so the UI doesn't show stale "Live" badges
+        if state not in ("COMPLETE", "SCHEDULED", "UNAVAILABLE") and _is_stale(db_match):
+            state = "COMPLETE"
 
         away_bonus = _calculate_bonus(raw.get("away", {}).get("lineup", []))
         home_bonus = _calculate_bonus(raw.get("home", {}).get("lineup", []))
@@ -498,12 +520,21 @@ async def get_live_week(
             detail=f"No matches found for season {season} week {week}",
         )
 
+    # Get all available weeks for this season (for the week selector)
+    week_rows = execute_query(
+        "SELECT DISTINCT week FROM matches WHERE season = :season ORDER BY week",
+        {"season": season},
+    )
+    available_weeks = [r["week"] for r in week_rows]
+
     # Fetch all matches from the main site in parallel
     raw_results = await asyncio.gather(*[_fetch_match_json(m["match_key"]) for m in db_matches])
 
     summaries = [_build_summary(db_match, raw) for db_match, raw in zip(db_matches, raw_results)]
 
-    result = LiveWeekResponse(season=season, week=week, matches=summaries)
+    result = LiveWeekResponse(
+        season=season, week=week, matches=summaries, available_weeks=available_weeks
+    )
     _week_cache[cache_key] = {"data": result, "expires": now + WEEK_TTL}
     return result
 
