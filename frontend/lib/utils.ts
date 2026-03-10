@@ -52,10 +52,20 @@ export function formatScore(score: number | null | undefined): string {
  * Used for percentile badges across the app (live scores, player stats, etc.)
  * See STYLE_REFERENCE.md for the color scale.
  */
+function ordinalSuffix(n: number): string {
+  const v = n % 100;
+  if (v >= 11 && v <= 13) return 'th';
+  const s = n % 10;
+  if (s === 1) return 'st';
+  if (s === 2) return 'nd';
+  if (s === 3) return 'rd';
+  return 'th';
+}
+
 export function getPercentileStyle(pct: number | null | undefined): { color: string; label: string } | null {
   if (pct === null || pct === undefined) return null;
   const rounded = Math.round(pct);
-  if (rounded >= 90) return { color: '#f59e0b', label: `${rounded}th` };
+  if (rounded >= 90) return { color: '#f59e0b', label: `${rounded}${ordinalSuffix(rounded)}` };
   return null;
 }
 

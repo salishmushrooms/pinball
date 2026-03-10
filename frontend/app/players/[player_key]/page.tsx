@@ -21,7 +21,7 @@ import PlayerMachineProgressionChart from '@/components/PlayerMachineProgression
 import { SeasonMultiSelect } from '@/components/SeasonMultiSelect';
 import { VenueSelect } from '@/components/VenueMultiSelect';
 import { MatchplaySection } from '@/components/MatchplaySection';
-import { SUPPORTED_SEASONS, filterSupportedSeasons, formatScore, getPercentileStyle } from '@/lib/utils';
+import { SUPPORTED_SEASONS, filterSupportedSeasons, formatScore } from '@/lib/utils';
 import { useURLFilters, filterConfigs } from '@/lib/hooks';
 import {
   usePlayer,
@@ -31,15 +31,31 @@ import {
   usePlayers,
 } from '@/lib/queries';
 
+function ordinalSuffix(n: number): string {
+  const v = n % 100;
+  if (v >= 11 && v <= 13) return 'th';
+  const s = n % 10;
+  if (s === 1) return 'st';
+  if (s === 2) return 'nd';
+  if (s === 3) return 'rd';
+  return 'th';
+}
+
 function PercentileBadge({ value }: { value: number | null | undefined }) {
-  const style = getPercentileStyle(value);
-  if (!style) return <span style={{ color: 'var(--text-muted)' }}>N/A</span>;
+  if (value === null || value === undefined) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
+  const rounded = Math.round(value);
+  const color =
+    rounded >= 90 ? '#f59e0b' :
+    rounded >= 75 ? '#22c55e' :
+    rounded >= 50 ? '#e5e7eb' :
+    rounded >= 25 ? '#9ca3af' :
+    '#ef4444';
   return (
     <span
       className="text-xs px-1.5 py-0.5 rounded font-medium"
-      style={{ color: style.color, backgroundColor: `${style.color}22` }}
+      style={{ color, backgroundColor: `${color}22` }}
     >
-      {style.label}
+      {rounded}{ordinalSuffix(rounded)}
     </span>
   );
 }
@@ -571,7 +587,7 @@ export default function PlayerDetailPage() {
                                 style={{ backgroundColor: 'var(--color-primary-50)', color: 'var(--text-link)' }}
                                 title="Click to expand individual scores"
                               >
-                                {stat.games_played} games
+                                {stat.games_played} {stat.games_played === 1 ? 'game' : 'games'}
                                 <span className="text-xs">{isExpanded ? '▲' : '▼'}</span>
                               </button>
                             </Table.Cell>
