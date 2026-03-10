@@ -52,6 +52,10 @@ class Database:
                 self.engine = create_engine(
                     config.get_database_url(),
                     poolclass=NullPool,
+                    connect_args={
+                        "connect_timeout": 30,       # Fail fast if can't connect
+                        "options": "-c statement_timeout=300000"  # 5 min max per statement
+                    },
                     echo=False
                 )
                 logger.info("Database engine created without connection pooling (ETL mode)")
