@@ -551,6 +551,8 @@ def get_matchups_init():
                     },
                     "is_playoffs": row["week"] > 10,
                     "state": row["state"],
+                    "home_team_points": row["home_team_points"],
+                    "away_team_points": row["away_team_points"],
                 }
             )
 

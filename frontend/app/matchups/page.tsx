@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import {
@@ -35,14 +35,35 @@ function MatchupsPageContent() {
   const router = useRouter();
 
   const [currentSeason, setCurrentSeason] = useState<number | null>(null);
-  const [currentWeek, setCurrentWeek] = useState<number | null>(null);
-  const [weekDate, setWeekDate] = useState<string | null>(null);
+  const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
   const [seasonStatus, setSeasonStatus] = useState<SeasonStatus | null>(null);
-  const [matches, setMatches] = useState<ScheduleMatch[]>([]);
+  const [allMatches, setAllMatches] = useState<ScheduleMatch[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [defaultWeek, setDefaultWeek] = useState<number | null>(null);
+
+  // Derive available weeks from all matches
+  const weeks = useMemo(() => {
+    const weekSet = new Set<number>();
+    allMatches.forEach((m) => weekSet.add(m.week));
+    return Array.from(weekSet).sort((a, b) => a - b);
+  }, [allMatches]);
+
+  // Derive filtered matches for selected week
+  const weekMatches = useMemo(() => {
+    if (selectedWeek === null) return allMatches;
+    return allMatches.filter((m) => m.week === selectedWeek);
+  }, [allMatches, selectedWeek]);
+
+  // Derive week date from first match
+  const weekDate = useMemo(() => {
+    if (weekMatches.length > 0 && weekMatches[0].date) {
+      return weekMatches[0].date;
+    }
+    return null;
+  }, [weekMatches]);
 
   useEffect(() => {
     async function loadCurrentSeasonMatches() {
@@ -56,13 +77,14 @@ function MatchupsPageContent() {
 
         setCurrentSeason(latestSeason);
         setSeasonStatus(initData.season_status);
+        setAllMatches(initData.matches);
 
-        const allMatches = initData.matches;
+        // Find next upcoming week
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         const upcomingWeeks = new Set<number>();
-        allMatches.forEach((match) => {
+        initData.matches.forEach((match) => {
           if (match.state !== 'complete') {
             const matchDate = match.date ? new Date(match.date) : null;
             if (!matchDate || matchDate >= today) {
@@ -75,18 +97,16 @@ function MatchupsPageContent() {
           ? Math.min(...Array.from(upcomingWeeks))
           : null;
 
-        setCurrentWeek(nextWeek);
+        // If no upcoming week, default to the last week of the season
+        const allWeeks = new Set<number>();
+        initData.matches.forEach((m) => allWeeks.add(m.week));
+        const fallbackWeek = allWeeks.size > 0
+          ? Math.max(...Array.from(allWeeks))
+          : null;
 
-        const filteredMatches = nextWeek !== null
-          ? allMatches.filter((match) => match.week === nextWeek)
-          : allMatches;
-
-        // Extract date from first match of the week
-        if (filteredMatches.length > 0 && filteredMatches[0].date) {
-          setWeekDate(filteredMatches[0].date);
-        }
-
-        setMatches(filteredMatches);
+        const week = nextWeek ?? fallbackWeek;
+        setSelectedWeek(week);
+        setDefaultWeek(nextWeek);
       } catch (err) {
         console.error('Failed to load matches:', err);
         setError('Failed to load season schedule');
@@ -106,7 +126,7 @@ function MatchupsPageContent() {
     }
   }, [sortField]);
 
-  const sortedMatches = [...matches].sort((a, b) => {
+  const sortedMatches = [...weekMatches].sort((a, b) => {
     if (!sortField) return 0;
     let aVal: string, bVal: string;
     switch (sortField) {
@@ -128,6 +148,7 @@ function MatchupsPageContent() {
   });
 
   const isOffSeason = seasonStatus?.status === 'completed';
+  const allWeekMatchesComplete = weekMatches.length > 0 && weekMatches.every((m) => m.state === 'complete');
 
   return (
     <div className="space-y-4">
@@ -149,13 +170,13 @@ function MatchupsPageContent() {
         </Alert>
       )}
 
-      {!loadingMatches && matches.length === 0 && (
-        <Alert variant="info" title={`No Remaining Matchups in Season ${currentSeason}`}>
+      {!loadingMatches && allMatches.length === 0 && (
+        <Alert variant="info" title={`No Matchups in Season ${currentSeason}`}>
           <p className="mb-2">
-            There are no scheduled matchups available for Season {currentSeason}.
+            There are no matchups available for Season {currentSeason}.
           </p>
           <p className="text-sm">
-            This typically happens between seasons or after all matches have been completed.
+            This typically happens between seasons.
             Check back when the next season begins, or explore historical data from previous seasons.
           </p>
         </Alert>
@@ -167,26 +188,40 @@ function MatchupsPageContent() {
         </div>
       )}
 
-      {!loadingMatches && matches.length > 0 && (
+      {!loadingMatches && allMatches.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2
-                className="text-lg font-semibold"
-                style={{ color: 'var(--text-primary)' }}
+            <div className="flex items-center gap-3">
+              <select
+                value={selectedWeek ?? ''}
+                onChange={(e) => {
+                  setSelectedWeek(Number(e.target.value));
+                  setSortField(null);
+                }}
+                className="text-lg font-semibold bg-transparent border rounded-md px-2 py-1 cursor-pointer"
+                style={{
+                  color: 'var(--text-primary)',
+                  borderColor: 'var(--border)',
+                  backgroundColor: 'var(--card-bg)',
+                }}
               >
-                {currentWeek !== null ? `Week ${currentWeek}` : 'All Matchups'}
-              </h2>
+                {weeks.map((week) => (
+                  <option key={week} value={week}>
+                    {week > 10 ? `Playoffs R${week - 10}` : `Week ${week}`}
+                    {week === defaultWeek ? ' (Next)' : ''}
+                  </option>
+                ))}
+              </select>
               {weekDate && (
-                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
                   {weekDate}
-                </p>
+                </span>
               )}
             </div>
             <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
               {isOffSeason
                 ? 'Browse completed matches'
-                : `Season ${currentSeason} & ${(currentSeason || 23) - 1} data`}
+                : `Season ${currentSeason}`}
             </span>
           </div>
 
@@ -215,38 +250,61 @@ function MatchupsPageContent() {
                 >
                   Venue
                 </TableHead>
+                {allWeekMatchesComplete && (
+                  <TableHead className="text-right">Score</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedMatches.map((match) => (
-                <TableRow
-                  key={match.match_key}
-                  onClick={() => router.push(`/matchups/${match.match_key}`)}
-                >
-                  <TableCell>
-                    <span className="font-medium">{match.away_name}</span>
-                    {match.away_record && (
-                      <span className="ml-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-                        ({match.away_record})
-                      </span>
+              {sortedMatches.map((match) => {
+                const isComplete = match.state === 'complete';
+                const hasScore = isComplete && match.away_team_points != null && match.home_team_points != null;
+
+                return (
+                  <TableRow
+                    key={match.match_key}
+                    onClick={() => {
+                      if (isComplete) {
+                        router.push(`/live/${match.match_key}`);
+                      } else {
+                        router.push(`/matchups/${match.match_key}`);
+                      }
+                    }}
+                  >
+                    <TableCell>
+                      <span className="font-medium">{match.away_name}</span>
+                      {match.away_record && (
+                        <span className="ml-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+                          ({match.away_record})
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+                      @
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-medium">{match.home_name}</span>
+                      {match.home_record && (
+                        <span className="ml-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+                          ({match.home_record})
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <span style={{ color: 'var(--text-secondary)' }}>{match.venue.name}</span>
+                    </TableCell>
+                    {allWeekMatchesComplete && (
+                      <TableCell className="text-right">
+                        {hasScore && (
+                          <span className="text-sm font-semibold font-mono">
+                            {match.away_team_points}-{match.home_team_points}
+                          </span>
+                        )}
+                      </TableCell>
                     )}
-                  </TableCell>
-                  <TableCell className="text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-                    @
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-medium">{match.home_name}</span>
-                    {match.home_record && (
-                      <span className="ml-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-                        ({match.home_record})
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <span style={{ color: 'var(--text-secondary)' }}>{match.venue.name}</span>
-                  </TableCell>
-                </TableRow>
-              ))}
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
 

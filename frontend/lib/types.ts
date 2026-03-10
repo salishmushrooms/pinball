@@ -651,6 +651,8 @@ export interface ScheduleMatch {
   date?: string;
   is_playoffs?: boolean;
   state?: 'scheduled' | 'complete';
+  home_team_points?: number | null;
+  away_team_points?: number | null;
 }
 
 export interface SeasonWeek {

@@ -512,8 +512,9 @@ export default function TeamDetailPage() {
                       )}
                       {/* Match score for completed games */}
                       {match.state === 'complete' && match.team_points != null && match.opponent_points != null && (
-                        <span
-                          className="text-sm font-semibold font-mono shrink-0 ml-auto"
+                        <Link
+                          href={`/live/${match.match_key}`}
+                          className="text-sm font-semibold font-mono shrink-0 ml-auto hover:underline"
                           style={{
                             color: isWin
                               ? 'var(--color-success-500)'
@@ -523,7 +524,7 @@ export default function TeamDetailPage() {
                           }}
                         >
                           {isWin ? 'W' : isLoss ? 'L' : 'T'} {match.team_points}-{match.opponent_points}
-                        </span>
+                        </Link>
                       )}
                       {/* Action buttons for upcoming matches */}
                       {match.state !== 'complete' && (
